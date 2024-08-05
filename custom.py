@@ -38,17 +38,15 @@ from transformers import (
     DataCollatorWithPadding,
     EvalPrediction,
     HfArgumentParser,
+    Trainer,
     TrainingArguments,
     default_data_collator,
     set_seed,
 )
-from accelerate import Accelerator
-from accelerate.logging import get_logger
-from accelerate.utils import set_seed
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
-
+from peft import LoraConfig, IA3Config, TaskType, get_peft_model
 
 
 logger = logging.getLogger(__name__)
@@ -229,6 +227,11 @@ class ModelArguments:
         default=False,
         metadata={"help": "Will enable to load a pretrained model whose head dimensions are different."},
     )
+    do_lora: bool = field(
+        default=True,
+        metadata={"help": "Whether to use LoRA for training."},
+    )
+    
 
 
 def get_label_list(raw_dataset, split="train") -> List[str]:
@@ -313,6 +316,11 @@ def main():
     if training_args.lr_scheduler_type is None or training_args.lr_scheduler_type == "linear":
         special_logging.warning("\tUsing default lr_scheduler_type (linear). Should likely mess around with it")
 
+    # Log on each process the small summary:
+    logger.warning(
+        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}, "
+        + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, 16-bits training: {training_args.fp16}"
+    )
     logger.info(f"Training/evaluation parameters {training_args}")
 
     # Detecting last checkpoint.
@@ -472,6 +480,13 @@ def main():
         ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
     )
 
+    if model_args.do_lora:
+        peft_config = LoraConfig(lora_alpha=16, lora_dropout=0.1, r=64, bias="none", task_type=TaskType.SEQ_CLS, target_modules=["k_proj", "v_proj", "down_proj"], feedforward_modules=["down_proj"])
+        peft_config = IA3Config(task_type=TaskType.SEQ_CLS, target_modules=["k_proj", "v_proj", "down_proj"], feedforward_modules=["down_proj"])
+        #model.add_adapter(peft_config)
+        model = get_peft_model(model, peft_config)
+        model.print_trainable_parameters()
+
     # Padding strategy
     if data_args.pad_to_max_length:
         padding = "max_length"
@@ -589,15 +604,28 @@ def main():
     else:
         data_collator = None
 
-    # Do Evaluation of the model before training
+    # Initialize our Trainer
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        compute_metrics=compute_metrics,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+    )
 
-    
-    # Do Training
+    special_logging.info("*** Before Training Evaluation ***")
+    metrics = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="train")
+    trainer.log_metrics("train", metrics)
+    readable = get_metric_report_str(trainer, metrics)
+    special_logging.info(f"train metrics: {readable}")
 
-    # Do final evaluation
 
-
-
+    metrics = trainer.evaluate(eval_dataset=eval_dataset)
+    trainer.log_metrics("eval", metrics)
+    readable = get_metric_report_str(trainer, metrics)
+    special_logging.info(f"eval metrics: {readable}")
 
 
 
