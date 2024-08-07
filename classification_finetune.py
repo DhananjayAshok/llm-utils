@@ -294,6 +294,7 @@ def main():
     training_args.do_train = True
     training_args.do_eval = True
     training_args.eval_strategy = "epoch"
+    training_args.auto_find_batch_size  = True
     if training_args.save_total_limit is None:
         training_args.save_total_limit = 2
     if data_args.max_seq_length is None or data_args.max_seq_length == 128:
