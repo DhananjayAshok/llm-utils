@@ -513,11 +513,13 @@ def main():
     elif model_args.peft == "ia3":
         peft_config = IA3Config(task_type=TaskType.SEQ_CLS, target_modules=["k_proj", "v_proj", "down_proj"], feedforward_modules=["down_proj"])
     #model.add_adapter(peft_config)
-    model = get_peft_model(model, peft_config)
-    model.print_trainable_parameters()
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.pad_token_id = tokenizer.eos_token_id
-    model.config.pad_token_id = tokenizer.eos_token_id
+    if model_args.peft is not None:
+        model = get_peft_model(model, peft_config)
+        model.print_trainable_parameters()
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+        model.config.pad_token_id = tokenizer.eos_token_id
 
     # Padding strategy
     if data_args.pad_to_max_length:
