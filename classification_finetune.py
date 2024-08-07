@@ -171,6 +171,9 @@ class DataTrainingArguments:
     log_file: Optional[str] = field(
         default="clf_ft.log", metadata={"help": "The file to write special logs to."}
     )
+    grid_log: bool = field(
+        default=False, metadata={"help": "Is this script running gridsearch. If False then deletes previous special log_file"}
+    )
 
     def __post_init__(self):
         assert self.max_seq_length is not None
@@ -307,6 +310,9 @@ def main():
         handlers=[logging.StreamHandler(sys.stdout)],
     )
 
+    if not data_args.grid_log:
+        if os.path.exists(data_args.log_file):
+            os.remove(data_args.log_file)
     special_logging = logging.getLogger("special")
     special_logging.setLevel(logging.DEBUG)
     handler = logging.FileHandler(data_args.log_file)
