@@ -320,8 +320,8 @@ def main():
 
     log_level = training_args.get_process_log_level()
     logger.setLevel(log_level)
-    datasets.utils.logging.set_verbosity(log_level)
-    transformers.utils.logging.set_verbosity(log_level)
+    datasets.utils.logging.set_verbosity(transformers.logging.ERROR)
+    transformers.utils.logging.set_verbosity(transformers.logging.ERROR)
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
 
@@ -348,7 +348,7 @@ def main():
         f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}, "
         + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, 16-bits training: {training_args.fp16}"
     )
-    logger.info(f"Training/evaluation parameters {training_args}")
+    #logger.info(f"Training/evaluation parameters {training_args}")
 
     # Detecting last checkpoint.
     last_checkpoint = None
@@ -389,8 +389,6 @@ def main():
     else:
         data_files = {"train": data_args.train_file, "validation": data_args.validation_file}
 
-    for key in data_files.keys():
-        logger.info(f"load a local file for {key}: {data_files[key]}")
 
     raw_datasets = load_dataset(
         "csv",
@@ -486,7 +484,7 @@ def main():
         logger.info("setting problem type to multi label classification")
     else:
         config.problem_type = "single_label_classification"
-        logger.info("setting problem type to single label classification")
+        #logger.info("setting problem type to single label classification")
 
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
@@ -541,8 +539,8 @@ def main():
         model.config.label2id = label_to_id
         model.config.id2label = {id: label for label, id in label_to_id.items()}
     elif not is_regression:  # classification, but not training
-        logger.info("using label infos in the model config")
-        logger.info("label2id: {}".format(model.config.label2id))
+        #logger.info("using label infos in the model config")
+        #logger.info("label2id: {}".format(model.config.label2id))
         label_to_id = model.config.label2id
     else:  # regression
         label_to_id = None
@@ -589,7 +587,7 @@ def main():
 
     train_dataset = raw_datasets["train"]
     if data_args.shuffle_train_dataset:
-        logger.info("Shuffling the training dataset")
+        #logger.info("Shuffling the training dataset")
         train_dataset = train_dataset.shuffle(seed=data_args.shuffle_seed)
     if data_args.max_train_samples is not None:
         max_train_samples = min(len(train_dataset), data_args.max_train_samples)
