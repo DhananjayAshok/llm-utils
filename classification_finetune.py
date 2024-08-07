@@ -537,11 +537,6 @@ def main():
     if not is_regression:  # classification, training
         label_to_id = {v: i for i, v in enumerate(label_list)}
         # update config with label infos
-        if model.config.label2id != label_to_id:
-            logger.warning(
-                "The label2id key in the model config.json is not equal to the label2id key of this "
-                "run. You can ignore this if you are doing finetuning."
-            )
         model.config.label2id = label_to_id
         model.config.id2label = {id: label for label, id in label_to_id.items()}
     elif not is_regression:  # classification, but not training
