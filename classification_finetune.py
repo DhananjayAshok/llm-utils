@@ -510,6 +510,7 @@ def main():
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
         ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
+        device_map="auto"
     )
 
     if model_args.peft == "lora":
@@ -603,8 +604,8 @@ def main():
     if data_args.max_eval_samples is not None:
         max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
         eval_dataset = eval_dataset.select(range(max_eval_samples))
-        if internal_eval_dataset is None:
-            internal_eval_dataset = eval_dataset
+    if internal_eval_dataset is None:
+        internal_eval_dataset = eval_dataset
 
 
     # Log a few random samples from the training set:
