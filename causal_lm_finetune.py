@@ -500,6 +500,35 @@ def main():
     # since this will be pickled to avoid _LazyModule error in Hasher force logger loading before tokenize_function
     tok_logger = transformers.utils.logging.get_logger("transformers.tokenization_utils_base")
 
+    def estimate_length(examples):
+        inputs = examples[text_column_name]
+        if output_column_name is not None:
+            targets = examples[output_column_name] if output_column_name is not None else ""
+            to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
+        else:
+            to_tok = inputs
+        toked = [len(sent.split()) for sent in to_tok]
+        toked.sort()
+        ret = {}
+        ret["min"] = toked[0]
+        ret["max"] = toked[-1]
+        ret["mean"] = sum(toked) / len(toked)
+        ret["median"] = toked[len(toked) // 2]
+        ret["95th"] = toked[int(len(toked) * 0.95)]
+        return ret
+    
+    with training_args.main_process_first(desc="measuring dataset length"):
+        dataset_stats = raw_datasets.map(
+            estimate_length,
+            batched=True,
+        )
+
+    special_logging.info(f"*** Dataset Stats ***")
+    special_logging.info(f"Train:")
+    special_logging.info(f"{dataset_stats['train']}")
+    special_logging.info(f"Validation:")
+    special_logging.info(f"{dataset_stats['validation']}")
+    
     additional_tokens_on_tokenize = len(tokenizer("hello")['input_ids']) - 1 
     if additional_tokens_on_tokenize != 1:
         special_logging.warning(f"Tokenizer adds {additional_tokens_on_tokenize} tokens to the input. This is unexpected.")
@@ -507,10 +536,12 @@ def main():
 
     def preprocess_function(examples):
         # remove pairs where at least one record is None
-
         inputs = examples[text_column_name]
-        targets = examples[output_column_name] if output_column_name is not None else ""
-        to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
+        if output_column_name is not None:
+            targets = examples[output_column_name] if output_column_name is not None else ""
+            to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
+        else:
+            to_tok = inputs
         model_inputs = tokenizer(to_tok, max_length=data_args.max_seq_length, padding="max_length", truncation=True)
         labels = model_inputs["input_ids"].copy()
         # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
