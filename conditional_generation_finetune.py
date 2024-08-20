@@ -679,7 +679,7 @@ def main():
     trainer.save_state()
 
 
-    special_logging.info("*** Before Training Evaluation ***")
+    special_logging.info("*** After Training Evaluation ***")
     metrics = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="train")
     trainer.log_metrics("train", metrics)
     readable = get_metric_report_str(trainer, metrics)

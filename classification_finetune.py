@@ -89,11 +89,11 @@ class DataTrainingArguments:
         },
     )
     text_column_names: Optional[str] = field(
-        default=None,
+        default="text",
         metadata={
             "help": (
                 "The name of the text column in the input dataset or a CSV/JSON file. "
-                'If not specified, will use the "sentence" column for single/multi-label classification task.'
+                'If not specified, will use the "text" column for single/multi-label classification task.'
             )
         },
     )
@@ -581,13 +581,13 @@ def main():
     def preprocess_function(examples):
         if data_args.text_column_names is not None:
             text_column_names = data_args.text_column_names.split(",")
-            # join together text columns into "sentence" column
-            examples["sentence"] = examples[text_column_names[0]]
+            # join together text columns into "text" column
+            examples["text"] = examples[text_column_names[0]]
             for column in text_column_names[1:]:
                 for i in range(len(examples[column])):
-                    examples["sentence"][i] += data_args.text_column_delimiter + examples[column][i]
+                    examples["text"][i] += data_args.text_column_delimiter + examples[column][i]
         # Tokenize the texts
-        result = tokenizer(examples["sentence"], padding=padding, max_length=max_seq_length, truncation=True)
+        result = tokenizer(examples["text"], padding=padding, max_length=max_seq_length, truncation=True)
         if label_to_id is not None and "label" in examples:
             if is_multi_label:
                 result["label"] = [multi_labels_to_ids(l) for l in examples["label"]]
