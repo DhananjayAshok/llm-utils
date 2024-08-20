@@ -340,17 +340,6 @@ def parse_args():
             assert args.metric in ["mse", "rmse", "mae", "pearson", "spearmanr", "kendall"], f"Unsupported metric for regression task: {metric}"
     return args
 
-def get_label_list(raw_dataset, split="train"):
-    """Get the list of labels from a multi-label dataset"""
-
-    if isinstance(raw_dataset[split]["label"][0], list):
-        label_list = [label for sample in raw_dataset[split]["label"] for label in sample]
-        label_list = list(set(label_list))
-    else:
-        label_list = raw_dataset[split].unique("label")
-    # we will treat the label list as a list of string instead of int, consistent with model.config.label2id
-    label_list = [str(label) for label in label_list]
-    return label_list
 
 def main():
     args = parse_args()
@@ -451,8 +440,7 @@ def main():
         raise ValueError("Could not find a target column in the dataset for classification or regression task.")
     if args.task == "classification":
         Model_Class = AutoModelForSequenceClassification
-        label_list = raw_datasets["train"].features[target_column_name].names
-        num_labels = len(get_label_list(raw_datasets, split="train"))
+        num_labels = len(raw_datasets["train"].unique(target_column_name))
     elif args.task == "regression":
         Model_Class = AutoModelForSequenceClassification
         num_labels = 1
