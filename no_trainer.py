@@ -340,6 +340,17 @@ def parse_args():
             assert args.metric in ["mse", "rmse", "mae", "pearson", "spearmanr", "kendall"], f"Unsupported metric for regression task: {metric}"
     return args
 
+def get_label_list(raw_dataset, split="train"):
+    """Get the list of labels from a multi-label dataset"""
+
+    if isinstance(raw_dataset[split]["label"][0], list):
+        label_list = [label for sample in raw_dataset[split]["label"] for label in sample]
+        label_list = list(set(label_list))
+    else:
+        label_list = raw_dataset[split].unique("label")
+    # we will treat the label list as a list of string instead of int, consistent with model.config.label2id
+    label_list = [str(label) for label in label_list]
+    return label_list
 
 def main():
     args = parse_args()
@@ -441,7 +452,7 @@ def main():
     if args.task == "classification":
         Model_Class = AutoModelForSequenceClassification
         label_list = raw_datasets["train"].features[target_column_name].names
-        num_labels = len(label_list)
+        num_labels = len(get_label_list(raw_datasets, split="train"))
     elif args.task == "regression":
         Model_Class = AutoModelForSequenceClassification
         num_labels = 1
@@ -453,15 +464,29 @@ def main():
         else:
             raise ValueError("Language Model type not supported.")
     if args.config_name:
-        config = AutoConfig.from_pretrained(
-            args.config_name,
-            trust_remote_code=True,
-        )
+        if args.task in ["classification", "regression"]:
+            config = AutoConfig.from_pretrained(
+                args.config_name,
+                num_labels=num_labels,
+                trust_remote_code=True,
+            )
+        else:
+            config = AutoConfig.from_pretrained(
+                args.config_name,
+                trust_remote_code=True,
+            )
     elif args.model_name_or_path:
-        config = AutoConfig.from_pretrained(
-            args.model_name_or_path,
-            trust_remote_code=True,
-        )
+        if args.task in ["classification", "regression"]:
+            config = AutoConfig.from_pretrained(
+                args.model_name_or_path,
+                num_labels=num_labels,
+                trust_remote_code=True,
+            )
+        else:
+            config = AutoConfig.from_pretrained(
+                args.model_name_or_path,
+                trust_remote_code=True,
+            )
     else:
         config = CONFIG_MAPPING[args.model_type]() #TODO: Check this works with classification
         logger.warning("You are instantiating a new config instance from scratch.")
