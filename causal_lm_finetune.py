@@ -62,8 +62,9 @@ MODEL_CONFIG_CLASSES = list(MODEL_FOR_CAUSAL_LM_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
 def get_metric_report_str(trainer, metrics):
+    loss_str = "eval_loss" if "eval_loss" in metrics else "train_loss"
     try:
-        perplexity = math.exp(metrics["eval_loss"])
+        perplexity = math.exp(metrics[loss_str])
     except OverflowError:
         perplexity = float("inf")
     metrics["perplexity"] = perplexity
