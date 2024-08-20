@@ -349,7 +349,7 @@ def main():
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
 
-        # Training hyperparameters
+    # Training hyperparameters
     special_logging.info(f"*** Hyperparameters ***")
     special_logging.info(f"learning_rate: {training_args.learning_rate}")
     if training_args.learning_rate is None or training_args.learning_rate == 5e-05:
