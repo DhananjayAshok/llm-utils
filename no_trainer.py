@@ -545,7 +545,7 @@ def main():
         padding = "max_length" #TODO: Doing dynamic padding now might want to switch to max
         def preprocess_function(examples):
             inputs = examples[text_column_name]
-            model_inputs = tokenizer(inputs, max_length=args.max_input_length, padding=False, truncation=True)
+            model_inputs = tokenizer(inputs, max_length=args.max_input_length, padding=padding, truncation=True)
 
             if args.task == "clm":
                 # Tokenize targets with the `text_target` keyword argument
