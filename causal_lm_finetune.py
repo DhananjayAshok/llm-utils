@@ -507,7 +507,7 @@ def main():
 
         inputs = examples[text_column_name]
         targets = examples[output_column_name] if output_column_name is not None else ""
-        to_tok = inputs + targets
+        to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
         model_inputs = tokenizer(to_tok, max_length=data_args.max_seq_length, padding="max_length", truncation=True)
         labels = model_inputs["input_ids"].copy()
         # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
