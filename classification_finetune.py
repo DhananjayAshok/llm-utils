@@ -60,7 +60,8 @@ class WeightedTrainer(Trainer):
         # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        loss_fct = torch.nn.CrossEntropyLoss(weight=torch.tensor([100, 0.01]).to(model.device) ) # specify weight=torch.tensor([1.0, 1.0]) if you want to weight classes
+        loss_fct = torch.nn.CrossEntropyLoss()
+        #loss_fct = torch.nn.CrossEntropyLoss(weight=torch.tensor([100, 0.01]).to(model.device))
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
@@ -184,6 +185,10 @@ class DataTrainingArguments:
     )
     grid_log: bool = field(
         default=False, metadata={"help": "Is this script running gridsearch. If False then deletes previous special log_file"}
+    )
+    metric: Optional[str] = field(
+        default=None, metadata={"help": "The metric to use for evaluation. If None, will be inferred from the dataset.", 
+                                "choices": ["accuracy", "f1", "mse"]}
     )
     
 
@@ -625,13 +630,16 @@ def main():
         for index in random.sample(range(len(train_dataset)), 3):
             special_logging.info(f"Sample {index} of the training set: {train_dataset[index]}.")
 
-    if is_regression:
-        metric = evaluate.load("mse", cache_dir=model_args.cache_dir)
+    if data_args.metric is not None:
+        metric = evaluate.load(data_args.metric, cache_dir=model_args.cache_dir)
     else:
-        if is_multi_label:
-            metric = evaluate.load("f1", config_name="multilabel", cache_dir=model_args.cache_dir)
+        if is_regression:
+            metric = evaluate.load("mse", cache_dir=model_args.cache_dir)
         else:
-            metric = evaluate.load("accuracy", cache_dir=model_args.cache_dir)
+            if is_multi_label:
+                metric = evaluate.load("f1", config_name="multilabel", cache_dir=model_args.cache_dir)
+            else:
+                metric = evaluate.load("accuracy", cache_dir=model_args.cache_dir)
 
     def compute_metrics(p: EvalPrediction):
         preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
