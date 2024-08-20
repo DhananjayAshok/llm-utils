@@ -60,7 +60,7 @@ class WeightedTrainer(Trainer):
         # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        loss_fct = torch.nn.CrossEntropyLoss() # specify weight=torch.tensor([1.0, 1.0]) if you want to weight classes
+        loss_fct = torch.nn.CrossEntropyLoss(weight=torch.tensor([100, 0.01]).to(model.device) ) # specify weight=torch.tensor([1.0, 1.0]) if you want to weight classes
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
@@ -273,10 +273,7 @@ class ModelArguments:
     lora_bias: str = field(
         default="none",
         metadata={"help": "The bias value to use for LoRA."},
-    )
-
-
-    
+    )    
 
 
 def get_label_list(raw_dataset, split="train") -> List[str]:
