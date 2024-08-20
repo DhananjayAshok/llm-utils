@@ -503,7 +503,8 @@ def main():
     def estimate_length(examples):
         inputs = examples[text_column_name]
         if output_column_name is not None:
-            targets = examples[output_column_name] if output_column_name is not None else ""
+            targets = examples[output_column_name]
+            print(len(inputs), len(targets))
             to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
         else:
             to_tok = inputs
