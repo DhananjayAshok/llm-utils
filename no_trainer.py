@@ -349,12 +349,12 @@ def parse_args():
     return args
 
 
-def eval_loop(args, model, eval_dataloader, metric, accelerator, train_loss, epoch, completed_steps, force_full=False):
+def eval_loop(args, model, dataloader, metric, accelerator, train_loss, epoch, completed_steps, force_full=False, split="eval"):
     model.eval()
     losses = []
     n_evals_done = 0
     samples_seen = 0
-    for step, batch in enumerate(eval_dataloader):
+    for step, batch in enumerate(dataloader):
         if not force_full and args.max_internal_eval_samples is not None and n_evals_done >= args.max_internal_eval_samples:
             break
         with torch.no_grad():
@@ -367,9 +367,9 @@ def eval_loop(args, model, eval_dataloader, metric, accelerator, train_loss, epo
             predictions, references = accelerator.gather((predictions, batch["labels"]))
                         # If we are in a multiprocess environment, the last batch has duplicates
             if accelerator.num_processes > 1:
-                if step == len(eval_dataloader) - 1:
-                    predictions = predictions[: len(eval_dataloader.dataset) - samples_seen]
-                    references = references[: len(eval_dataloader.dataset) - samples_seen]
+                if step == len(dataloader) - 1:
+                    predictions = predictions[: len(dataloader.dataset) - samples_seen]
+                    references = references[: len(dataloader.dataset) - samples_seen]
                 else:
                     samples_seen += references.shape[0]
             metric.add_batch(
@@ -398,16 +398,26 @@ def eval_loop(args, model, eval_dataloader, metric, accelerator, train_loss, epo
     if eval_loss != float("inf"):
         eval_loss = eval_loss.item()
     if args.with_tracking:
-        log_dict = {
-                    "train_loss": train_loss,
-                    "eval_loss": eval_loss.item(),
-                    "epoch": epoch}
+        if epoch + completed_steps == 0:
+            log_dict = {
+                f"{split}_loss": train_loss,
+                "epoch": epoch}
+        elif split == "train":
+            log_dict = {
+                        "train_loss": eval_loss.item(),
+                        "epoch": epoch}
+        else:
+            log_dict = {
+                        "train_loss": train_loss,
+                        "eval_loss": eval_loss.item(),
+                        "epoch": epoch}
         if eval_metric is not None:
             for key in eval_metric:
-                log_dict[key] = eval_metric[key]
+                log_dict[split + "_" + key] = eval_metric[key]
         accelerator.log(log_dict, step=completed_steps)
     eval_metric_str = str(eval_metric) if eval_metric is not None else ""
-    logger.info(f"epoch (step) {epoch} ({completed_steps}): train_loss: {train_loss} eval_loss: {eval_loss} {eval_metric_str}")
+    train_loss_str = f" train_loss: {train_loss} " if train_loss is not None else ""
+    logger.info(f"epoch (step) {epoch} ({completed_steps}):{train_loss_str}{split}_loss: {eval_loss} {eval_metric_str}")
 
 def main():
     args = parse_args()
@@ -836,6 +846,8 @@ def main():
     progress_bar.update(completed_steps)
 
     eval_steps = int(args.epochs_per_eval * num_update_steps_per_epoch)
+    eval_loop(args, model, train_dataloader, metric, accelerator, train_loss=None, epoch=0, completed_steps=0, force_full=True, split="train")
+    eval_loop(args, model, eval_dataloader, metric, accelerator, train_loss=None, epoch=0, completed_steps=0, force_full=True, split="eval")
     for epoch in range(starting_epoch, args.epochs):
         model.train()
         latest_loss = 0
@@ -893,7 +905,8 @@ def main():
             if args.output_dir is not None:
                 output_dir = os.path.join(args.output_dir, output_dir)
             accelerator.save_state(output_dir)
-    eval_loop(args, model, eval_dataloader, metric, accelerator, train_loss, epoch, completed_steps, force_full=True)
+    eval_loop(args, model, train_dataloader, metric, accelerator, train_loss=None, epoch=epoch, completed_steps=completed_steps, force_full=True, split="train")
+    eval_loop(args, model, eval_dataloader, metric, accelerator, train_loss=None, epoch=epoch, completed_steps=completed_steps, force_full=True, split="eval")
     if args.with_tracking:
         accelerator.end_training()
 
