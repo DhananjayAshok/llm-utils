@@ -30,6 +30,7 @@ import numpy as np
 import pandas as pd
 from datasets import Value, load_dataset
 
+import torch
 import transformers
 from transformers import (
     AutoConfig,
@@ -52,6 +53,17 @@ from transformers.utils.versions import require_version
 
 
 logger = logging.getLogger(__name__)
+
+class Weighted(Trainer):
+    def compute_loss(self, model, inputs, return_outputs=False):
+        labels = inputs.get("labels")
+        # forward pass
+        outputs = model(**inputs)
+        logits = outputs.get("logits")
+        # compute custom loss (suppose one has 3 labels with different weights)
+        loss_fct = torch.nn.CrossEntropyLoss(weight=torch.tensor([1.0, 1.0]))
+        loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
+        return (loss, outputs) if return_outputs else loss
 
 
 def get_metric_report_str(trainer, metrics):
@@ -261,6 +273,12 @@ class ModelArguments:
         default="none",
         metadata={"help": "The bias value to use for LoRA."},
     )
+    class_weights: list = field(
+        default=None,
+        metadata={"help": "The weights to use for each class. Should be list of floats that sum to 1. If None, will use uniform weights. "},
+    )
+
+
     
 
 
