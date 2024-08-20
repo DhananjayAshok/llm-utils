@@ -542,7 +542,7 @@ def main():
     # Preprocessing the datasets.
     # First we tokenize all the texts.
     if args.task != "lm":
-        padding = False #TODO: Doing dynamic padding now might want to switch to max
+        padding = "max_length" #TODO: Doing dynamic padding now might want to switch to max
         def preprocess_function(examples):
             inputs = examples[text_column_name]
             model_inputs = tokenizer(inputs, max_length=args.max_input_length, padding=False, truncation=True)
@@ -645,7 +645,7 @@ def main():
 
     # DataLoaders creation:
     collator = default_data_collator
-    if args.task=="clm" or args.lm_type == "seq2seq":
+    if args.task=="clm" and args.lm_type == "seq2seq":
         collator = DataCollatorForSeq2Seq(
         tokenizer,
         model=model,
