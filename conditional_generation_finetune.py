@@ -74,9 +74,8 @@ class ModelArguments:
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
     )
     model_type: Optional[str] = field(
-        metadata={"help": "Kind of Language Modelling the model uses."}, 
-                  default=None, 
-                  choices=["causal", "masked", "seq2seq"])
+        metadata={"help": "Kind of Language Modelling the model uses.", "choices": ["causal", "masked", "seq2seq"]}, 
+                  default=None)
     config_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
     )
@@ -581,7 +580,7 @@ def main():
         pad_to_multiple_of=8 if training_args.fp16 else None,
     ) #TODO: Get other model types here
 
-    # Metric
+    # Metric TODO: Customize
     metric = evaluate.load("rouge", cache_dir=model_args.cache_dir)
 
     def postprocess_text(preds, labels):
