@@ -588,7 +588,7 @@ def main():
 
     if args.peft is not None:
         if args.task == "classification":
-            task_type = TaskType.CLS
+            task_type = TaskType.SEQ_CLS
         elif args.task == "regression":
             task_type = TaskType.CLS
         else:
