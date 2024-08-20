@@ -435,7 +435,7 @@ def main():
 
     # Make one log on every process with the configuration for debugging.
     logging.basicConfig(
-        format="%%(message)s",
+        format=" - %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
