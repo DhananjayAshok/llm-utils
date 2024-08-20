@@ -516,13 +516,25 @@ def main():
             batched=True,
         )
 
-    breakpoint()
-
     special_logging.info(f"*** Dataset Stats ***")
+    tokens = dataset_stats["train"]["tok_count"]
+    tokens.sort()
     special_logging.info(f"Train:")
-    special_logging.info(f"{dataset_stats['train']}")
+    special_logging.info(f"min: {tokens[0]}")
+    special_logging.info(f"max: {tokens[-1]}")
+    special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
+    special_logging.info(f"median: {tokens[len(tokens)//2]}")
+    special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
+    tokens = dataset_stats["validation"]["tok_count"]
+    tokens.sort()
     special_logging.info(f"Validation:")
-    special_logging.info(f"{dataset_stats['validation']}")
+    special_logging.info(f"min: {tokens[0]}")
+    special_logging.info(f"max: {tokens[-1]}")
+    special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
+    special_logging.info(f"median: {tokens[len(tokens)//2]}")
+    special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
+    
+
     
     additional_tokens_on_tokenize = len(tokenizer("hello")['input_ids']) - 1 
     if additional_tokens_on_tokenize != 1:
