@@ -50,10 +50,8 @@ from transformers import (
     set_seed,
 )
 from peft import LoraConfig, TaskType, get_peft_model, IA3Config
-from transformers.testing_utils import CaptureLogger
 from transformers.trainer_utils import get_last_checkpoint
-from transformers.utils import check_min_version, send_example_telemetry
-from transformers.utils.versions import require_version
+from transformers.utils import send_example_telemetry
 
 
 
@@ -514,16 +512,16 @@ def main():
         labels = model_inputs["input_ids"].copy()
         # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
         # padding in the loss.
-        labels["input_ids"] = [
-                [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]]
+        labels = [
+                [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels]
         # if targets is not None then replace all input_only_ids with -100 to ignore them in the loss
         if output_column_name is not None:
-                input_only_ids = tokenizer(inputs, max_length=data_args.max_seq_length, padding=None, truncation=True)['input_ids']
+                input_only_ids = tokenizer(inputs, max_length=data_args.max_seq_length, padding='do_not_pad', truncation=True)['input_ids']
                 inp_lengths = [len(i) for i in input_only_ids]
-                for i in range(len(labels["input_ids"])):
+                for i in range(len(labels)):
                     length = inp_lengths[i]
-                    labels["input_ids"][i, :length] = -100  # TODO: Check this
-        model_inputs["labels"] = labels["input_ids"]
+                    labels[i, :length] = -100  # TODO: Check this
+        model_inputs["labels"] = labels
         return model_inputs
 
     # To speed up this part, we use multiprocessing. See the documentation of the map method for more information:
