@@ -520,7 +520,8 @@ def main():
                 inp_lengths = [len(i) for i in input_only_ids]
                 for i in range(len(labels)):
                     length = inp_lengths[i]
-                    labels[i, :length] = -100  # TODO: Check this
+                    for j in range(length):
+                        labels[i][j] = -100
         model_inputs["labels"] = labels
         return model_inputs
 
