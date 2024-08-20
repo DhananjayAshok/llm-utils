@@ -172,11 +172,11 @@ class DataTrainingArguments:
         default=False, metadata={"help": "Is this script running gridsearch. If False then deletes previous special log_file"}
     )
     input_column: Optional[str] = field(
-        default=None,
+        default="text",
         metadata={"help": "The name of the column in the datasets containing the input."},
     )
     output_column: Optional[str] = field(
-        default=None,
+        default="target",
         metadata={"help": "The name of the column in the datasets containing the output."},
     )
     overwrite_cache: bool = field(
