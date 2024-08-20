@@ -504,25 +504,21 @@ def main():
         inputs = examples[text_column_name]
         if output_column_name is not None:
             targets = examples[output_column_name]
+            print(examples)
             print(len(inputs), len(targets))
             to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
         else:
             to_tok = inputs
         toked = [len(sent.split()) for sent in to_tok]
-        toked.sort()
-        ret = {}
-        ret["min"] = toked[0]
-        ret["max"] = toked[-1]
-        ret["mean"] = sum(toked) / len(toked)
-        ret["median"] = toked[len(toked) // 2]
-        ret["95th"] = toked[int(len(toked) * 0.95)]
-        return ret
+        return toked
     
     with training_args.main_process_first(desc="estimating dataset length"):
         dataset_stats = raw_datasets.map(
             estimate_length,
-            batched=False,
+            batched=True,
         )
+
+    breakpoint()
 
     special_logging.info(f"*** Dataset Stats ***")
     special_logging.info(f"Train:")
