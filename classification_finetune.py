@@ -188,7 +188,7 @@ class DataTrainingArguments:
     )
     metric: Optional[str] = field(
         default=None, metadata={"help": "The metric to use for evaluation. If None, will be inferred from the dataset.", 
-                                "choices": ["accuracy", "f1", "mse"]}
+                                "choices": ["accuracy", "precision", "recall", "f1", "mse"]}
     )
     
 
