@@ -64,6 +64,13 @@ except (LookupError, OSError):
     with FileLock(".lock") as lock:
         nltk.download("punkt", quiet=True)
 
+def get_metric_report_str(trainer, metrics):
+    metric_report = trainer.metrics_format(metrics)
+    s = ""
+    for key in metric_report:
+        s += f"{key}: {metric_report[key]}\n"
+    return s
+
 
 @dataclass
 class ModelArguments:
@@ -634,11 +641,23 @@ def main():
         model=model,
         args=training_args,
         train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
+        eval_dataset=internal_eval_dataset,
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics
     )
+
+    special_logging.info("*** Before Training Evaluation ***")
+    metrics = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="train")
+    trainer.log_metrics("train", metrics)
+    readable = get_metric_report_str(trainer, metrics)
+    special_logging.info(f"train metrics: {readable}")
+
+
+    metrics = trainer.evaluate(eval_dataset=eval_dataset)
+    trainer.log_metrics("eval", metrics)
+    readable = get_metric_report_str(trainer, metrics)
+    special_logging.info(f"eval metrics: {readable}")
 
     # Training
     checkpoint = None
@@ -659,21 +678,18 @@ def main():
     trainer.save_metrics("train", metrics)
     trainer.save_state()
 
-    # Evaluation
-    results = {}
-    logger.info("*** Evaluate ***")
-    if isinstance(eval_dataset, dict):
-        metrics = {}
-        for eval_ds_name, eval_ds in eval_dataset.items():
-            dataset_metrics = trainer.evaluate(eval_dataset=eval_ds, metric_key_prefix=f"eval_{eval_ds_name}")
-            metrics.update(dataset_metrics)
-    else:
-        metrics = trainer.evaluate(metric_key_prefix="eval")
-    max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
-    metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
 
+    special_logging.info("*** Before Training Evaluation ***")
+    metrics = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="train")
+    trainer.log_metrics("train", metrics)
+    readable = get_metric_report_str(trainer, metrics)
+    special_logging.info(f"train metrics: {readable}")
+
+
+    metrics = trainer.evaluate(eval_dataset=eval_dataset)
     trainer.log_metrics("eval", metrics)
-    trainer.save_metrics("eval", metrics)
+    readable = get_metric_report_str(trainer, metrics)
+    special_logging.info(f"eval metrics: {readable}")
 
     kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "summarization"}
 
@@ -682,7 +698,7 @@ def main():
     else:
         trainer.create_model_card(**kwargs)
 
-    return results
+    return
 
 
 def _mp_fn(index):
