@@ -88,7 +88,7 @@ class DataTrainingArguments:
             "help": "Whether to do regression instead of classification. If None, will be inferred from the dataset."
         },
     )
-    text_column_names: Optional[str] = field(
+    text_column_name: Optional[str] = field(
         default="text",
         metadata={
             "help": (
@@ -189,6 +189,9 @@ class DataTrainingArguments:
     metric: Optional[str] = field(
         default=None, metadata={"help": "The metric to use for evaluation. If None, will be inferred from the dataset.", 
                                 "choices": ["accuracy", "precision", "recall", "f1", "mse"]}
+    )
+    check_tok_count: bool = field(
+        default=False, metadata={"help": "Check token count stats of the dataset."}
     )
     
 
@@ -578,16 +581,39 @@ def main():
             ids[label_to_id[label]] = 1.0
         return ids
 
+    if data_args.check_tok_count:
+        def estimate_length(examples):
+            inputs = examples[data_args.text_column_name]
+            toked = [len(sent.split()) for sent in inputs]
+            return {"tok_count": toked}
+        
+        with training_args.main_process_first(desc="estimating dataset length"):
+            dataset_stats = raw_datasets.map(
+                estimate_length,
+                batched=True,
+            )
+
+        special_logging.info(f"*** Dataset Stats ***")
+        tokens = dataset_stats["train"]["tok_count"]
+        tokens.sort()
+        special_logging.info(f"Train:")
+        special_logging.info(f"min: {tokens[0]}")
+        special_logging.info(f"max: {tokens[-1]}")
+        special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
+        special_logging.info(f"median: {tokens[len(tokens)//2]}")
+        special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
+        tokens = dataset_stats["validation"]["tok_count"]
+        tokens.sort()
+        special_logging.info(f"Validation:")
+        special_logging.info(f"min: {tokens[0]}")
+        special_logging.info(f"max: {tokens[-1]}")
+        special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
+        special_logging.info(f"median: {tokens[len(tokens)//2]}")
+        special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
+
     def preprocess_function(examples):
-        if data_args.text_column_names is not None:
-            text_column_names = data_args.text_column_names.split(",")
-            # join together text columns into "text" column
-            examples["text"] = examples[text_column_names[0]]
-            for column in text_column_names[1:]:
-                for i in range(len(examples[column])):
-                    examples["text"][i] += data_args.text_column_delimiter + examples[column][i]
         # Tokenize the texts
-        result = tokenizer(examples["text"], padding=padding, max_length=max_seq_length, truncation=True)
+        result = tokenizer(examples[data_args.text_column_name], padding=padding, max_length=max_seq_length, truncation=True)
         if label_to_id is not None and "label" in examples:
             if is_multi_label:
                 result["label"] = [multi_labels_to_ids(l) for l in examples["label"]]

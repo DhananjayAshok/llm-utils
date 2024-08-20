@@ -233,6 +233,9 @@ class DataTrainingArguments:
     log_file: Optional[str] = field(
         default="clm_ft.log", metadata={"help": "The file to write special logs to."}
     )
+    check_tok_count: bool = field(
+        default=False, metadata={"help": "Check the token count of the dataset."}
+    )
     grid_log: bool = field(
         default=False, metadata={"help": "Is this script running gridsearch. If False then deletes previous special log_file"}
     )
@@ -533,7 +536,7 @@ def main():
     special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
     special_logging.info(f"median: {tokens[len(tokens)//2]}")
     special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
-    
+
 
     
     additional_tokens_on_tokenize = len(tokenizer("hello")['input_ids']) - 1 
