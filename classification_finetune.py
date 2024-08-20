@@ -54,14 +54,13 @@ from transformers.utils.versions import require_version
 
 logger = logging.getLogger(__name__)
 
-class Weighted(Trainer):
+class WeightedTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.get("labels")
         # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        # compute custom loss (suppose one has 3 labels with different weights)
-        loss_fct = torch.nn.CrossEntropyLoss(weight=torch.tensor([1.0, 1.0]))
+        loss_fct = torch.nn.CrossEntropyLoss() # specify weight=torch.tensor([1.0, 1.0]) if you want to weight classes
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
@@ -186,6 +185,8 @@ class DataTrainingArguments:
     grid_log: bool = field(
         default=False, metadata={"help": "Is this script running gridsearch. If False then deletes previous special log_file"}
     )
+    
+
 
     def __post_init__(self):
         assert self.max_seq_length is not None
@@ -272,10 +273,6 @@ class ModelArguments:
     lora_bias: str = field(
         default="none",
         metadata={"help": "The bias value to use for LoRA."},
-    )
-    class_weights: list = field(
-        default=None,
-        metadata={"help": "The weights to use for each class. Should be list of floats that sum to 1. If None, will use uniform weights. "},
     )
 
 
@@ -665,7 +662,7 @@ def main():
         data_collator = None
 
     # Initialize our Trainer
-    trainer = Trainer(
+    trainer = WeightedTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
