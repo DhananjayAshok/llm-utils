@@ -311,6 +311,8 @@ def main():
     training_args.auto_find_batch_size  = True
     if training_args.save_total_limit is None:
         training_args.save_total_limit = 2
+    if training_args.seed is None:
+        training_args.seed = 42
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -542,7 +544,7 @@ def main():
         model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
-    train_dataset = raw_datasets["train"]
+    train_dataset = raw_datasets["train"].shuffle(seed=training_args.seed)
     if data_args.max_train_samples is not None:
         max_train_samples = min(len(train_dataset), data_args.max_train_samples)
         train_dataset = train_dataset.select(range(max_train_samples))
@@ -557,7 +559,7 @@ def main():
         )
 
     max_output_length = data_args.val_max_output_length
-    eval_dataset = raw_datasets["validation"]
+    eval_dataset = raw_datasets["validation"].shuffle(seed=training_args.seed)
     if data_args.max_eval_samples is not None:
         max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
         eval_dataset = eval_dataset.select(range(max_eval_samples))
@@ -570,6 +572,12 @@ def main():
             load_from_cache_file=not data_args.overwrite_cache,
             desc="Running tokenizer on validation dataset",
         )
+    internal_eval_dataset = None
+    if data_args.max_internal_eval_samples is not None:
+        max_internal_eval_samples = min(len(eval_dataset), data_args.max_internal_eval_samples)
+        internal_eval_dataset = eval_dataset.select(range(max_internal_eval_samples))
+    if internal_eval_dataset is None:
+        internal_eval_dataset = eval_dataset
 
     # Data collator
     label_pad_token_id = -100 if data_args.ignore_pad_token_for_loss else tokenizer.pad_token_id
@@ -627,7 +635,7 @@ def main():
         eval_dataset=eval_dataset,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        compute_metrics=compute_metrics if training_args.predict_with_generate else None,
+        compute_metrics=compute_metrics
     )
 
     # Training
