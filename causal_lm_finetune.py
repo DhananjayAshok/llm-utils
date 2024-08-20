@@ -286,6 +286,8 @@ def main():
     training_args.auto_find_batch_size  = True
     if training_args.save_total_limit is None:
         training_args.save_total_limit = 2
+    if training_args.seed is None:
+        training_args.seed = 42
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -543,13 +545,13 @@ def main():
                 batched=True,
             )
 
-    train_dataset = lm_datasets["train"].shuffle(seed=training_args.shuffle_seed)
-    train_dataset = train_dataset.shuffle(seed=data_args.shuffle_seed)
+    train_dataset = lm_datasets["train"].shuffle(seed=training_args.seed)
+    train_dataset = train_dataset.shuffle(seed=data_args.seed)
     if data_args.max_train_samples is not None:
         max_train_samples = min(len(train_dataset), data_args.max_train_samples)
         train_dataset = train_dataset.select(range(max_train_samples))
 
-    eval_dataset = lm_datasets["validation"].shuffle(seed=training_args.shuffle_seed)
+    eval_dataset = lm_datasets["validation"].shuffle(seed=training_args.seed)
     internal_eval_dataset = None
     if data_args.max_internal_eval_samples is not None:
         max_internal_eval_samples = min(len(eval_dataset), data_args.max_internal_eval_samples)
