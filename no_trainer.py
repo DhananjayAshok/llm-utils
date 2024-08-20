@@ -645,7 +645,7 @@ def main():
 
     # DataLoaders creation:
     collator = default_data_collator
-    if args.task=="clm" and args.lm_type == "seq2seq":
+    if args.task=="clm" or args.lm_type == "seq2seq":
         collator = DataCollatorForSeq2Seq(
         tokenizer,
         model=model,
