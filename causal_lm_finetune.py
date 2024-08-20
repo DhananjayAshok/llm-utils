@@ -504,13 +504,11 @@ def main():
         inputs = examples[text_column_name]
         if output_column_name is not None:
             targets = examples[output_column_name]
-            print(examples)
-            print(len(inputs), len(targets))
             to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
         else:
             to_tok = inputs
         toked = [len(sent.split()) for sent in to_tok]
-        return toked
+        return {"tok_count": toked}
     
     with training_args.main_process_first(desc="estimating dataset length"):
         dataset_stats = raw_datasets.map(
