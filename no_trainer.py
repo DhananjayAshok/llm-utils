@@ -233,6 +233,13 @@ def parse_args():
         default=None,
         help="Whether the various states should be saved at the end of every n steps, or 'epoch' for each epoch.",
     )
+    # add evaluation every
+    parser.add_argument(
+        "--epochs_per_eval",
+        type=float,
+        default=0.3,
+        help="Will evaluate every epochs_per_eval * n_steps_per_epoch steps. Must be between 0 and 1",
+    )
     parser.add_argument(
         "--resume_from_checkpoint",
         type=str,
@@ -338,8 +345,69 @@ def parse_args():
             args.metric = "mse"
         else:
             assert args.metric in ["mse", "rmse", "mae", "pearson", "spearmanr", "kendall"], f"Unsupported metric for regression task: {metric}"
+    assert args.epochs_per_eval > 0 and args.epochs_per_eval <= 1, "epochs_per_eval must be between 0 and 1"
     return args
 
+
+def eval_loop(args, model, eval_dataloader, metric, accelerator, train_loss, epoch, completed_steps, force_full=False):
+    model.eval()
+    losses = []
+    n_evals_done = 0
+    samples_seen = 0
+    for step, batch in enumerate(eval_dataloader):
+        if not force_full and args.max_internal_eval_samples is not None and n_evals_done >= args.max_internal_eval_samples:
+            break
+        with torch.no_grad():
+            outputs = model(**batch)
+        if args.task == "classification":
+            predictions = outputs.logits.argmax(dim=-1)
+        elif args.task == "regression":
+            predictions = outputs.logits.squeeze()
+        if args.task in ["classification", "regression"]:
+            predictions, references = accelerator.gather((predictions, batch["labels"]))
+                        # If we are in a multiprocess environment, the last batch has duplicates
+            if accelerator.num_processes > 1:
+                if step == len(eval_dataloader) - 1:
+                    predictions = predictions[: len(eval_dataloader.dataset) - samples_seen]
+                    references = references[: len(eval_dataloader.dataset) - samples_seen]
+                else:
+                    samples_seen += references.shape[0]
+            metric.add_batch(
+                predictions=predictions,
+                references=references,
+            )
+
+        loss = outputs.loss
+        losses.append(accelerator.gather_for_metrics(loss.repeat(args.per_device_eval_batch_size)))
+        n_evals_done += len(batch["input_ids"])
+
+    losses = torch.cat(losses)
+    try:
+        eval_loss = torch.mean(losses)
+    except OverflowError:
+        eval_loss = float("inf")
+    eval_metric = None
+    if args.task == "lm":
+        # if eval_loss is not inf compute it
+        if eval_loss != float("inf"):
+            eval_metric = {"perplexity": math.exp(eval_loss)}
+        else:
+            eval_metric = {"perplexity": float("inf")}
+    elif metric is not None:
+        eval_metric = metric.compute()
+    if eval_loss != float("inf"):
+        eval_loss = eval_loss.item()
+    if args.with_tracking:
+        log_dict = {
+                    "train_loss": train_loss,
+                    "eval_loss": eval_loss.item(),
+                    "epoch": epoch}
+        if eval_metric is not None:
+            for key in eval_metric:
+                log_dict[key] = eval_metric[key]
+        accelerator.log(log_dict, step=completed_steps)
+    eval_metric_str = str(eval_metric) if eval_metric is not None else ""
+    logger.info(f"epoch (step) {epoch} ({completed_steps}): train_loss: {train_loss} eval_loss: {eval_loss} {eval_metric_str}")
 
 def main():
     args = parse_args()
@@ -771,9 +839,10 @@ def main():
     # update the progress_bar if load from checkpoint
     progress_bar.update(completed_steps)
 
+    eval_steps = int(args.epochs_per_eval * num_update_steps_per_epoch)
     for epoch in range(starting_epoch, args.epochs):
         model.train()
-        total_loss = 0
+        latest_loss = 0
         if args.resume_from_checkpoint and epoch == starting_epoch and resume_step is not None:
             # We skip the first `n` batches in the dataloader when resuming from a checkpoint
             active_dataloader = accelerator.skip_first_batches(train_dataloader, resume_step)
@@ -784,7 +853,7 @@ def main():
                 outputs = model(**batch)
                 loss = outputs.loss # TODO: Insert label weighted loss here
                 # We keep track of the loss at each epoch
-                total_loss += loss.detach().float()
+                latest_loss += loss.detach().float()
                 accelerator.backward(loss)
                 optimizer.step()
                 lr_scheduler.step()
@@ -801,80 +870,11 @@ def main():
                     if args.output_dir is not None:
                         output_dir = os.path.join(args.output_dir, output_dir)
                     accelerator.save_state(output_dir)
-
-        model.eval()
-        losses = []
-        n_evals_done = 0
-        samples_seen = 0
-        for step, batch in enumerate(eval_dataloader):
-            if epoch < args.epochs -1 and args.max_internal_eval_samples is not None and n_evals_done >= args.max_internal_eval_samples:
-                break
-            with torch.no_grad():
-                outputs = model(**batch)
-            if args.task == "classification":
-                predictions = outputs.logits.argmax(dim=-1)
-            elif args.task == "regression":
-                predictions = outputs.logits.squeeze()
-            if args.task in ["classification", "regression"]:
-                predictions, references = accelerator.gather((predictions, batch["labels"]))
-                            # If we are in a multiprocess environment, the last batch has duplicates
-                if accelerator.num_processes > 1:
-                    if step == len(eval_dataloader) - 1:
-                        predictions = predictions[: len(eval_dataloader.dataset) - samples_seen]
-                        references = references[: len(eval_dataloader.dataset) - samples_seen]
-                    else:
-                        samples_seen += references.shape[0]
-                metric.add_batch(
-                    predictions=predictions,
-                    references=references,
-                )
-
-            loss = outputs.loss
-            losses.append(accelerator.gather_for_metrics(loss.repeat(args.per_device_eval_batch_size)))
-            n_evals_done += len(batch["input_ids"])
-
-        losses = torch.cat(losses)
-        try:
-            eval_loss = torch.mean(losses)
-        except OverflowError:
-            eval_loss = float("inf")
-        eval_metric = None
-        if args.task == "lm":
-            # if eval_loss is not inf compute it
-            if eval_loss != float("inf"):
-                eval_metric = math.exp(eval_loss)
-            else:
-                eval_metric = float("inf")
-        elif metric is not None:
-            eval_metric = metric.compute()
-
-        if args.with_tracking:
-            if eval_metric is not None:
-                accelerator.log(
-                    {
-                        "train_loss": total_loss.item() / len(train_dataloader),
-                        "eval_loss": eval_loss.item(),
-                        f"eval_{args.metric}": eval_metric,
-                        "epoch": epoch,
-                        "step": completed_steps,
-                    },
-                    step=completed_steps,
-                )
-            else:
-                accelerator.log(
-                    {
-                        "train_loss": total_loss.item() / len(train_dataloader),
-                        "eval_loss": eval_loss.item(),
-                        "epoch": epoch,
-                        "step": completed_steps,
-                    },
-                    step=completed_steps,
-                )
-
-
-        eval_metric_str = "" if eval_metric is None else f"{args.metric}: {eval_metric}"
-        logger.info(f"epoch {epoch}: eval_loss: {eval_loss} {eval_metric_str}")
-
+            
+            if args.epoch_per_eval < 1 and completed_steps % eval_steps == 0:
+                train_loss = latest_loss.item() / eval_steps
+                eval_loop(args, epoch, model, eval_dataloader, metric, accelerator, train_loss, epoch, completed_steps, train_loss=train_loss)
+                model.train()
 
         if args.push_to_hub and epoch < args.epochs - 1:
             accelerator.wait_for_everyone()
@@ -897,7 +897,7 @@ def main():
             if args.output_dir is not None:
                 output_dir = os.path.join(args.output_dir, output_dir)
             accelerator.save_state(output_dir)
-
+    eval_loop(args, epoch, model, eval_dataloader, metric, accelerator, train_loss, epoch, completed_steps, train_loss=train_loss, force_full=True)
     if args.with_tracking:
         accelerator.end_training()
 
