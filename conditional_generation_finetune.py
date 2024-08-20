@@ -307,6 +307,7 @@ def main():
     # Manually force training args if not set
     training_args.do_train = True
     training_args.do_eval = True
+    training_args.predict_with_generate = True
     training_args.eval_strategy = "epoch"
     training_args.auto_find_batch_size  = True
     if training_args.save_total_limit is None:
