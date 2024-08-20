@@ -417,7 +417,7 @@ def eval_loop(args, model, dataloader, metric, accelerator, train_loss, epoch, c
         accelerator.log(log_dict, step=completed_steps)
     eval_metric_str = str(eval_metric) if eval_metric is not None else ""
     train_loss_str = f" train_loss: {train_loss} " if train_loss is not None else ""
-    logger.info(f"epoch (step) {epoch} ({completed_steps}):{train_loss_str}{split}_loss: {eval_loss} {eval_metric_str}")
+    logger.info(f"epoch (step) {epoch} ({completed_steps}): {train_loss_str}{split}_loss: {eval_loss} {eval_metric_str}")
 
 def main():
     args = parse_args()
@@ -435,7 +435,7 @@ def main():
 
     # Make one log on every process with the configuration for debugging.
     logging.basicConfig(
-        format="%(levelname)s - %(name)s - %(message)s",
+        format="%%(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
