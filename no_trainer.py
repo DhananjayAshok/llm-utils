@@ -805,11 +805,29 @@ def main():
         model.eval()
         losses = []
         n_evals_done = 0
+        samples_seen = 0
         for step, batch in enumerate(eval_dataloader):
             if epoch < args.epochs -1 and args.max_internal_eval_samples is not None and n_evals_done >= args.max_internal_eval_samples:
                 break
             with torch.no_grad():
                 outputs = model(**batch)
+            if args.task == "classification":
+                predictions = outputs.logits.argmax(dim=-1)
+            elif args.task == "regression":
+                predictions = outputs.logits.squeeze()
+            if args.task in ["classification", "regression"]:
+                predictions, references = accelerator.gather((predictions, batch["labels"]))
+                            # If we are in a multiprocess environment, the last batch has duplicates
+                if accelerator.num_processes > 1:
+                    if step == len(eval_dataloader) - 1:
+                        predictions = predictions[: len(eval_dataloader.dataset) - samples_seen]
+                        references = references[: len(eval_dataloader.dataset) - samples_seen]
+                    else:
+                        samples_seen += references.shape[0]
+                metric.add_batch(
+                    predictions=predictions,
+                    references=references,
+                )
 
             loss = outputs.loss
             losses.append(accelerator.gather_for_metrics(loss.repeat(args.per_device_eval_batch_size)))
