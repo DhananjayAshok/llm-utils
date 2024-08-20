@@ -873,7 +873,7 @@ def main():
             
             if args.epochs_per_eval < 1 and completed_steps % eval_steps == 0:
                 train_loss = latest_loss.item() / eval_steps
-                eval_loop(args, epoch, model, eval_dataloader, metric, accelerator, train_loss, epoch, completed_steps, train_loss=train_loss)
+                eval_loop(args, epoch, model, eval_dataloader, metric, accelerator, train_loss, epoch, completed_steps)
                 model.train()
 
         if args.push_to_hub and epoch < args.epochs - 1:
@@ -897,7 +897,7 @@ def main():
             if args.output_dir is not None:
                 output_dir = os.path.join(args.output_dir, output_dir)
             accelerator.save_state(output_dir)
-    eval_loop(args, epoch, model, eval_dataloader, metric, accelerator, train_loss, epoch, completed_steps, train_loss=train_loss, force_full=True)
+    eval_loop(args, epoch, model, eval_dataloader, metric, accelerator, train_loss, epoch, completed_steps, force_full=True)
     if args.with_tracking:
         accelerator.end_training()
 
