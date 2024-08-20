@@ -517,10 +517,10 @@ def main():
         ret["95th"] = toked[int(len(toked) * 0.95)]
         return ret
     
-    with training_args.main_process_first(desc="measuring dataset length"):
+    with training_args.main_process_first(desc="estimating dataset length"):
         dataset_stats = raw_datasets.map(
             estimate_length,
-            batched=True,
+            batched=False,
         )
 
     special_logging.info(f"*** Dataset Stats ***")
