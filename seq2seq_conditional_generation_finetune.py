@@ -81,9 +81,6 @@ class ModelArguments:
     model_name_or_path: str = field(
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
     )
-    model_type: Optional[str] = field(
-        metadata={"help": "Kind of Language Modelling the model uses.", "choices": ["causal", "masked", "seq2seq"]}, 
-                  default=None)
     config_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
     )
