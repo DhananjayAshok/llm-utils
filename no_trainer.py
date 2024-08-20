@@ -296,7 +296,7 @@ def parse_args():
     args = parser.parse_args()
 
     # Sanity checks
-    if args.data_path is None and args.train_file is None and args.validation_file is None:
+    if args.data_file is None and args.train_file is None and args.validation_file is None:
         raise ValueError("Need either a datapath or a training/validation file.")
     else:
         if args.train_file is not None:
