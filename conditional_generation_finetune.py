@@ -277,7 +277,7 @@ class DataTrainingArguments:
         },
     )
     metric: Optional[str] = field(
-        default="bleu", metadata={"help": "The metric to use for evaluation.", 
+        default="exact_match", metadata={"help": "The metric to use for evaluation.", 
                                 "choices": ["bleu", "rogue", "exact_match"]}
     )
 
@@ -598,7 +598,7 @@ def main():
     ) #TODO: Get other model types here
 
     # Metric TODO: Customize
-    metric = evaluate.load("rouge", cache_dir=model_args.cache_dir)
+    metric = evaluate.load(data_args.metric, cache_dir=model_args.cache_dir)
 
     def postprocess_text(preds, labels):
         preds = [pred.strip() for pred in preds]
