@@ -546,7 +546,7 @@ def main():
             )
 
     train_dataset = lm_datasets["train"].shuffle(seed=training_args.seed)
-    train_dataset = train_dataset.shuffle(seed=data_args.seed)
+    train_dataset = train_dataset.shuffle(seed=training_args.seed)
     if data_args.max_train_samples is not None:
         max_train_samples = min(len(train_dataset), data_args.max_train_samples)
         train_dataset = train_dataset.select(range(max_train_samples))
