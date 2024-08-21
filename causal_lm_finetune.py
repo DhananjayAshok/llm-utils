@@ -500,42 +500,40 @@ def main():
     if text_column_name is None:
         raise ValueError(f"Could not find a text column in the dataset with columns {column_names}. Please make sure the dataset has a text column.")
 
-    # since this will be pickled to avoid _LazyModule error in Hasher force logger loading before tokenize_function
-    tok_logger = transformers.utils.logging.get_logger("transformers.tokenization_utils_base")
+    if data_args.check_tok_count:
+        def estimate_length(examples):
+            inputs = examples[text_column_name]
+            if output_column_name is not None:
+                targets = examples[output_column_name]
+                to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
+            else:
+                to_tok = inputs
+            toked = [len(sent.split()) for sent in to_tok]
+            return {"tok_count": toked}
+        
+        with training_args.main_process_first(desc="estimating dataset length"):
+            dataset_stats = raw_datasets.map(
+                estimate_length,
+                batched=True,
+            )
 
-    def estimate_length(examples):
-        inputs = examples[text_column_name]
-        if output_column_name is not None:
-            targets = examples[output_column_name]
-            to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
-        else:
-            to_tok = inputs
-        toked = [len(sent.split()) for sent in to_tok]
-        return {"tok_count": toked}
-    
-    with training_args.main_process_first(desc="estimating dataset length"):
-        dataset_stats = raw_datasets.map(
-            estimate_length,
-            batched=True,
-        )
-
-    special_logging.info(f"*** Dataset Stats ***")
-    tokens = dataset_stats["train"]["tok_count"]
-    tokens.sort()
-    special_logging.info(f"Train:")
-    special_logging.info(f"min: {tokens[0]}")
-    special_logging.info(f"max: {tokens[-1]}")
-    special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
-    special_logging.info(f"median: {tokens[len(tokens)//2]}")
-    special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
-    tokens = dataset_stats["validation"]["tok_count"]
-    tokens.sort()
-    special_logging.info(f"Validation:")
-    special_logging.info(f"min: {tokens[0]}")
-    special_logging.info(f"max: {tokens[-1]}")
-    special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
-    special_logging.info(f"median: {tokens[len(tokens)//2]}")
-    special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
+        special_logging.info(f"*** Dataset Stats ***")
+        tokens = dataset_stats["train"]["tok_count"]
+        tokens.sort()
+        special_logging.info(f"Train:")
+        special_logging.info(f"min: {tokens[0]}")
+        special_logging.info(f"max: {tokens[-1]}")
+        special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
+        special_logging.info(f"median: {tokens[len(tokens)//2]}")
+        special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
+        tokens = dataset_stats["validation"]["tok_count"]
+        tokens.sort()
+        special_logging.info(f"Validation:")
+        special_logging.info(f"min: {tokens[0]}")
+        special_logging.info(f"max: {tokens[-1]}")
+        special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
+        special_logging.info(f"median: {tokens[len(tokens)//2]}")
+        special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
 
 
     
