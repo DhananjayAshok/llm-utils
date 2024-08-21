@@ -56,8 +56,8 @@ def get_model(args):
     return tokenizer, model
 
 def predict(args, df, tokenizer, model):
-    if args.max_prediction is None:
-        args.max_prediction = len(df)
+    if args.max_predictions is None:
+        args.max_predictions = len(df)
     if args.seed is not None:
         set_seed(args.seed)
     df[args.output_column] = None
@@ -67,11 +67,13 @@ def predict(args, df, tokenizer, model):
         text = row[args.input_column]
         inputs = tokenizer(text, return_tensors="pt", truncation=True).to(model.device)
         if args.model_kind == 'causal-lm':
-            outputs = model.generate(**inputs, args.max_new_tokens)
-            prediction = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            inp_shape = inputs['input_ids'].shape[1]
+            outputs = model.generate(**inputs, max_new_tokens=args.max_new_tokens, repetition_penalty=2.0)
+            outputs = outputs[0, inp_shape:]
+            prediction = tokenizer.decode(outputs, skip_special_tokens=True)
         elif args.model_kind == 'seq-classification':
             outputs = model(**inputs)
-            logits = outputs.logits.detach().cpu().numpy()][0]
+            logits = outputs.logits.detach().cpu().numpy()[0]
             exped = np.exp(logits)
             softmax = exped / np.sum(exped)
             # if there are only two classes return the probability of the positive class
