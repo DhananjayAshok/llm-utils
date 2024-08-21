@@ -17,7 +17,8 @@ def parse_args():
     parser.add_argument('--output_column', type=str, default=None)
     parser.add_argument("--max_predictions", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
-    parser.add_argument("--max_new_tokens", type=int, default=100)
+    parser.add_argument("--max_new_tokens", type=int, default=10)
+    parser.add_argument("--repetition_penalty", type=float, default=1.0)
 
     args = parser.parse_args()
     return args
@@ -68,7 +69,7 @@ def predict(args, df, tokenizer, model):
         inputs = tokenizer(text, return_tensors="pt", truncation=True).to(model.device)
         if args.model_kind == 'causal-lm':
             inp_shape = inputs['input_ids'].shape[1]
-            outputs = model.generate(**inputs, max_new_tokens=args.max_new_tokens, repetition_penalty=2.0)
+            outputs = model.generate(**inputs, max_new_tokens=args.max_new_tokens, repetition_penalty=args.repetition_penalty)
             outputs = outputs[0, inp_shape:]
             prediction = tokenizer.decode(outputs, skip_special_tokens=True)
         elif args.model_kind == 'seq-classification':
