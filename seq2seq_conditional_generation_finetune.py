@@ -698,8 +698,6 @@ def main():
 
     if training_args.push_to_hub:
         trainer.push_to_hub(**kwargs)
-    else:
-        trainer.create_model_card(**kwargs)
 
     return
 
