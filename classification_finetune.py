@@ -334,6 +334,9 @@ def main():
     if not data_args.grid_log:
         if os.path.exists(data_args.log_file):
             os.remove(data_args.log_file)
+    logdir = os.path.dirname(data_args.log_file)
+    if not os.path.exists(logdir):
+        os.makedirs(logdir)
     special_logging = logging.getLogger("special")
     special_logging.setLevel(logging.DEBUG)
     handler = logging.FileHandler(data_args.log_file)

@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument("--max_predictions", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--max_new_tokens", type=int, default=10)
-    parser.add_argument("--repetition_penalty", type=float, default=1.0)
+    parser.add_argument("--repetition_penalty", type=float, default=0.01)
 
     args = parser.parse_args()
     return args
