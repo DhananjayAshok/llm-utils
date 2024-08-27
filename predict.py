@@ -41,7 +41,7 @@ def get_df(args):
         assert args.output_column not in df.columns, f'Column {args.output_column} already exists in input file. Please specify an output file path (can repeat input_file_path to overwrite)'
         args.output_file_path = args.input_file_path
     output_dir = os.path.dirname(args.output_file_path)
-    if not os.path.exists(output_dir):
+    if output_dir != "" and not os.path.exists(output_dir):
         os.makedirs(output_dir)
     return df
 
