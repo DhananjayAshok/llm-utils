@@ -245,7 +245,7 @@ class DataTrainingArguments:
     prediction_file: Optional[str] = field(
         default=None, metadata={"help": "CSV file to write the predictions to."}
     )
-    prediction_column: Optional[str] = field(
+    prediction_column_name: Optional[str] = field(
         default="output", metadata={"help": "The name of the column to write the predictions to. Will throw errors if column already exists."}
     )
     log_file: Optional[str] = field(

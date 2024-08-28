@@ -49,9 +49,9 @@ def do_evaluation(trainer, dataset, split, special_logging):
     return metric_report
 
 def check_data_args(data_args):
-    assert data_args.train_file is None == data_args.validation_file is None, "Cannot use --train_file without --validation_file"
+    assert (data_args.train_file is None) == (data_args.validation_file is None), "Cannot use --train_file without --validation_file"
     if data_args.data_file is not None:
-        assert data_args.train_file is None and data_args.validation_file is None, "Cannot use --data_file with --train_file, --validation_file or --test_file"
+        assert data_args.train_file is None, "Cannot use --data_file with --train_file, --validation_file or --test_file"
     elif data_args.train_file is None:
         assert data_args.test_file is not None, "Must specify --test_file if not using --data_file or --train_file and --validation_file"
 
@@ -364,4 +364,10 @@ def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, 
 
 def predict(data_args, trainer, dataset):
     predictions = trainer.predict(dataset, metric_key_prefix="predict").predictions
+    pred_df = pd.read_csv(data_args.test_file)
+    if os.path.exists(data_args.prediction_file):
+        if data_args.prediction_column_name in pd.read_csv(data_args.prediction_file).columns:
+            raise ValueError(f"Prediction column already exists in prediction file {data_args.prediction_file}. Please specify a different column name or different file")
+    print(predictions.type)
+    print(predictions.shape)
     
