@@ -146,6 +146,9 @@ def common_setup(model_args, data_args, training_args):
         data_files = {"train": f"{save_name_path}_train.csv", "validation": f"{save_name_path}_validation.csv"}
     else:
         data_files = {"train": data_args.train_file, "validation": data_args.validation_file}
+    
+    if data_args.test_file is not None:
+        data_files["test"] = data_args.test_file
 
 
     raw_datasets = load_dataset(
@@ -154,6 +157,50 @@ def common_setup(model_args, data_args, training_args):
         cache_dir=model_args.cache_dir,
         token=model_args.token,
     )
+    if "train" in raw_datasets:
+        column_names = list(raw_datasets["train"].features)
+    elif "test" in raw_datasets:
+        column_names = list(raw_datasets["test"].features)
+    else:
+        raise ValueError(f"Dataset does not have train or test should not be able to reach here")
+    if data_args.input_column_name is not None:
+        assert data_args.input_column_name in column_names, f"Input column {data_args.input_column_name} not found in dataset with columns {column_names}"
+    else:
+        for name in ["text", "sentence", "input"]:
+            if name in column_names:
+                if data_args.input_column_name is None:
+                    data_args.input_column_name = name
+                else:
+                    raise ValueError(f"Multiple possible input columns found: {data_args.input_column_name}, {name}. Please specify one.")
+                
+    if data_args.output_column_name is not None:
+        assert data_args.output_column_name in column_names, f"Output column {data_args.output_column_name} not found in dataset with columns {column_names}"
+    else:
+        for name in ["label", "target", "output"]:
+            if name in column_names:
+                if data_args.output_column_name is None:
+                    data_args.output_column_name = name
+                else:
+                    raise ValueError(f"Multiple possible output columns found: {data_args.output_column_name}, {name}. Please specify one.")
+    if data_args.input_column_name is None:
+        raise ValueError(f"Could not find an input text column in the dataset with columns {column_names}. Please make sure the dataset has a text column.")
+    if data_args.output_column_name is None:
+        pass # could be language modelling check it TODO
+    if "test" in raw_datasets and data_args.output_column_name is not None and data_args.output_column_name in raw_datasets["test"].features:
+        raw_datasets["test"] = raw_datasets["test"].remove_columns([data_args.output_column_name])
+
+    if data_args.input_column_name != "text":
+        for key in raw_datasets.keys():
+            raw_datasets[key] = raw_datasets[key].rename_column(data_args.input_column_name, "text")
+
+    if data_args.output_column_name is not None and data_args.output_column_name != "label":
+        for key in raw_datasets.keys():
+            if key == "test":
+                continue
+            else:
+                raw_datasets[key] = raw_datasets[key].rename_column(data_args.output_column_name, "label")
+    if "train" not in raw_datasets:
+        data_args.predict_only = True
     return special_logging, last_checkpoint, raw_datasets
 
 def activate_peft(model_args, model, tokenizer, task_type):
@@ -186,45 +233,67 @@ def check_token_lengths(data_args, raw_datasets, training_args, special_logging)
                 batched=True,
             )
 
-        special_logging.info(f"*** Dataset Stats ***")
-        tokens = dataset_stats["train"]["tok_count"]
-        tokens.sort()
-        special_logging.info(f"Train:")
-        special_logging.info(f"min: {tokens[0]}")
-        special_logging.info(f"max: {tokens[-1]}")
-        special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
-        special_logging.info(f"median: {tokens[len(tokens)//2]}")
-        special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
-        tokens = dataset_stats["validation"]["tok_count"]
-        tokens.sort()
-        special_logging.info(f"Validation:")
-        special_logging.info(f"min: {tokens[0]}")
-        special_logging.info(f"max: {tokens[-1]}")
-        special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
-        special_logging.info(f"median: {tokens[len(tokens)//2]}")
-        special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
+        if data_args.predict_only:
+            special_logging.info(f"*** Dataset Stats ***")
+            tokens = dataset_stats["test"]["tok_count"]
+            tokens.sort()
+            special_logging.info(f"Test: {len(tokens)}")
+            special_logging.info(f"min: {tokens[0]}")
+            special_logging.info(f"max: {tokens[-1]}")
+            special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
+            special_logging.info(f"median: {tokens[len(tokens)//2]}")
+            special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
+        else:
+            special_logging.info(f"*** Dataset Stats ***")
+            tokens = dataset_stats["train"]["tok_count"]
+            tokens.sort()
+            special_logging.info(f"Train:")
+            special_logging.info(f"min: {tokens[0]}")
+            special_logging.info(f"max: {tokens[-1]}")
+            special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
+            special_logging.info(f"median: {tokens[len(tokens)//2]}")
+            special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
+            tokens = dataset_stats["validation"]["tok_count"]
+            tokens.sort()
+            special_logging.info(f"Validation:")
+            special_logging.info(f"min: {tokens[0]}")
+            special_logging.info(f"max: {tokens[-1]}")
+            special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
+            special_logging.info(f"median: {tokens[len(tokens)//2]}")
+            special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
 
 
 def handle_data_sizes(data_args, raw_datasets):
-    train_dataset = raw_datasets["train"]
-    if data_args.shuffle_train_dataset:
-        #logger.info("Shuffling the training dataset")
-        train_dataset = train_dataset.shuffle(seed=data_args.shuffle_seed)
-    if data_args.max_train_samples is not None:
-        max_train_samples = min(len(train_dataset), data_args.max_train_samples)
-        train_dataset = train_dataset.select(range(max_train_samples))
-
-    eval_dataset = raw_datasets["validation"]
+    train_dataset = None
+    eval_dataset = None
     internal_eval_dataset = None
-    if data_args.max_internal_eval_samples is not None:
-        max_internal_eval_samples = min(len(eval_dataset), data_args.max_internal_eval_samples)
-        internal_eval_dataset = eval_dataset.select(range(max_internal_eval_samples))
-    if data_args.max_eval_samples is not None:
-        max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
-        eval_dataset = eval_dataset.select(range(max_eval_samples))
-    if internal_eval_dataset is None:
-        internal_eval_dataset = eval_dataset
-    return train_dataset, eval_dataset, internal_eval_dataset
+    test_dataset = None
+    if not data_args.predict_only:
+        train_dataset = raw_datasets["train"]
+        if data_args.shuffle_train_dataset:
+            #logger.info("Shuffling the training dataset")
+            train_dataset = train_dataset.shuffle(seed=data_args.shuffle_seed)
+        if data_args.max_train_samples is not None:
+            max_train_samples = min(len(train_dataset), data_args.max_train_samples)
+            train_dataset = train_dataset.select(range(max_train_samples))
+
+        eval_dataset = raw_datasets["validation"]
+        internal_eval_dataset = None
+        if data_args.max_internal_eval_samples is not None:
+            max_internal_eval_samples = min(len(eval_dataset), data_args.max_internal_eval_samples)
+            internal_eval_dataset = eval_dataset.select(range(max_internal_eval_samples))
+        if data_args.max_eval_samples is not None:
+            max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
+            eval_dataset = eval_dataset.select(range(max_eval_samples))
+        if internal_eval_dataset is None:
+            internal_eval_dataset = eval_dataset
+
+    if "test" in raw_datasets:
+        test_dataset = raw_datasets["test"]
+        if data_args.max_test_samples is not None:
+            max_test_samples = min(len(test_dataset), data_args.max_test_samples)
+            test_dataset = test_dataset.select(range(max_test_samples))
+    return train_dataset, eval_dataset, internal_eval_dataset, test_dataset
 
 
 def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, special_logging):
@@ -271,3 +340,7 @@ def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, 
     trainer.save_metrics("eval", metrics)
     readable = get_metric_report_str(trainer, metrics)
     special_logging.info(f"eval metrics: {readable}")
+
+
+def predict(trainer, dataset, save_path):
+    predictions = trainer.predict(dataset, metric_key_prefix="predict").predictions

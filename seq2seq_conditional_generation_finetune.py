@@ -17,7 +17,7 @@
 Fine-tuning the library models for sequence to sequence.
 """
 # You can also adapt this script on your own sequence to sequence task. Pointers for this are left as comments.
-from common_utils import common_setup, activate_peft, check_token_lengths, handle_data_sizes, train
+from common_utils import common_setup, activate_peft, check_token_lengths, handle_data_sizes, train, predict
 import logging
 import os
 import sys
@@ -176,12 +176,12 @@ class DataTrainingArguments:
     grid_log: bool = field(
         default=False, metadata={"help": "Is this script running gridsearch. If False then deletes previous special log_file"}
     )
-    input_column: Optional[str] = field(
-        default="text",
+    input_column_name: Optional[str] = field(
+        default=None,
         metadata={"help": "The name of the column in the datasets containing the input."},
     )
-    output_column: Optional[str] = field(
-        default="target",
+    output_column_name: Optional[str] = field(
+        default=None,
         metadata={"help": "The name of the column in the datasets containing the output."},
     )
     overwrite_cache: bool = field(
@@ -253,6 +253,15 @@ class DataTrainingArguments:
         metadata={
             "help": (
                 "For debugging purposes or quicker training, truncate the number of internal evaluation examples to this "
+                "value if set."
+            )
+        },
+    )
+    max_test_samples: Optional[int] = field(
+        default=None,
+        metadata={
+            "help": (
+                "For debugging purposes or quicker training, truncate the number of prediction examples to this "
                 "value if set."
             )
         },
@@ -365,19 +374,10 @@ def main():
 
     # Preprocessing the datasets.
     # We need to tokenize inputs and targets.
-    column_names = raw_datasets["train"].column_names
 
     # Get the column names for input/target.
-    text_column = data_args.input_column
-    if text_column not in column_names:
-        raise ValueError(
-            f"--input_column' value '{data_args.input_column}' needs to be one of: {', '.join(column_names)}"
-        )
-    summary_column = data_args.output_column
-    if summary_column not in column_names:
-        raise ValueError(
-            f"--output_column' value '{data_args.output_column}' needs to be one of: {', '.join(column_names)}"
-        )
+    text_column = "text"
+    summary_column = "label"
 
     # Temporarily set max_output_length for training.
     max_output_length = data_args.max_output_length
@@ -413,40 +413,64 @@ def main():
         model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
-    train_dataset = raw_datasets["train"].shuffle(seed=training_args.seed)
-    if data_args.max_train_samples is not None:
-        max_train_samples = min(len(train_dataset), data_args.max_train_samples)
-        train_dataset = train_dataset.select(range(max_train_samples))
-    with training_args.main_process_first(desc="train dataset map pre-processing"):
-        train_dataset = train_dataset.map(
-            preprocess_function,
-            batched=True,
-            num_proc=data_args.preprocessing_num_workers,
-            remove_columns=column_names,
-            load_from_cache_file=not data_args.overwrite_cache,
-            desc="Running tokenizer on train dataset",
-        )
-
-    max_output_length = data_args.val_max_output_length
-    eval_dataset = raw_datasets["validation"].shuffle(seed=training_args.seed)
-    if data_args.max_eval_samples is not None:
-        max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
-        eval_dataset = eval_dataset.select(range(max_eval_samples))
-    with training_args.main_process_first(desc="validation dataset map pre-processing"):
-        eval_dataset = eval_dataset.map(
-            preprocess_function,
-            batched=True,
-            num_proc=data_args.preprocessing_num_workers,
-            remove_columns=column_names,
-            load_from_cache_file=not data_args.overwrite_cache,
-            desc="Running tokenizer on validation dataset",
-        )
+    train_dataset = None
+    eval_dataset = None
     internal_eval_dataset = None
-    if data_args.max_internal_eval_samples is not None:
-        max_internal_eval_samples = min(len(eval_dataset), data_args.max_internal_eval_samples)
-        internal_eval_dataset = eval_dataset.select(range(max_internal_eval_samples))
-    if internal_eval_dataset is None:
-        internal_eval_dataset = eval_dataset
+    test_dataset = None
+    if "train" in raw_datasets:
+        column_names = raw_datasets["train"].column_names
+        train_dataset = raw_datasets["train"].shuffle(seed=training_args.seed)
+        if data_args.max_train_samples is not None:
+            max_train_samples = min(len(train_dataset), data_args.max_train_samples)
+            train_dataset = train_dataset.select(range(max_train_samples))
+        with training_args.main_process_first(desc="train dataset map pre-processing"):
+            train_dataset = train_dataset.map(
+                preprocess_function,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+                remove_columns=column_names,
+                load_from_cache_file=not data_args.overwrite_cache,
+                desc="Running tokenizer on train dataset",
+            )
+    if "validation" in raw_datasets:
+        max_output_length = data_args.val_max_output_length
+        column_names = raw_datasets["validation"].column_names
+        eval_dataset = raw_datasets["validation"].shuffle(seed=training_args.seed)
+        if data_args.max_eval_samples is not None:
+            max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
+            eval_dataset = eval_dataset.select(range(max_eval_samples))
+        with training_args.main_process_first(desc="validation dataset map pre-processing"):
+            eval_dataset = eval_dataset.map(
+                preprocess_function,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+                remove_columns=column_names,
+                load_from_cache_file=not data_args.overwrite_cache,
+                desc="Running tokenizer on validation dataset",
+            )
+        internal_eval_dataset = None
+        if data_args.max_internal_eval_samples is not None:
+            max_internal_eval_samples = min(len(eval_dataset), data_args.max_internal_eval_samples)
+            internal_eval_dataset = eval_dataset.select(range(max_internal_eval_samples))
+        if internal_eval_dataset is None:
+            internal_eval_dataset = eval_dataset
+
+    test_dataset = None
+    if "test" in raw_datasets:
+        test_dataset = raw_datasets["test"]
+        max_output_length = data_args.val_max_output_length
+        if data_args.max_test_samples is not None:
+            max_test_samples = min(len(test_dataset), data_args.max_test_samples)
+            test_dataset = test_dataset.select(range(max_test_samples))
+        with training_args.main_process_first(desc="test dataset map pre-processing"):
+            test_dataset = test_dataset.map(
+                preprocess_function,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+                remove_columns=column_names,
+                load_from_cache_file=not data_args.overwrite_cache,
+                desc="Running tokenizer on test dataset",
+            )
 
     # Data collator
     label_pad_token_id = -100 if data_args.ignore_pad_token_for_loss else tokenizer.pad_token_id
@@ -455,42 +479,45 @@ def main():
         model=model,
         label_pad_token_id=label_pad_token_id,
         pad_to_multiple_of=8 if training_args.fp16 else None,
-    ) #TODO: Get other model types here
+    )
 
     # Metric TODO: Customize
     metric = evaluate.load(data_args.metric, cache_dir=model_args.cache_dir)
 
-    def postprocess_text(preds, labels):
-        preds = [pred.strip() for pred in preds]
-        labels = [label.strip() for label in labels]
+    if not data_args.predict_only:
+        def postprocess_text(preds, labels):
+            preds = [pred.strip() for pred in preds]
+            labels = [label.strip() for label in labels]
 
-        if data_args.metric == "rogue":
-            # rougeLSum expects newline after each sentence
-            preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
-            labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
-        return preds, labels
+            if data_args.metric == "rogue":
+                # rougeLSum expects newline after each sentence
+                preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
+                labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
+            return preds, labels
 
-    def compute_metrics(eval_preds):
-        preds, labels = eval_preds
-        if isinstance(preds, tuple):
-            preds = preds[0]
-        # Replace -100s used for padding as we can't decode them
-        preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
-        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        def compute_metrics(eval_preds):
+            preds, labels = eval_preds
+            if isinstance(preds, tuple):
+                preds = preds[0]
+            # Replace -100s used for padding as we can't decode them
+            preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
+            decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+            labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+            decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
-        # Some simple post-processing
-        decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+            # Some simple post-processing
+            decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
 
-        kwargs = {}
-        if data_args.metric == "rouge":
-            kwargs = {"use_stemmer": True}
-        result = metric.compute(predictions=decoded_preds, references=decoded_labels, **kwargs)
-        result = {k: round(v * 100, 4) for k, v in result.items()}
-        prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in preds]
-        result["gen_len"] = np.mean(prediction_lens)
-        return result
+            kwargs = {}
+            if data_args.metric == "rouge":
+                kwargs = {"use_stemmer": True}
+            result = metric.compute(predictions=decoded_preds, references=decoded_labels, **kwargs)
+            result = {k: round(v * 100, 4) for k, v in result.items()}
+            prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in preds]
+            result["gen_len"] = np.mean(prediction_lens)
+            return result
+    else:
+        compute_metrics = None
 
     # Override the decoding parameters of Seq2SeqTrainer
     training_args.generation_max_length = (
@@ -509,9 +536,9 @@ def main():
         data_collator=data_collator,
         compute_metrics=compute_metrics
     )
-    
-    train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, special_logging)
 
+    train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, special_logging)
+    predict(data_args, trainer, test_dataset)
     return
 
 

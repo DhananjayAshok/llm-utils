@@ -1,0 +1,6 @@
+transformers
+accelerate
+datasets
+einops
+nltk
+pandas

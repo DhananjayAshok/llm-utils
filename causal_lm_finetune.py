@@ -20,7 +20,7 @@ Here is the full list of checkpoints on the hub that can be fine-tuned by this s
 https://huggingface.co/models?filter=text-generation
 """
 # You can also adapt this script on your own causal language modeling task. Pointers for this are left as comments.
-from common_utils import common_setup, activate_peft, check_token_lengths, handle_data_sizes, train
+from common_utils import common_setup, activate_peft, check_token_lengths, handle_data_sizes, train, predict
 import logging
 import math
 import os
@@ -217,6 +217,15 @@ class DataTrainingArguments:
             )
         },
     )
+    max_test_samples: Optional[int] = field(
+        default=None,
+        metadata={
+            "help": (
+                "For debugging purposes or quicker training, truncate the number of prediction examples to this "
+                "value if set."
+            )
+        },
+    )    
     data_file: Optional[str] = field(
         default=None, metadata={"help": "A csv or a json file containing the training data."}
     )
@@ -283,131 +292,7 @@ def main():
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    # Manually force training args if not set
-    training_args.do_train = True
-    training_args.do_eval = True
-    training_args.eval_strategy = "epoch"
-    training_args.auto_find_batch_size  = True
-    if training_args.save_total_limit is None:
-        training_args.save_total_limit = 2
-    if training_args.seed is None:
-        training_args.seed = 42
-
-    # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
-    # information sent is the one passed as arguments along with your Python/PyTorch versions.
-    send_example_telemetry("run_clm", model_args, data_args)
-
-    # Setup logging
-    logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
-
-    if not data_args.grid_log:
-        if os.path.exists(data_args.log_file):
-            os.remove(data_args.log_file)
-    logdir = os.path.dirname(data_args.log_file)
-    if logdir != "" and not os.path.exists(logdir):
-        os.makedirs(logdir)
-    special_logging = logging.getLogger("special")
-    special_logging.setLevel(logging.DEBUG)
-    handler = logging.FileHandler(data_args.log_file)
-    formatter = logging.Formatter("%(levelname)s - %(name)s - %(message)s")
-    handler.setFormatter(formatter)
-    special_logging.addHandler(handler)
-
-    if training_args.should_log:
-        # The default of training_args.log_level is passive, so we set log level at info here to have that default.
-        transformers.utils.logging.set_verbosity_info()
-
-    log_level = training_args.get_process_log_level()
-    logger.setLevel(log_level)
-    datasets.utils.logging.set_verbosity(transformers.logging.ERROR)
-    transformers.utils.logging.set_verbosity(transformers.logging.ERROR)
-    transformers.utils.logging.enable_default_handler()
-    transformers.utils.logging.enable_explicit_format()
-
-    # Training hyperparameters
-    special_logging.info(f"*** Hyperparameters ***")
-    special_logging.info(f"learning_rate: {training_args.learning_rate}")
-    if training_args.learning_rate is None or training_args.learning_rate == 5e-05:
-        special_logging.warning("\tUsing default learning rate (5e-5). Should likely mess around with it")
-    special_logging.info(f"weight_decay: {training_args.weight_decay}")
-    if training_args.weight_decay is None or training_args.weight_decay == 0.0:
-        special_logging.warning("\tUsing default weight decay (0.0). Should likely mess around with it")
-    special_logging.info(f"adam_beta1: {training_args.adam_beta1}")
-    if training_args.adam_beta1 is None or training_args.adam_beta1 == 0.9:
-        special_logging.warning("\tUsing default adam_beta1 (0.9). Should likely mess around with it")
-    special_logging.info(f"adam_beta2: {training_args.adam_beta2}")
-    if training_args.adam_beta2 is None or training_args.adam_beta2 == 0.999:
-        special_logging.warning("\tUsing default adam_beta2 (0.999). Should likely mess around with it")
-    special_logging.info(f"lr_scheduler_type: {training_args.lr_scheduler_type}")
-    if training_args.lr_scheduler_type is None or training_args.lr_scheduler_type == "linear":
-        special_logging.warning("\tUsing default lr_scheduler_type (linear). Should likely mess around with it")
-
-    # Log on each process the small summary:
-    logger.warning(
-        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}, "
-        + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, 16-bits training: {training_args.fp16}"
-    )
-
-    # Detecting last checkpoint.
-    last_checkpoint = None
-    if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
-        last_checkpoint = get_last_checkpoint(training_args.output_dir)
-        if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
-            raise ValueError(
-                f"Output directory ({training_args.output_dir}) already exists and is not empty. "
-                "Use --overwrite_output_dir to overcome."
-            )
-        elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
-            logger.info(
-                f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
-                "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
-            )
-
-    # Set seed before initializing model.
-    set_seed(training_args.seed)
-
-    # Get the datasets: you can either provide your own CSV/JSON/TXT training and evaluation files (see below)
-    # or just provide the name of one of the public datasets available on the hub at https://huggingface.co/datasets/
-    # (the dataset will be downloaded automatically from the datasets Hub).
-    #
-    # For CSV/JSON files, this script will use the column called 'text' or the first column if no column called
-    # 'text' is found. You can easily tweak this behavior (see below).
-    #
-    # In distributed training, the load_dataset function guarantee that only one local process can concurrently
-    # download the dataset.
-    if data_args.data_file is not None:
-        df = pd.read_csv(data_args.data_file)
-        df = df.sample(frac=1).reset_index(drop=True)
-        n_train = int(len(df) * (1 - data_args.train_val_split))
-        train_df = df[:n_train]
-        val_df = df[n_train:].reset_index(drop=True)
-        save_name_path = data_args.data_file.replace(".csv", "")
-        train_df.to_csv(f"{save_name_path}_train.csv", index=False)
-        val_df.to_csv(f"{save_name_path}_validation.csv", index=False)
-        data_files = {"train": f"{save_name_path}_train.csv", "validation": f"{save_name_path}_validation.csv"}
-    else:
-        data_files = {"train": data_args.train_file, "validation": data_args.validation_file}
-
-
-    raw_datasets = load_dataset(
-        "csv",
-        data_files=data_files,
-        cache_dir=model_args.cache_dir,
-        token=model_args.token,
-    )
-
-    # See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
-    # https://huggingface.co/docs/datasets/loading_datasets.
-
-    # Load pretrained model and tokenizer
-    #
-    # Distributed training:
-    # The .from_pretrained methods guarantee that only one local process can concurrently
-    # download model & vocab.
+    special_logging, last_checkpoint, raw_datasets = common_setup(model_args, data_args, training_args)
 
     config_kwargs = {
         "cache_dir": model_args.cache_dir,
@@ -477,19 +362,8 @@ def main():
 
     # Preprocessing the datasets.
     # First we tokenize all the texts.
-    column_names = list(raw_datasets["train"].features)
-    text_column_name = None
-    for name in ["text", "sentence", "input"]:
-        if name in column_names:
-            text_column_name = name
-            break
-    output_column_name = None
-    for name in ["target", "output"]:
-        if name in column_names:
-            output_column_name = name
-            break
-    if text_column_name is None:
-        raise ValueError(f"Could not find a text column in the dataset with columns {column_names}. Please make sure the dataset has a text column.")
+    text_column_name = "text"
+    output_column_name = "label"
 
     check_token_lengths(data_args, raw_datasets, training_args, special_logging)
 
@@ -502,7 +376,7 @@ def main():
     def preprocess_function(examples):
         # remove pairs where at least one record is None
         inputs = examples[text_column_name]
-        if output_column_name is not None:
+        if output_column_name is not None and output_column_name in examples:
             targets = examples[output_column_name] if output_column_name is not None else ""
             to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
         else:
@@ -514,19 +388,21 @@ def main():
         labels = [
                 [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels]
         # if targets is not None then replace all input_only_ids with -100 to ignore them in the loss
-        if output_column_name is not None:
+        if output_column_name is not None and output_column_name in examples:
                 input_only_ids = tokenizer(inputs, max_length=data_args.max_seq_length, padding='do_not_pad', truncation=True)['input_ids']
                 inp_lengths = [len(i) for i in input_only_ids]
                 for i in range(len(labels)):
                     length = inp_lengths[i]
                     for j in range(length):
                         labels[i][j] = -100
-        model_inputs["labels"] = labels
+        if not data_args.predict_only:
+            model_inputs["labels"] = labels
         return model_inputs
 
     # To speed up this part, we use multiprocessing. See the documentation of the map method for more information:
     # https://huggingface.co/docs/datasets/process#map
 
+    # if test is in raw_datasets, then check if the output_column_name is in the dataset and if it is remove it
     with training_args.main_process_first(desc="grouping texts together"):
         if not data_args.streaming:
             lm_datasets = raw_datasets.map(
@@ -542,24 +418,28 @@ def main():
                 batched=True,
             )
 
-    train_dataset, eval_dataset, internal_eval_dataset = handle_data_sizes(data_args, lm_datasets)
+    train_dataset, eval_dataset, internal_eval_dataset, test_dataset = handle_data_sizes(data_args, lm_datasets)
 
-    def preprocess_logits_for_metrics(logits, labels):
-        if isinstance(logits, tuple):
-            # Depending on the model and config, logits may contain extra tensors,
-            # like past_key_values, but logits always come first
-            logits = logits[0]
-        return logits.argmax(dim=-1)
+    if not data_args.predict_only:
+        def preprocess_logits_for_metrics(logits, labels):
+            if isinstance(logits, tuple):
+                # Depending on the model and config, logits may contain extra tensors,
+                # like past_key_values, but logits always come first
+                logits = logits[0]
+            return logits.argmax(dim=-1)
 
-    metric = evaluate.load("accuracy", cache_dir=model_args.cache_dir) # TODO: Look at appropriate metric
+        metric = evaluate.load("accuracy", cache_dir=model_args.cache_dir) # TODO: Look at appropriate metric
 
-    def compute_metrics(eval_preds):
-        preds, labels = eval_preds
-        # preds have the same shape as the labels, after the argmax(-1) has been calculated
-        # by preprocess_logits_for_metrics but we need to shift the labels
-        labels = labels[:, 1:].reshape(-1)
-        preds = preds[:, :-1].reshape(-1)
-        return metric.compute(predictions=preds, references=labels)
+        def compute_metrics(eval_preds):
+            preds, labels = eval_preds
+            # preds have the same shape as the labels, after the argmax(-1) has been calculated
+            # by preprocess_logits_for_metrics but we need to shift the labels
+            labels = labels[:, 1:].reshape(-1)
+            preds = preds[:, :-1].reshape(-1)
+            return metric.compute(predictions=preds, references=labels)
+    else:
+        compute_metrics = None
+        preprocess_logits_for_metrics = None
 
     # Initialize our Trainer
     trainer = Trainer(
@@ -573,8 +453,10 @@ def main():
         compute_metrics=compute_metrics,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics
     )
+    if not data_args.predict_only:
+        train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, special_logging)
     
-    train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, special_logging)
+    predict(data_args, trainer, test_dataset)    
 
 
 def _mp_fn(index):
