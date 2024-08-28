@@ -30,16 +30,50 @@ from transformers import (
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, is_offline_mode, send_example_telemetry
-from peft import LoraConfig, TaskType, get_peft_model, IA3Config
+from peft import LoraConfig, get_peft_model, IA3Config
 
 logger = logging.getLogger(__name__)
 
-def get_metric_report_str(trainer, metrics):
-    metric_report = trainer.metrics_format(metrics)
+def get_metric_report_str(metric_report):
     s = ""
     for key in metric_report:
         s += f"{key}: {metric_report[key]}\n"
     return s
+
+def do_evaluation(trainer, dataset, split, special_logging):
+    metrics = trainer.evaluate(eval_dataset=dataset, metric_key_prefix=split)
+    trainer.log_metrics(split, metrics)
+    metric_report = trainer.metrics_format(metrics)
+    readable = get_metric_report_str(trainer, metric_report)
+    special_logging.info(f"{split} metrics: \n{readable}")
+    return metric_report
+
+def check_data_args(data_args):
+    assert data_args.train_file is None == data_args.validation_file is None, "Cannot use --train_file without --validation_file"
+    if data_args.data_file is not None:
+        assert data_args.train_file is None and data_args.validation_file is None, "Cannot use --data_file with --train_file, --validation_file or --test_file"
+    elif data_args.train_file is None:
+        assert data_args.test_file is not None, "Must specify --test_file if not using --data_file or --train_file and --validation_file"
+
+    if data_args.data_file is None:
+        train_extension = data_args.train_file.split(".")[-1]
+        assert train_extension in ["csv"], "`train_file` should be a csv"
+        validation_extension = data_args.validation_file.split(".")[-1]
+        assert (
+            validation_extension == train_extension
+        ), "`validation_file` should have the same extension as `train_file`."
+
+    if data_args.test_file is not None:
+        test_extension = data_args.test_file.split(".")[-1]
+        assert test_extension in ["csv"], "`test_file` should be a csv"
+        assert data_args.prediction_file is not None, "Must specify --prediction_file if using --test_file"
+    logdir = os.path.dirname(data_args.log_file)
+    if logdir != "" and not os.path.exists(logdir):
+        os.makedirs(logdir)
+    prediction_dir = os.path.dirname(data_args.prediction_file)
+    if prediction_dir != "" and not os.path.exists(prediction_dir):
+        os.makedirs(prediction_dir)
+
 
 def common_setup(model_args, data_args, training_args):
     training_args.do_train = True
@@ -58,12 +92,9 @@ def common_setup(model_args, data_args, training_args):
         datefmt="%m/%d/%Y %H:%M:%S",
         handlers=[logging.StreamHandler(sys.stdout)],
     )
-    if not data_args.grid_log:
+    if data_args.clear_log:
         if os.path.exists(data_args.log_file):
             os.remove(data_args.log_file)
-    logdir = os.path.dirname(data_args.log_file)
-    if logdir != "" and not os.path.exists(logdir):
-        os.makedirs(logdir)
     special_logging = logging.getLogger("special")
     special_logging.setLevel(logging.DEBUG)
     handler = logging.FileHandler(data_args.log_file)
@@ -185,7 +216,8 @@ def common_setup(model_args, data_args, training_args):
     if data_args.input_column_name is None:
         raise ValueError(f"Could not find an input text column in the dataset with columns {column_names}. Please make sure the dataset has a text column.")
     if data_args.output_column_name is None:
-        pass # could be language modelling check it TODO
+        special_logging.warn(f"Could not find an output label column in the dataset with columns {column_names}. This is okay for language modelling, just be sure.")
+        pass
     if "test" in raw_datasets and data_args.output_column_name is not None and data_args.output_column_name in raw_datasets["test"].features:
         raw_datasets["test"] = raw_datasets["test"].remove_columns([data_args.output_column_name])
 
@@ -201,6 +233,8 @@ def common_setup(model_args, data_args, training_args):
                 raw_datasets[key] = raw_datasets[key].rename_column(data_args.output_column_name, "label")
     if "train" not in raw_datasets:
         data_args.predict_only = True
+    else:
+        data_args.predict_only = False
     return special_logging, last_checkpoint, raw_datasets
 
 def activate_peft(model_args, model, tokenizer, task_type):
@@ -297,19 +331,12 @@ def handle_data_sizes(data_args, raw_datasets):
 
 
 def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, special_logging):
+    all_metrics = []
     special_logging.info("*** Before Training Evaluation ***")
-    metrics = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="train")
-    trainer.log_metrics("train", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"train metrics: {readable}")
-
-
-    metrics = trainer.evaluate(eval_dataset=eval_dataset)
-    trainer.log_metrics("eval", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"eval metrics: {readable}")
-
-
+    train_metrics = do_evaluation(trainer, train_dataset, "train", special_logging)
+    all_metrics.append(train_metrics)
+    eval_metrics = do_evaluation(trainer, eval_dataset, "eval", special_logging)
+    all_metrics.append([train_metrics, eval_metrics])
 
     # Training
     checkpoint = None
@@ -328,19 +355,13 @@ def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, 
     # Evaluation
     special_logging.info("*** Final Evaluation ***")
     logging.info("*** Final Evaluation ***")
-    metrics = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="train")
-    trainer.log_metrics("train", metrics)
-    trainer.save_metrics("train", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"train metrics: {readable}")
+    train_metrics = do_evaluation(trainer, train_dataset, "train", special_logging)
+    all_metrics.append(train_metrics)
+    eval_metrics = do_evaluation(trainer, eval_dataset, "eval", special_logging)
+    all_metrics.append([train_metrics, eval_metrics])
+    return all_metrics
 
 
-    metrics = trainer.evaluate(eval_dataset=eval_dataset)
-    trainer.log_metrics("eval", metrics)
-    trainer.save_metrics("eval", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"eval metrics: {readable}")
-
-
-def predict(trainer, dataset, save_path):
+def predict(data_args, trainer, dataset):
     predictions = trainer.predict(dataset, metric_key_prefix="predict").predictions
+    

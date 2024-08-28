@@ -20,7 +20,7 @@ Here is the full list of checkpoints on the hub that can be fine-tuned by this s
 https://huggingface.co/models?filter=text-generation
 """
 # You can also adapt this script on your own causal language modeling task. Pointers for this are left as comments.
-from common_utils import common_setup, activate_peft, check_token_lengths, handle_data_sizes, train, predict
+from common_utils import check_data_args, common_setup, activate_peft, check_token_lengths, handle_data_sizes, train, predict
 import logging
 import math
 import os
@@ -239,14 +239,23 @@ class DataTrainingArguments:
     validation_file: Optional[str] = field(
         default=None, metadata={"help": "A csv or a json file containing the validation data."}
     )
+    test_file: Optional[str] = field(
+        default=None, metadata={"help": "A csv or a json file containing the test data."}
+    )
+    prediction_file: Optional[str] = field(
+        default=None, metadata={"help": "CSV file to write the predictions to."}
+    )
+    prediction_column: Optional[str] = field(
+        default="output", metadata={"help": "The name of the column to write the predictions to. Will throw errors if column already exists."}
+    )
     log_file: Optional[str] = field(
         default="clm_ft.log", metadata={"help": "The file to write special logs to."}
     )
     check_tok_count: bool = field(
         default=False, metadata={"help": "Check the token count of the dataset."}
     )
-    grid_log: bool = field(
-        default=False, metadata={"help": "Is this script running gridsearch. If False then deletes previous special log_file"}
+    clear_log: bool = field(
+        default=False, metadata={"help": "If True then deletes previous special log_file"}
     )
     metric: Optional[str] = field(
         default=None, metadata={"help": "The metric to use for evaluation. If None, will be inferred from the dataset.", 
@@ -265,19 +274,7 @@ class DataTrainingArguments:
     )
 
     def __post_init__(self):
-        if self.data_file is not None:
-            assert self.train_file is None and self.validation_file is None, "Cannot use --data_file with --train_file, --validation_file or --test_file"
-        elif self.train_file is None or self.validation_file is None:
-            raise ValueError(" train file and validation file must be specified. If you want to use single df use data_file argument w train_val_split")
-
-        if self.data_file is None:
-            train_extension = self.train_file.split(".")[-1]
-            assert train_extension in ["csv"], "`train_file` should be a csv file."
-            validation_extension = self.validation_file.split(".")[-1]
-            assert (
-                validation_extension == train_extension
-            ), "`validation_file` should have the same extension (csv) as `train_file`."
-
+        check_data_args(self)
 
 def main():
     # See all possible arguments in src/transformers/training_args.py

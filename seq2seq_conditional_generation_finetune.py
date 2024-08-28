@@ -17,7 +17,7 @@
 Fine-tuning the library models for sequence to sequence.
 """
 # You can also adapt this script on your own sequence to sequence task. Pointers for this are left as comments.
-from common_utils import common_setup, activate_peft, check_token_lengths, handle_data_sizes, train, predict
+from common_utils import check_data_args, common_setup, activate_peft, check_token_lengths, handle_data_sizes, train, predict
 import logging
 import os
 import sys
@@ -167,14 +167,23 @@ class DataTrainingArguments:
     validation_file: Optional[str] = field(
         default=None, metadata={"help": "A csv or a json file containing the validation data."}
     )
+    test_file: Optional[str] = field(
+        default=None, metadata={"help": "A csv or a json file containing the test data."}
+    )
+    prediction_file: Optional[str] = field(
+        default=None, metadata={"help": "CSV file to write the predictions to."}
+    )
+    prediction_column: Optional[str] = field(
+        default="output", metadata={"help": "The name of the column to write the predictions to. Will throw errors if column already exists."}
+    )
     print_examples: bool = field(
         default=False, metadata={"help": "Print some examples to logger to check data."}
     )
     log_file: Optional[str] = field(
         default="clf_ft.log", metadata={"help": "The file to write special logs to."}
     )
-    grid_log: bool = field(
-        default=False, metadata={"help": "Is this script running gridsearch. If False then deletes previous special log_file"}
+    clear_log: bool = field(
+        default=False, metadata={"help": "If True then deletes previous special log_file"}
     )
     input_column_name: Optional[str] = field(
         default=None,
@@ -288,20 +297,9 @@ class DataTrainingArguments:
     )
 
     def __post_init__(self):
-        if self.data_file is not None:
-            assert self.train_file is None and self.validation_file is None, "Cannot use --data_file with --train_file, --validation_file or --test_file"
-        elif self.train_file is None or self.validation_file is None:
-            raise ValueError(" train file and validation file must be specified. If you want to use single df use data_file argument w train_val_split")
-
-        if self.data_file is None:
-            train_extension = self.train_file.split(".")[-1]
-            assert train_extension in ["csv", "json"], "`train_file` should be a csv or a json file."
-            validation_extension = self.validation_file.split(".")[-1]
-            assert (
-                validation_extension == train_extension
-            ), "`validation_file` should have the same extension (csv or json) as `train_file`."
         if self.val_max_output_length is None:
             self.val_max_output_length = self.max_output_length
+        check_data_args(self)
 
 
 
