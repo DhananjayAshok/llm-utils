@@ -20,7 +20,7 @@ Here is the full list of checkpoints on the hub that can be fine-tuned by this s
 https://huggingface.co/models?filter=text-generation
 """
 # You can also adapt this script on your own causal language modeling task. Pointers for this are left as comments.
-
+from common_utils import common_setup, activate_peft, check_token_lengths, handle_data_sizes, train
 import logging
 import math
 import os
@@ -473,19 +473,7 @@ def main():
     if len(tokenizer) > embedding_size:
         model.resize_token_embeddings(len(tokenizer))
 
-    if model_args.peft == "lora":
-        target_modules = ["k_proj", "v_proj", "down_proj"]
-        peft_config = LoraConfig(lora_alpha=model_args.lora_alpha, lora_dropout=model_args.lora_dropout, r=model_args.lora_r, bias=model_args.lora_bias, task_type=TaskType.SEQ_CLS, target_modules=target_modules)
-    elif model_args.peft == "ia3":
-        peft_config = IA3Config(task_type=TaskType.SEQ_CLS, target_modules=["k_proj", "v_proj", "down_proj"], feedforward_modules=["down_proj"])
-    #model.add_adapter(peft_config)
-    if model_args.peft is not None:
-        model = get_peft_model(model, peft_config)
-        model.print_trainable_parameters()
-    if tokenizer.pad_token_id is None:
-        tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.pad_token_id = tokenizer.eos_token_id
-        model.config.pad_token_id = tokenizer.eos_token_id
+    model = activate_peft(model_args, model, tokenizer, TaskType.CAUSAL_LM)
 
     # Preprocessing the datasets.
     # First we tokenize all the texts.
@@ -503,41 +491,7 @@ def main():
     if text_column_name is None:
         raise ValueError(f"Could not find a text column in the dataset with columns {column_names}. Please make sure the dataset has a text column.")
 
-    if data_args.check_tok_count:
-        def estimate_length(examples):
-            inputs = examples[text_column_name]
-            if output_column_name is not None:
-                targets = examples[output_column_name]
-                to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
-            else:
-                to_tok = inputs
-            toked = [len(sent.split()) for sent in to_tok]
-            return {"tok_count": toked}
-        
-        with training_args.main_process_first(desc="estimating dataset length"):
-            dataset_stats = raw_datasets.map(
-                estimate_length,
-                batched=True,
-            )
-
-        special_logging.info(f"*** Dataset Stats ***")
-        tokens = dataset_stats["train"]["tok_count"]
-        tokens.sort()
-        special_logging.info(f"Train:")
-        special_logging.info(f"min: {tokens[0]}")
-        special_logging.info(f"max: {tokens[-1]}")
-        special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
-        special_logging.info(f"median: {tokens[len(tokens)//2]}")
-        special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
-        tokens = dataset_stats["validation"]["tok_count"]
-        tokens.sort()
-        special_logging.info(f"Validation:")
-        special_logging.info(f"min: {tokens[0]}")
-        special_logging.info(f"max: {tokens[-1]}")
-        special_logging.info(f"mean: {sum(tokens)/len(tokens)}")
-        special_logging.info(f"median: {tokens[len(tokens)//2]}")
-        special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
-
+    check_token_lengths(data_args, raw_datasets, training_args, special_logging)
 
     
     additional_tokens_on_tokenize = len(tokenizer("hello")['input_ids']) - 1 
@@ -588,22 +542,7 @@ def main():
                 batched=True,
             )
 
-    train_dataset = lm_datasets["train"].shuffle(seed=training_args.seed)
-    train_dataset = train_dataset.shuffle(seed=training_args.seed)
-    if data_args.max_train_samples is not None:
-        max_train_samples = min(len(train_dataset), data_args.max_train_samples)
-        train_dataset = train_dataset.select(range(max_train_samples))
-
-    eval_dataset = lm_datasets["validation"].shuffle(seed=training_args.seed)
-    internal_eval_dataset = None
-    if data_args.max_internal_eval_samples is not None:
-        max_internal_eval_samples = min(len(eval_dataset), data_args.max_internal_eval_samples)
-        internal_eval_dataset = eval_dataset.select(range(max_internal_eval_samples))
-    if data_args.max_eval_samples is not None:
-        max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
-        eval_dataset = eval_dataset.select(range(max_eval_samples))
-    if internal_eval_dataset is None:
-        internal_eval_dataset = eval_dataset
+    train_dataset, eval_dataset, internal_eval_dataset = handle_data_sizes(data_args, lm_datasets)
 
     def preprocess_logits_for_metrics(logits, labels):
         if isinstance(logits, tuple):
@@ -634,64 +573,8 @@ def main():
         compute_metrics=compute_metrics,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics
     )
-
-    special_logging.info("*** Before Training Evaluation ***")
-    metrics = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="train")
-    trainer.log_metrics("train", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"train metrics: {readable}")
-
-
-    metrics = trainer.evaluate(eval_dataset=eval_dataset)
-    trainer.log_metrics("eval", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"eval metrics: {readable}")
-
-    # Training
-    checkpoint = None
-    if training_args.resume_from_checkpoint is not None:
-        checkpoint = training_args.resume_from_checkpoint
-    elif last_checkpoint is not None:
-        checkpoint = last_checkpoint
-    train_result = trainer.train(resume_from_checkpoint=checkpoint)
-    trainer.save_model()  # Saves the tokenizer too for easy upload
-
-    metrics = train_result.metrics
-
-    max_train_samples = (
-        data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
-    )
-    metrics["train_samples"] = min(max_train_samples, len(train_dataset))
-
-    trainer.log_metrics("train", metrics)
-    trainer.save_metrics("train", metrics)
-    trainer.save_state()
-
-    # Evaluation
-    special_logging.info("*** Final Evaluation ***")
-    logging.info("*** Final Evaluation ***")
-    metrics = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="train")
-    trainer.log_metrics("train", metrics)
-    trainer.save_metrics("train", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"train metrics: {readable}")
-
-
-    metrics = trainer.evaluate(eval_dataset=eval_dataset)
-    trainer.log_metrics("eval", metrics)
-    trainer.save_metrics("eval", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"eval metrics: {readable}")
-
-    trainer.log_metrics("eval", metrics)
-    trainer.save_metrics("eval", metrics)
-
-    kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "text-generation"}
-
-    if training_args.push_to_hub:
-        trainer.push_to_hub(**kwargs)
-    else:
-        trainer.create_model_card(**kwargs)
+    
+    train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, special_logging)
 
 
 def _mp_fn(index):

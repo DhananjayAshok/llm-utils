@@ -17,7 +17,7 @@
 Fine-tuning the library models for sequence to sequence.
 """
 # You can also adapt this script on your own sequence to sequence task. Pointers for this are left as comments.
-
+from common_utils import common_setup, activate_peft, check_token_lengths, handle_data_sizes, train
 import logging
 import os
 import sys
@@ -297,142 +297,14 @@ class DataTrainingArguments:
 
 
 def main():
-    # See all possible arguments in src/transformers/training_args.py
-    # or by passing the --help flag to this script.
-    # We now keep distinct sets of args, for a cleaner separation of concerns.
-
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, Seq2SeqTrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        # If we pass only one argument to the script and it's the path to a json file,
-        # let's parse it to get our arguments.
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    # Manually force training args if not set
-    training_args.do_train = True
-    training_args.do_eval = True
-    training_args.predict_with_generate = True
-    training_args.eval_strategy = "epoch"
-    training_args.auto_find_batch_size  = True
-    if training_args.save_total_limit is None:
-        training_args.save_total_limit = 2
-    if training_args.seed is None:
-        training_args.seed = 42
+    special_logging, last_checkpoint, raw_datasets = common_setup(model_args, data_args, training_args)
 
-    # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
-    # information sent is the one passed as arguments along with your Python/PyTorch versions.
-    send_example_telemetry("run_summarization", model_args, data_args)
-
-    # Setup logging
-    logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
-    if not data_args.grid_log:
-        if os.path.exists(data_args.log_file):
-            os.remove(data_args.log_file)
-    logdir = os.path.dirname(data_args.log_file)
-    if logdir != "" and not os.path.exists(logdir):
-        os.makedirs(logdir)
-    special_logging = logging.getLogger("special")
-    special_logging.setLevel(logging.DEBUG)
-    handler = logging.FileHandler(data_args.log_file)
-    formatter = logging.Formatter("%(levelname)s - %(name)s - %(message)s")
-    handler.setFormatter(formatter)
-    special_logging.addHandler(handler)
-
-    if training_args.should_log:
-        # The default of training_args.log_level is passive, so we set log level at info here to have that default.
-        transformers.utils.logging.set_verbosity_info()
-
-    log_level = training_args.get_process_log_level()
-    logger.setLevel(log_level)
-    datasets.utils.logging.set_verbosity(transformers.logging.ERROR)
-    transformers.utils.logging.set_verbosity(transformers.logging.ERROR)
-    transformers.utils.logging.enable_default_handler()
-    transformers.utils.logging.enable_explicit_format()
-
-    # Training hyperparameters
-    special_logging.info(f"*** Hyperparameters ***")
-    special_logging.info(f"learning_rate: {training_args.learning_rate}")
-    if training_args.learning_rate is None or training_args.learning_rate == 5e-05:
-        special_logging.warning("\tUsing default learning rate (5e-5). Should likely mess around with it")
-    special_logging.info(f"weight_decay: {training_args.weight_decay}")
-    if training_args.weight_decay is None or training_args.weight_decay == 0.0:
-        special_logging.warning("\tUsing default weight decay (0.0). Should likely mess around with it")
-    special_logging.info(f"adam_beta1: {training_args.adam_beta1}")
-    if training_args.adam_beta1 is None or training_args.adam_beta1 == 0.9:
-        special_logging.warning("\tUsing default adam_beta1 (0.9). Should likely mess around with it")
-    special_logging.info(f"adam_beta2: {training_args.adam_beta2}")
-    if training_args.adam_beta2 is None or training_args.adam_beta2 == 0.999:
-        special_logging.warning("\tUsing default adam_beta2 (0.999). Should likely mess around with it")
-    special_logging.info(f"lr_scheduler_type: {training_args.lr_scheduler_type}")
-    if training_args.lr_scheduler_type is None or training_args.lr_scheduler_type == "linear":
-        special_logging.warning("\tUsing default lr_scheduler_type (linear). Should likely mess around with it")
-
-    # Log on each process the small summary:
-    logger.warning(
-        f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}, "
-        + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, 16-bits training: {training_args.fp16}"
-    )
-
-    # Detecting last checkpoint.
-    last_checkpoint = None
-    if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
-        last_checkpoint = get_last_checkpoint(training_args.output_dir)
-        if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
-            raise ValueError(
-                f"Output directory ({training_args.output_dir}) already exists and is not empty. "
-                "Use --overwrite_output_dir to overcome."
-            )
-        elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
-            logger.info(
-                f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
-                "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
-            )
-
-    # Set seed before initializing model.
-    set_seed(training_args.seed)
-
-    # Get the datasets: you can either provide your own CSV/JSON training and evaluation files (see below)
-    # or just provide the name of one of the public datasets available on the hub at https://huggingface.co/datasets/
-    # (the dataset will be downloaded automatically from the datasets Hub).
-    #
-    # For CSV/JSON files this script will use the first column for the full texts and the second column for the
-    # summaries (unless you specify column names for this with the `text_column` and `summary_column` arguments).
-    #
-    # In distributed training, the load_dataset function guarantee that only one local process can concurrently
-    # download the dataset.
-    if data_args.data_file is not None:
-        df = pd.read_csv(data_args.data_file)
-        df = df.sample(frac=1).reset_index(drop=True)
-        n_train = int(len(df) * (1 - data_args.train_val_split))
-        train_df = df[:n_train]
-        val_df = df[n_train:].reset_index(drop=True)
-        save_name_path = data_args.data_file.replace(".csv", "")
-        train_df.to_csv(f"{save_name_path}_train.csv", index=False)
-        val_df.to_csv(f"{save_name_path}_validation.csv", index=False)
-        data_files = {"train": f"{save_name_path}_train.csv", "validation": f"{save_name_path}_validation.csv"}
-    else:
-        data_files = {"train": data_args.train_file, "validation": data_args.validation_file}
-
-
-    raw_datasets = load_dataset(
-        "csv",
-        data_files=data_files,
-        cache_dir=model_args.cache_dir,
-        token=model_args.token,
-    )
-    # See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
-    # https://huggingface.co/docs/datasets/loading_datasets.
-
-    # Load pretrained model and tokenizer
-    #
-    # Distributed training:
-    # The .from_pretrained methods guarantee that only one local process can concurrently
-    # download model & vocab.
     config = AutoConfig.from_pretrained(
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
@@ -488,19 +360,7 @@ def main():
                 " model's position encodings by passing `--resize_position_embeddings`."
             )
 
-    if model_args.peft == "lora":
-        target_modules = ["k_proj", "v_proj", "down_proj"]
-        peft_config = LoraConfig(lora_alpha=model_args.lora_alpha, lora_dropout=model_args.lora_dropout, r=model_args.lora_r, bias=model_args.lora_bias, task_type=TaskType.SEQ_CLS, target_modules=target_modules)
-    elif model_args.peft == "ia3":
-        peft_config = IA3Config(task_type=TaskType.SEQ_CLS, target_modules=["k_proj", "v_proj", "down_proj"], feedforward_modules=["down_proj"])
-    #model.add_adapter(peft_config)
-    if model_args.peft is not None:
-        model = get_peft_model(model, peft_config)
-        model.print_trainable_parameters()
-    if tokenizer.pad_token_id is None:
-        tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.pad_token_id = tokenizer.eos_token_id
-        model.config.pad_token_id = tokenizer.eos_token_id
+    model = activate_peft(model_args, model, tokenizer, TaskType.SEQ_2_SEQ_LM)
 
 
     # Preprocessing the datasets.
@@ -649,55 +509,8 @@ def main():
         data_collator=data_collator,
         compute_metrics=compute_metrics
     )
-
-    special_logging.info("*** Before Training Evaluation ***")
-    metrics = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="train")
-    trainer.log_metrics("train", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"train metrics: {readable}")
-
-
-    metrics = trainer.evaluate(eval_dataset=eval_dataset)
-    trainer.log_metrics("eval", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"eval metrics: {readable}")
-
-    # Training
-    checkpoint = None
-    if training_args.resume_from_checkpoint is not None:
-        checkpoint = training_args.resume_from_checkpoint
-    elif last_checkpoint is not None:
-        checkpoint = last_checkpoint
-    train_result = trainer.train(resume_from_checkpoint=checkpoint)
-    trainer.save_model()  # Saves the tokenizer too for easy upload
-
-    metrics = train_result.metrics
-    max_train_samples = (
-        data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
-    )
-    metrics["train_samples"] = min(max_train_samples, len(train_dataset))
-
-    trainer.log_metrics("train", metrics)
-    trainer.save_metrics("train", metrics)
-    trainer.save_state()
-
-
-    special_logging.info("*** After Training Evaluation ***")
-    metrics = trainer.evaluate(eval_dataset=train_dataset, metric_key_prefix="train")
-    trainer.log_metrics("train", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"train metrics: {readable}")
-
-
-    metrics = trainer.evaluate(eval_dataset=eval_dataset)
-    trainer.log_metrics("eval", metrics)
-    readable = get_metric_report_str(trainer, metrics)
-    special_logging.info(f"eval metrics: {readable}")
-
-    kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "summarization"}
-
-    if training_args.push_to_hub:
-        trainer.push_to_hub(**kwargs)
+    
+    train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, special_logging)
 
     return
 
