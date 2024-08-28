@@ -49,6 +49,9 @@ def get_model(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     if args.model_kind == 'causal-lm':
         model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, device_map="auto")
+        # set pad token id to eos token id to avoid generating padding tokens
+        model.config.pad_token_id = model.config.eos_token_id
+        tokenizer.pad_token = tokenizer.eos_token
     elif args.model_kind == 'seq-classification':
         model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path, device_map="auto")
     elif args.model_kind == 'seq2seq-lm':
