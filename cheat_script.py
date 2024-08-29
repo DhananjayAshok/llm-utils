@@ -107,7 +107,7 @@ if __name__ == "__main__":
         device_map=get_kbit_device_map() if quantization_config is not None else None,
         quantization_config=quantization_config,
     )
-    training_args.model_init_kwargs = model_kwargs
+    #training_args.model_init_kwargs = model_kwargs
     model = AutoModelForSequenceClassification.from_pretrained(model_config.model_name_or_path, device_map="auto")
     tokenizer = AutoTokenizer.from_pretrained(
         model_config.model_name_or_path, trust_remote_code=model_config.trust_remote_code, use_fast=True
@@ -141,6 +141,7 @@ if __name__ == "__main__":
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             tokenizer=tokenizer,
+            data_text_field="text",
             peft_config=get_peft_config(model_config),
             callbacks=[RichProgressCallback] if TRL_USE_RICH else None,
         )
