@@ -342,11 +342,11 @@ def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, 
     elif last_checkpoint is not None:
         checkpoint = last_checkpoint
     train_result = trainer.train(resume_from_checkpoint=checkpoint)
-    metrics = train_result.metrics
-    metrics["train_samples"] = len(train_dataset)
+    training_metrics = train_result.metrics
+    training_metrics["train_samples"] = len(train_dataset)
     trainer.save_model()  # Saves the tokenizer too for easy upload
-    trainer.log_metrics("train", metrics)
-    trainer.save_metrics("train", metrics)
+    trainer.log_metrics("train", training_metrics)
+    trainer.save_metrics("train", training_metrics)
     trainer.save_state()
 
     # Evaluation
@@ -356,10 +356,12 @@ def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, 
     all_metrics.append(train_metrics)
     eval_metrics = do_evaluation(trainer, eval_dataset, "eval", special_logging)
     all_metrics.append([train_metrics, eval_metrics])
-    return all_metrics
+    return training_metrics, all_metrics
 
 
 def predict(data_args, trainer, dataset):
+    if dataset is None:
+        return None
     predictions = trainer.predict(dataset, metric_key_prefix="predict").predictions
     pred_df = pd.read_csv(data_args.test_file)
     if os.path.exists(data_args.prediction_file):
