@@ -141,7 +141,6 @@ if __name__ == "__main__":
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             tokenizer=tokenizer,
-            data_text_field="text",
             peft_config=get_peft_config(model_config),
             callbacks=[RichProgressCallback] if TRL_USE_RICH else None,
         )
