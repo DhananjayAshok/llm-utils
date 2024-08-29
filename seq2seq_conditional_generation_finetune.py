@@ -173,7 +173,7 @@ class DataTrainingArguments:
     prediction_file: Optional[str] = field(
         default=None, metadata={"help": "CSV file to write the predictions to."}
     )
-    prediction_column: Optional[str] = field(
+    prediction_column_name: Optional[str] = field(
         default="output", metadata={"help": "The name of the column to write the predictions to. Will throw errors if column already exists."}
     )
     print_examples: bool = field(
@@ -374,8 +374,10 @@ def main():
     # We need to tokenize inputs and targets.
 
     # Get the column names for input/target.
-    text_column = "text"
-    summary_column = "label"
+    text_column = data_args.input_column_name
+    summary_column = data_args.output_column_name
+    if not data_args.predict_only:
+        assert summary_column is not None, "You need to have an output_column for training Seq2Seq"
 
     # Temporarily set max_output_length for training.
     max_output_length = data_args.max_output_length
@@ -388,27 +390,26 @@ def main():
         )
 
     def preprocess_function(examples):
-        # remove pairs where at least one record is None
-
-        inputs, targets = [], []
-        for i in range(len(examples[text_column])):
-            if examples[text_column][i] and examples[summary_column][i]:
-                inputs.append(examples[text_column][i])
-                targets.append(examples[summary_column][i])
+        # if summary_column is in the frame then remove pairs where at least one record is None, otherwise dont have labels
+        inputs = examples[text_column]
+        targets = None
+        if summary_column in examples:
+            targets = examples[summary_column]
 
         model_inputs = tokenizer(inputs, max_length=data_args.max_input_length, padding=padding, truncation=True)
 
-        # Tokenize targets with the `text_target` keyword argument
-        labels = tokenizer(text_target=targets, max_length=max_output_length, padding=padding, truncation=True)
+        if targets is not None:
+            # Tokenize targets with the `text_target` keyword argument
+            labels = tokenizer(text_target=targets, max_length=max_output_length, padding=padding, truncation=True)
 
-        # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
-        # padding in the loss.
-        if padding == "max_length" and data_args.ignore_pad_token_for_loss:
-            labels["input_ids"] = [
-                [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
-            ]
+            # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
+            # padding in the loss.
+            if padding == "max_length" and data_args.ignore_pad_token_for_loss:
+                labels["input_ids"] = [
+                    [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
+                ]
 
-        model_inputs["labels"] = labels["input_ids"]
+            model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
     train_dataset = None
@@ -482,40 +483,37 @@ def main():
     # Metric TODO: Customize
     metric = evaluate.load(data_args.metric, cache_dir=model_args.cache_dir)
 
-    if not data_args.predict_only:
-        def postprocess_text(preds, labels):
-            preds = [pred.strip() for pred in preds]
-            labels = [label.strip() for label in labels]
+    def postprocess_text(preds, labels):
+        preds = [pred.strip() for pred in preds]
+        labels = [label.strip() for label in labels]
 
-            if data_args.metric == "rogue":
-                # rougeLSum expects newline after each sentence
-                preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
-                labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
-            return preds, labels
+        if data_args.metric == "rogue":
+            # rougeLSum expects newline after each sentence
+            preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
+            labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
+        return preds, labels
 
-        def compute_metrics(eval_preds):
-            preds, labels = eval_preds
-            if isinstance(preds, tuple):
-                preds = preds[0]
-            # Replace -100s used for padding as we can't decode them
-            preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
-            decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-            labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-            decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    def compute_metrics(eval_preds):
+        preds, labels = eval_preds
+        if isinstance(preds, tuple):
+            preds = preds[0]
+        # Replace -100s used for padding as we can't decode them
+        preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
+        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
-            # Some simple post-processing
-            decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+        # Some simple post-processing
+        decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
 
-            kwargs = {}
-            if data_args.metric == "rouge":
-                kwargs = {"use_stemmer": True}
-            result = metric.compute(predictions=decoded_preds, references=decoded_labels, **kwargs)
-            result = {k: round(v * 100, 4) for k, v in result.items()}
-            prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in preds]
-            result["gen_len"] = np.mean(prediction_lens)
-            return result
-    else:
-        compute_metrics = None
+        kwargs = {}
+        if data_args.metric == "rouge":
+            kwargs = {"use_stemmer": True}
+        result = metric.compute(predictions=decoded_preds, references=decoded_labels, **kwargs)
+        result = {k: round(v * 100, 4) for k, v in result.items()}
+        prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in preds]
+        result["gen_len"] = np.mean(prediction_lens)
+        return result
 
     # Override the decoding parameters of Seq2SeqTrainer
     training_args.generation_max_length = (

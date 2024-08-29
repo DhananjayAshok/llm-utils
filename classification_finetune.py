@@ -187,7 +187,7 @@ class DataTrainingArguments:
     prediction_file: Optional[str] = field(
         default=None, metadata={"help": "CSV file to write the predictions to."}
     )
-    prediction_column: Optional[str] = field(
+    prediction_column_name: Optional[str] = field(
         default="output", metadata={"help": "The name of the column to write the predictions to. Will throw errors if column already exists."}
     )
     print_examples: bool = field(
@@ -457,12 +457,11 @@ def main():
     def preprocess_function(examples):
         # Tokenize the texts
         result = tokenizer(examples["text"], padding=padding, max_length=max_seq_length, truncation=True)
-        if not data_args.predict_only:
-            if label_to_id is not None and "label" in examples:
-                if is_multi_label:
-                    result["label"] = [multi_labels_to_ids(l) for l in examples["label"]]
-                else:
-                    result["label"] = [(label_to_id[str(l)] if l != -1 else -1) for l in examples["label"]]
+        if label_to_id is not None and "label" in examples:
+            if is_multi_label:
+                result["label"] = [multi_labels_to_ids(l) for l in examples["label"]]
+            else:
+                result["label"] = [(label_to_id[str(l)] if l != -1 else -1) for l in examples["label"]]
         return result
 
     # Running the preprocessing pipeline on all the datasets
@@ -483,35 +482,32 @@ def main():
         for index in random.sample(range(len(train_dataset)), 3):
             special_logging.info(f"Sample {index} of the training set: {train_dataset[index]}.")
 
-    if not data_args.predict_only:
-        if data_args.metric is not None:
-            metric = evaluate.load(data_args.metric, cache_dir=model_args.cache_dir)
-        else:
-            if is_regression:
-                metric = evaluate.load("mse", cache_dir=model_args.cache_dir)
-            else:
-                if is_multi_label:
-                    metric = evaluate.load("f1", config_name="multilabel", cache_dir=model_args.cache_dir)
-                else:
-                    metric = evaluate.load("accuracy", cache_dir=model_args.cache_dir)
-
-        def compute_metrics(p: EvalPrediction):
-            preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
-            if is_regression:
-                preds = np.squeeze(preds)
-                result = metric.compute(predictions=preds, references=p.label_ids)
-            elif is_multi_label:
-                preds = np.array([np.where(p > 0, 1, 0) for p in preds])  # convert logits to multi-hot encoding
-                # Micro F1 is commonly used in multi-label classification
-                result = metric.compute(predictions=preds, references=p.label_ids, average="micro")
-            else:
-                preds = np.argmax(preds, axis=1)
-                result = metric.compute(predictions=preds, references=p.label_ids)
-            if len(result) > 1:
-                result["combined_score"] = np.mean(list(result.values())).item()
-            return result
+    if data_args.metric is not None:
+        metric = evaluate.load(data_args.metric, cache_dir=model_args.cache_dir)
     else:
-        compute_metrics = None
+        if is_regression:
+            metric = evaluate.load("mse", cache_dir=model_args.cache_dir)
+        else:
+            if is_multi_label:
+                metric = evaluate.load("f1", config_name="multilabel", cache_dir=model_args.cache_dir)
+            else:
+                metric = evaluate.load("accuracy", cache_dir=model_args.cache_dir)
+
+    def compute_metrics(p: EvalPrediction):
+        preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
+        if is_regression:
+            preds = np.squeeze(preds)
+            result = metric.compute(predictions=preds, references=p.label_ids)
+        elif is_multi_label:
+            preds = np.array([np.where(p > 0, 1, 0) for p in preds])  # convert logits to multi-hot encoding
+            # Micro F1 is commonly used in multi-label classification
+            result = metric.compute(predictions=preds, references=p.label_ids, average="micro")
+        else:
+            preds = np.argmax(preds, axis=1)
+            result = metric.compute(predictions=preds, references=p.label_ids)
+        if len(result) > 1:
+            result["combined_score"] = np.mean(list(result.values())).item()
+        return result
 
     # Data collator will default to DataCollatorWithPadding when the tokenizer is passed to Trainer, so we change it if
     # we already did the padding.

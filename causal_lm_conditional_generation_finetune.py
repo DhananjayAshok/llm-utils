@@ -245,6 +245,14 @@ class DataTrainingArguments:
     prediction_file: Optional[str] = field(
         default=None, metadata={"help": "CSV file to write the predictions to."}
     )
+    input_column_name: Optional[str] = field(
+        default=None,
+        metadata={"help": "The name of the column in the datasets containing the input."},
+    )
+    output_column_name: Optional[str] = field(
+        default=None,
+        metadata={"help": "The name of the column in the datasets containing the output."},
+    )
     prediction_column_name: Optional[str] = field(
         default="output", metadata={"help": "The name of the column to write the predictions to. Will throw errors if column already exists."}
     )
@@ -359,8 +367,10 @@ def main():
 
     # Preprocessing the datasets.
     # First we tokenize all the texts.
-    text_column_name = "text"
-    output_column_name = "label"
+    text_column_name = data_args.input_column_name
+    output_column_name = data_args.output_column_name
+    if not data_args.predict_only:
+        assert output_column_name is not None, "You need to have an output_column for training conditional LM generation"
 
     check_token_lengths(data_args, raw_datasets, training_args, special_logging)
 
@@ -373,26 +383,25 @@ def main():
     def preprocess_function(examples):
         # remove pairs where at least one record is None
         inputs = examples[text_column_name]
-        if output_column_name is not None and output_column_name in examples:
+        if output_column_name in examples:
             targets = examples[output_column_name] if output_column_name is not None else ""
             to_tok = [inputs[i] + targets[i] for i in range(len(inputs))]
         else:
             to_tok = inputs
         model_inputs = tokenizer(to_tok, max_length=data_args.max_seq_length, padding="max_length", truncation=True)
-        labels = model_inputs["input_ids"].copy()
-        # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
-        # padding in the loss.
-        labels = [
-                [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels]
-        # if targets is not None then replace all input_only_ids with -100 to ignore them in the loss
-        if output_column_name is not None and output_column_name in examples:
-                input_only_ids = tokenizer(inputs, max_length=data_args.max_seq_length, padding='do_not_pad', truncation=True)['input_ids']
-                inp_lengths = [len(i) for i in input_only_ids]
-                for i in range(len(labels)):
-                    length = inp_lengths[i]
-                    for j in range(length):
-                        labels[i][j] = -100
-        if not data_args.predict_only:
+        if output_column_name in examples:
+            labels = model_inputs["input_ids"].copy()
+            # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
+            # padding in the loss.
+            labels = [
+                    [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels]
+            # if targets is not None then replace all input_only_ids with -100 to ignore them in the loss
+            input_only_ids = tokenizer(inputs, max_length=data_args.max_seq_length, padding='do_not_pad', truncation=True)['input_ids']
+            inp_lengths = [len(i) for i in input_only_ids]
+            for i in range(len(labels)):
+                length = inp_lengths[i]
+                for j in range(length):
+                    labels[i][j] = -100
             model_inputs["labels"] = labels
         return model_inputs
 
@@ -417,26 +426,22 @@ def main():
 
     train_dataset, eval_dataset, internal_eval_dataset, test_dataset = handle_data_sizes(data_args, lm_datasets)
 
-    if not data_args.predict_only:
-        def preprocess_logits_for_metrics(logits, labels):
-            if isinstance(logits, tuple):
-                # Depending on the model and config, logits may contain extra tensors,
-                # like past_key_values, but logits always come first
-                logits = logits[0]
-            return logits.argmax(dim=-1)
+    def preprocess_logits_for_metrics(logits, labels):
+        if isinstance(logits, tuple):
+            # Depending on the model and config, logits may contain extra tensors,
+            # like past_key_values, but logits always come first
+            logits = logits[0]
+        return logits.argmax(dim=-1)
 
-        metric = evaluate.load("accuracy", cache_dir=model_args.cache_dir) # TODO: Look at appropriate metric
+    metric = evaluate.load("accuracy", cache_dir=model_args.cache_dir) # TODO: Look at appropriate metric
 
-        def compute_metrics(eval_preds):
-            preds, labels = eval_preds
-            # preds have the same shape as the labels, after the argmax(-1) has been calculated
-            # by preprocess_logits_for_metrics but we need to shift the labels
-            labels = labels[:, 1:].reshape(-1)
-            preds = preds[:, :-1].reshape(-1)
-            return metric.compute(predictions=preds, references=labels)
-    else:
-        compute_metrics = None
-        preprocess_logits_for_metrics = None
+    def compute_metrics(eval_preds):
+        preds, labels = eval_preds
+        # preds have the same shape as the labels, after the argmax(-1) has been calculated
+        # by preprocess_logits_for_metrics but we need to shift the labels
+        labels = labels[:, 1:].reshape(-1)
+        preds = preds[:, :-1].reshape(-1)
+        return metric.compute(predictions=preds, references=labels)
 
     # Initialize our Trainer
     trainer = Trainer(

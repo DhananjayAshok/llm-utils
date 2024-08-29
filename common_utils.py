@@ -218,8 +218,6 @@ def common_setup(model_args, data_args, training_args):
     if data_args.output_column_name is None:
         special_logging.warn(f"Could not find an output label column in the dataset with columns {column_names}. This is okay for language modelling, just be sure.")
         pass
-    if "test" in raw_datasets and data_args.output_column_name is not None and data_args.output_column_name in raw_datasets["test"].features:
-        raw_datasets["test"] = raw_datasets["test"].remove_columns([data_args.output_column_name])
 
     if data_args.input_column_name != "text":
         for key in raw_datasets.keys():
@@ -227,9 +225,7 @@ def common_setup(model_args, data_args, training_args):
 
     if data_args.output_column_name is not None and data_args.output_column_name != "label":
         for key in raw_datasets.keys():
-            if key == "test":
-                continue
-            else:
+            if data_args.output_column_name in raw_datasets[key].features:
                 raw_datasets[key] = raw_datasets[key].rename_column(data_args.output_column_name, "label")
     if "train" not in raw_datasets:
         data_args.predict_only = True
@@ -368,6 +364,6 @@ def predict(data_args, trainer, dataset):
     if os.path.exists(data_args.prediction_file):
         if data_args.prediction_column_name in pd.read_csv(data_args.prediction_file).columns:
             raise ValueError(f"Prediction column already exists in prediction file {data_args.prediction_file}. Please specify a different column name or different file")
+    # Will likely need to handle diff shapes properly
     print(predictions.type)
     print(predictions.shape)
-    

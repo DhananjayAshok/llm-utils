@@ -1,1 +1,3 @@
 Send all the common things to a file and make this a pip package?
+
+Compute Metrics and preprocessing will likely trigger a fail if labels not there
