@@ -5,10 +5,9 @@ export CKPT_PATH=meta-llama/Meta-Llama-3.1-8B
 export SAVE_NAME=cheatmodel
 export SAVE_PATH=${SAVE_NAME}
 
-
+#    --report_to="wandb" \
 python cheat_script.py \
     --model_name_or_path=${CKPT_PATH} \
-    --report_to="wandb" \
     --learning_rate=${LEARNING_RATE} \
     --per_device_train_batch_size=${BATCH_SIZE} \
     --gradient_accumulation_steps=16 \
