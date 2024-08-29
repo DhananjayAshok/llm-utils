@@ -67,7 +67,7 @@ import torch
 from datasets import load_dataset
 
 from tqdm.rich import tqdm
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 from trl import (
     ModelConfig,
@@ -108,6 +108,7 @@ if __name__ == "__main__":
         quantization_config=quantization_config,
     )
     training_args.model_init_kwargs = model_kwargs
+    model = AutoModelForSequenceClassification.from_pretrained(model_config.model_name_or_path, device_map="auto")
     tokenizer = AutoTokenizer.from_pretrained(
         model_config.model_name_or_path, trust_remote_code=model_config.trust_remote_code, use_fast=True
     )
@@ -117,8 +118,8 @@ if __name__ == "__main__":
     # Dataset
     ################
 
-    train_dataset = load_dataset(".csv", data_files={"train": "data/l/train.csv"})
-    eval_dataset = load_dataset(".csv", data_files={"eval": "data/l/val.csv"})
+    train_dataset = load_dataset(".csv", data_files={"train": "data/l/train.csv"})['train']
+    eval_dataset = load_dataset(".csv", data_files={"eval": "data/l/val.csv"})['eval']
 
     ################
     # Optional rich context managers
@@ -135,7 +136,7 @@ if __name__ == "__main__":
     ################
     with init_context:
         trainer = SFTTrainer(
-            model=model_config.model_name_or_path,
+            model=model,
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
