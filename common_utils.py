@@ -28,6 +28,7 @@ from transformers import (
     Seq2SeqTrainingArguments,
     set_seed,
 )
+import torch
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, is_offline_mode, send_example_telemetry
 from peft import LoraConfig, get_peft_model, IA3Config
@@ -41,7 +42,8 @@ def get_metric_report_str(metric_report):
     return s
 
 def do_evaluation(trainer, dataset, split, special_logging):
-    metrics = trainer.evaluate(eval_dataset=dataset, metric_key_prefix=split)
+    with torch.no_grad():
+        metrics = trainer.evaluate(eval_dataset=dataset, metric_key_prefix=split)
     trainer.log_metrics(split, metrics)
     metric_report = trainer.metrics_format(metrics)
     readable = get_metric_report_str(metric_report)
@@ -340,6 +342,7 @@ def handle_data_sizes(data_args, training_args, raw_datasets):
 def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, special_logging):
     all_metrics = []
     special_logging.info("*** Before Training Evaluation ***")
+    trainer.model.eval()
     train_metrics = do_evaluation(trainer, train_dataset, "train", special_logging)
     all_metrics.append(train_metrics)
     eval_metrics = do_evaluation(trainer, eval_dataset, "eval", special_logging)
@@ -351,6 +354,7 @@ def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, 
         checkpoint = training_args.resume_from_checkpoint
     elif last_checkpoint is not None:
         checkpoint = last_checkpoint
+    trainer.model.train()
     train_result = trainer.train(resume_from_checkpoint=checkpoint)
     training_metrics = train_result.metrics
     training_metrics["train_samples"] = len(train_dataset)
@@ -359,6 +363,7 @@ def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, 
     trainer.save_metrics("train", training_metrics)
     trainer.save_state()
 
+    trainer.model.eval()
     # Evaluation
     special_logging.info("*** Final Evaluation ***")
     logging.info("*** Final Evaluation ***")
