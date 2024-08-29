@@ -118,8 +118,8 @@ if __name__ == "__main__":
     # Dataset
     ################
 
-    train_dataset = load_dataset(".csv", data_files={"train": "data/l/train.csv"})['train']
-    eval_dataset = load_dataset(".csv", data_files={"eval": "data/l/val.csv"})['eval']
+    train_dataset = load_dataset("csv", data_files={"train": "data/l/train.csv"})['train']
+    eval_dataset = load_dataset("csv", data_files={"eval": "data/l/val.csv"})['eval']
 
     ################
     # Optional rich context managers
