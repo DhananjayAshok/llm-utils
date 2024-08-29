@@ -55,18 +55,21 @@ def check_data_args(data_args):
     elif data_args.train_file is None:
         assert data_args.test_file is not None, "Must specify --test_file if not using --data_file or --train_file and --validation_file"
 
-    if data_args.data_file is None:
-        train_extension = data_args.train_file.split(".")[-1]
-        assert train_extension in ["csv"], "`train_file` should be a csv"
-        validation_extension = data_args.validation_file.split(".")[-1]
-        assert (
-            validation_extension == train_extension
-        ), "`validation_file` should have the same extension as `train_file`."
+    if data_args.data_file is not None:
+        assert data_args.data_file.split(".")[-1] == "csv", "Data file must be a csv"
+
+    if data_args.train_file is not None:
+        assert data_args.train_file.split(".")[-1] == "csv", "Train file must be a csv"
+
+    if data_args.validation_file is not None:
+        assert data_args.validation_file.split(".")[-1] == "csv", "Validation file must be a csv"
 
     if data_args.test_file is not None:
-        test_extension = data_args.test_file.split(".")[-1]
-        assert test_extension in ["csv"], "`test_file` should be a csv"
+        assert data_args.test_file.split(".")[-1] == "csv", "Test file must be a csv"
+
+    if data_args.test_file is not None:
         assert data_args.prediction_file is not None, "Must specify --prediction_file if using --test_file"
+
     logdir = os.path.dirname(data_args.log_file)
     if logdir != "" and not os.path.exists(logdir):
         os.makedirs(logdir)
@@ -74,6 +77,9 @@ def check_data_args(data_args):
         prediction_dir = os.path.dirname(data_args.prediction_file)
         if prediction_dir != "" and not os.path.exists(prediction_dir):
             os.makedirs(prediction_dir)
+        if os.path.exists(data_args.prediction_file):
+            if data_args.prediction_column_name in pd.read_csv(data_args.prediction_file).columns:
+                raise ValueError(f"Prediction column already exists in prediction file {data_args.prediction_file}. Please specify a different column name or different file")
 
 
 def common_setup(model_args, data_args, training_args):
@@ -364,16 +370,12 @@ def predict(data_args, trainer, dataset, special_logging):
         return None
     predictions = trainer.predict(dataset, metric_key_prefix="test")
     pred_df = pd.read_csv(data_args.test_file)
-    if os.path.exists(data_args.prediction_file):
-        if data_args.prediction_column_name in pd.read_csv(data_args.prediction_file).columns:
-            raise ValueError(f"Prediction column already exists in prediction file {data_args.prediction_file}. Please specify a different column name or different file")
     metrics = None
     if hasattr(predictions, "metrics"):
         readable = get_metric_report_str(predictions.metrics)
         special_logging.info(f"test metrics: \n{readable}")
         metrics = predictions.metrics    
     preds = predictions.predictions
-    breakpoint() # Debug Causal LM and Generation
     if isinstance(preds, tuple): # assume this is classification idk
         assert len(preds) == 2
         preds = preds[0]
