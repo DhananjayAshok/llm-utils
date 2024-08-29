@@ -183,8 +183,12 @@ def common_setup(model_args, data_args, training_args):
         val_df.to_csv(f"{save_name_path}_validation.csv", index=False)
         data_files = {"train": f"{save_name_path}_train.csv", "validation": f"{save_name_path}_validation.csv"}
     else:
-        data_files = {"train": data_args.train_file, "validation": data_args.validation_file}
+        data_files = {}
     
+    if data_args.train_file is not None:
+        data_files["train"] = data_args.train_file
+    if data_args.validation_file is not None:
+        data_files["validation"] = data_args.validation_file
     if data_args.test_file is not None:
         data_files["test"] = data_args.test_file
 
