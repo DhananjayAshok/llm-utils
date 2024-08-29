@@ -532,7 +532,7 @@ def main():
     if not data_args.predict_only:
         # Training
         train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, special_logging)
-    predict(data_args, trainer, test_dataset)
+    predict(data_args, trainer, test_dataset, special_logging)
 
 if __name__ == "__main__":
     main()

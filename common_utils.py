@@ -359,15 +359,31 @@ def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, 
     return training_metrics, all_metrics
 
 
-def predict(data_args, trainer, dataset):
+def predict(data_args, trainer, dataset, special_logging):
     if dataset is None:
         return None
-    predictions = trainer.predict(dataset, metric_key_prefix="predict").predictions
+    predictions = trainer.predict(dataset, metric_key_prefix="test")
     pred_df = pd.read_csv(data_args.test_file)
     if os.path.exists(data_args.prediction_file):
         if data_args.prediction_column_name in pd.read_csv(data_args.prediction_file).columns:
             raise ValueError(f"Prediction column already exists in prediction file {data_args.prediction_file}. Please specify a different column name or different file")
-    # Will likely need to handle diff shapes properly
-    print(type(predictions))
-    print(predictions.shape)
-    print(predictions)
+    metrics = None
+    if hasattr(predictions, "metrics"):
+        readable = get_metric_report_str(predictions.metrics)
+        special_logging.info(f"test metrics: \n{readable}")
+        metrics = predictions.metrics    
+    preds = predictions.predictions
+    breakpoint() # Debug Causal LM and Generation
+    assert len(preds) == 2
+    preds = preds[0]
+    if preds.shape[1] == 2: # then assume we are in binary classification
+        exped = np.exp(preds)
+        softmax = exped / np.sum(exped, axis=1, keepdims=True)
+        preds = softmax[:, 1]
+    else:
+        pass # I don't know what LM would look like
+    pred_df[data_args.prediction_column_name] = None
+    for i, pred in enumerate(preds):
+        pred_df.at[i, data_args.prediction_column_name] = pred
+    pred_df.to_csv(data_args.prediction_file, index=False)
+    return metrics
