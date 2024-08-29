@@ -377,6 +377,7 @@ def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, 
 def predict(data_args, trainer, dataset, special_logging):
     if dataset is None:
         return None
+    trainer.model.eval()
     predictions = trainer.predict(dataset, metric_key_prefix="test")
     pred_df = pd.read_csv(data_args.test_file)
     metrics = None
