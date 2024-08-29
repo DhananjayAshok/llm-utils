@@ -294,16 +294,14 @@ def check_token_lengths(data_args, raw_datasets, training_args, special_logging)
             special_logging.info(f"95th percentile: {tokens[int(len(tokens)*0.95)]}")
 
 
-def handle_data_sizes(data_args, raw_datasets):
+def handle_data_sizes(data_args, training_args, raw_datasets):
     train_dataset = None
     eval_dataset = None
     internal_eval_dataset = None
     test_dataset = None
     if not data_args.predict_only:
         train_dataset = raw_datasets["train"]
-        if data_args.shuffle_train_dataset:
-            #logger.info("Shuffling the training dataset")
-            train_dataset = train_dataset.shuffle(seed=data_args.shuffle_seed)
+        train_dataset = train_dataset.shuffle(seed=training_args.seed)
         if data_args.max_train_samples is not None:
             max_train_samples = min(len(train_dataset), data_args.max_train_samples)
             train_dataset = train_dataset.select(range(max_train_samples))

@@ -475,7 +475,7 @@ def main():
                 batched=True,
             )
 
-    train_dataset, eval_dataset, internal_eval_dataset, test_dataset = handle_data_sizes(data_args, lm_datasets)
+    train_dataset, eval_dataset, internal_eval_dataset, test_dataset = handle_data_sizes(data_args, training_args, lm_datasets)
 
     def preprocess_logits_for_metrics(logits, labels):
         if isinstance(logits, tuple):

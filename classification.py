@@ -474,7 +474,7 @@ def main():
             desc="Running tokenizer on dataset",
         )
 
-    train_dataset, eval_dataset, internal_eval_dataset, test_dataset = handle_data_sizes(data_args, raw_datasets)
+    train_dataset, eval_dataset, internal_eval_dataset, test_dataset = handle_data_sizes(data_args, training_args, raw_datasets)
 
 
     # Log a few random samples from the training set:
