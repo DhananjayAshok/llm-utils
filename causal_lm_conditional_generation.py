@@ -364,6 +364,10 @@ def main():
         model.resize_token_embeddings(len(tokenizer))
 
     model = activate_peft(model_args, model, tokenizer, TaskType.CAUSAL_LM)
+    if "train" in raw_datasets:
+        column_names = list(raw_datasets["train"].features)
+    else:
+        column_names = list(raw_datasets["test"].features)
 
     # Preprocessing the datasets.
     # First we tokenize all the texts.
@@ -414,6 +418,7 @@ def main():
             lm_datasets = raw_datasets.map(
                 preprocess_function,
                 batched=True,
+                remove_columns=column_names,
                 num_proc=data_args.preprocessing_num_workers,
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc=f"Tokenizing dataset",
@@ -421,6 +426,7 @@ def main():
         else:
             lm_datasets = raw_datasets.map(
                 preprocess_function,
+                remove_columns=column_names,
                 batched=True,
             )
 
