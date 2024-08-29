@@ -374,14 +374,27 @@ def predict(data_args, trainer, dataset, special_logging):
         metrics = predictions.metrics    
     preds = predictions.predictions
     breakpoint() # Debug Causal LM and Generation
-    assert len(preds) == 2
-    preds = preds[0]
-    if preds.shape[1] == 2: # then assume we are in binary classification
+    if isinstance(preds, tuple): # assume this is classification idk
+        assert len(preds) == 2
+        preds = preds[0]
         exped = np.exp(preds)
         softmax = exped / np.sum(exped, axis=1, keepdims=True)
-        preds = softmax[:, 1]
-    else:
-        pass # I don't know what LM would look like
+        if preds.shape[1] == 2: # then assume we are in binary classification
+            preds = softmax[:, 1]
+        else:
+            preds = softmax # have not tested this. It might cause the assignment on line 388 to fail because array
+    elif isinstance(preds, np.ndarray):
+        n_expected = None
+        if hasattr(data_args, "max_seq_length"):
+            n_expected = data_args.max_seq_length
+        elif hasattr(data_args, "val_max_output_length"):
+            n_expected = data_args.val_max_output_length
+        elif hasattr(data_args, "max_output_length"):
+            n_expected = data_args.max_output_length
+        else:
+            raise ValueError(f"Something is deeply wrong one of the three of these should exist")       
+        assert preds.shape[0] == len(pred_df) and preds.shape[1] == n_expected, f"Predictions shape {preds.shape} does not match expected shape {len(pred_df), n_expected}"
+        preds = trainer.tokenizer.batch_decode(preds, skip_special_tokens=True)
     pred_df[data_args.prediction_column_name] = None
     for i, pred in enumerate(preds):
         pred_df.at[i, data_args.prediction_column_name] = pred
