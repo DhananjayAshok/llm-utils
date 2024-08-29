@@ -6,12 +6,13 @@ export SAVE_NAME=cheatmodel
 export SAVE_PATH=${SAVE_NAME}
 
 
-python sft.py \
+python cheat_script.py \
     --model_name_or_path=${CKPT_PATH} \
     --report_to="wandb" \
     --learning_rate=${LEARNING_RATE} \
     --per_device_train_batch_size=${BATCH_SIZE} \
     --gradient_accumulation_steps=16 \
+    --dataset_text_field="text" \
     --output_dir=${SAVE_PATH} \
     --logging_steps=1 \
     --num_train_epochs=${EPOCH} \
