@@ -70,9 +70,10 @@ def check_data_args(data_args):
     logdir = os.path.dirname(data_args.log_file)
     if logdir != "" and not os.path.exists(logdir):
         os.makedirs(logdir)
-    prediction_dir = os.path.dirname(data_args.prediction_file)
-    if prediction_dir != "" and not os.path.exists(prediction_dir):
-        os.makedirs(prediction_dir)
+    if data_args.prediction_file is not None:
+        prediction_dir = os.path.dirname(data_args.prediction_file)
+        if prediction_dir != "" and not os.path.exists(prediction_dir):
+            os.makedirs(prediction_dir)
 
 
 def common_setup(model_args, data_args, training_args):
