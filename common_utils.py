@@ -44,7 +44,7 @@ def do_evaluation(trainer, dataset, split, special_logging):
     metrics = trainer.evaluate(eval_dataset=dataset, metric_key_prefix=split)
     trainer.log_metrics(split, metrics)
     metric_report = trainer.metrics_format(metrics)
-    readable = get_metric_report_str(trainer, metric_report)
+    readable = get_metric_report_str(metric_report)
     special_logging.info(f"{split} metrics: \n{readable}")
     return metric_report
 
