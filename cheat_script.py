@@ -88,7 +88,6 @@ if TRL_USE_RICH:
 if __name__ == "__main__":
     parser = TrlParser((SFTScriptArguments, SFTConfig, ModelConfig))
     args, training_args, model_config = parser.parse_args_and_config()
-
     # Force use our print callback
     if TRL_USE_RICH:
         training_args.disable_tqdm = True
@@ -113,6 +112,8 @@ if __name__ == "__main__":
         model_config.model_name_or_path, trust_remote_code=model_config.trust_remote_code, use_fast=True
     )
     tokenizer.pad_token = tokenizer.eos_token
+    model.config.pad_token_id = model.config.eos_token_id
+    
 
     ################
     # Dataset
