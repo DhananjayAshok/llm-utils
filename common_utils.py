@@ -368,5 +368,6 @@ def predict(data_args, trainer, dataset):
         if data_args.prediction_column_name in pd.read_csv(data_args.prediction_file).columns:
             raise ValueError(f"Prediction column already exists in prediction file {data_args.prediction_file}. Please specify a different column name or different file")
     # Will likely need to handle diff shapes properly
-    print(predictions.type)
+    print(type(predictions))
     print(predictions.shape)
+    print(predictions)
