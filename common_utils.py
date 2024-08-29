@@ -228,6 +228,8 @@ def common_setup(model_args, data_args, training_args):
         for key in raw_datasets.keys():
             if data_args.output_column_name in raw_datasets[key].features:
                 raw_datasets[key] = raw_datasets[key].rename_column(data_args.output_column_name, "label")
+    data_args.input_column_name = "text"
+    data_args.output_column_name = "label"
     if "train" not in raw_datasets:
         data_args.predict_only = True
     else:
