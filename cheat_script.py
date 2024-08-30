@@ -111,7 +111,7 @@ if __name__ == "__main__":
         model_config.model_name_or_path, trust_remote_code=model_config.trust_remote_code, use_fast=True
     )
     tokenizer.pad_token = tokenizer.eos_token
-    model_config.pad_token_id = model_config.eos_token_id
+    #model_config.pad_token_id = model_config.eos_token_id
 
 
     ################
