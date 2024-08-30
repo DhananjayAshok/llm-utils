@@ -1,6 +1,6 @@
 export LEARNING_RATE=5e-5
 export BATCH_SIZE=2
-export EPOCH=10
+export EPOCH=2
 export CKPT_PATH=meta-llama/Meta-Llama-3.1-8B
 export SAVE_NAME=cheatmodel
 export SAVE_PATH=${SAVE_NAME}
@@ -9,15 +9,16 @@ export SAVE_PATH=${SAVE_NAME}
 python cheat_script.py \
     --model_name_or_path=${CKPT_PATH} \
     --learning_rate=${LEARNING_RATE} \
-    --per_device_train_batch_size=${BATCH_SIZE} \
+    --auto_find_batch_size \
     --gradient_accumulation_steps=16 \
+    --fsdp="full_shard auto_wrap offload" \
+    --fsdp_config="fsdp.json" \
+    --gradient_checkpointing \
     --dataset_text_field="text" \
     --output_dir=${SAVE_PATH} \
     --logging_steps=1 \
     --num_train_epochs=${EPOCH} \
     --max_steps=-1 \
-    --push_to_hub \
-    --gradient_checkpointing \
     --use_peft \
     --lora_r=16 \
     --lora_alpha=32 \
