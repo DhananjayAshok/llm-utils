@@ -103,17 +103,17 @@ if __name__ == "__main__":
         attn_implementation=model_config.attn_implementation,
         torch_dtype=model_config.torch_dtype,
         use_cache=False if training_args.gradient_checkpointing else True,
-        device_map=get_kbit_device_map() if quantization_config is not None else None,
+        device_map=get_kbit_device_map() if quantization_config is not None else "auto",
         quantization_config=quantization_config,
     )
-    #training_args.model_init_kwargs = model_kwargs
-    model = AutoModelForSequenceClassification.from_pretrained(model_config.model_name_or_path, device_map="auto")
+    training_args.model_init_kwargs = model_kwargs
+    #model = AutoModelForSequenceClassification.from_pretrained(model_config.model_name_or_path, device_map="auto")
     tokenizer = AutoTokenizer.from_pretrained(
         model_config.model_name_or_path, trust_remote_code=model_config.trust_remote_code, use_fast=True
     )
     tokenizer.pad_token = tokenizer.eos_token
-    model.config.pad_token_id = model.config.eos_token_id
-    
+    model_config.pad_token_id = model_config.eos_token_id
+
 
     ################
     # Dataset
@@ -137,7 +137,7 @@ if __name__ == "__main__":
     ################
     with init_context:
         trainer = SFTTrainer(
-            model=model,
+            model=model_config.model_name_or_path,
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
