@@ -1,5 +1,0 @@
-{
-    "backward_prefetch": "backward_pre",
-    "forward_prefetch": "false",
-    "use_orig_params": "false"
-}
