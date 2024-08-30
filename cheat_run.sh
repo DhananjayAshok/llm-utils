@@ -11,8 +11,6 @@ python cheat_script.py \
     --learning_rate=${LEARNING_RATE} \
     --auto_find_batch_size \
     --gradient_accumulation_steps=16 \
-    --fsdp="full_shard auto_wrap offload" \
-    --fsdp_config="fsdp.json" \
     --gradient_checkpointing \
     --dataset_text_field="text" \
     --max_seq_length=200 \
