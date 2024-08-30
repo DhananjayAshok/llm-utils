@@ -15,6 +15,7 @@ python cheat_script.py \
     --fsdp_config="fsdp.json" \
     --gradient_checkpointing \
     --dataset_text_field="text" \
+    --max_seq_length=200 \
     --output_dir=${SAVE_PATH} \
     --logging_steps=1 \
     --num_train_epochs=${EPOCH} \
