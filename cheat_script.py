@@ -15,29 +15,13 @@ from transformers import (
 )
 from trl import setup_chat_format
 from peft import LoraConfig
-
+import pandas as pd
 
 from trl import (
    SFTTrainer)
 
 # Comment in if you want to use the Llama 3 instruct template but make sure to add modules_to_save
 # LLAMA_3_CHAT_TEMPLATE="{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = '<|start_header_id|>' + message['role'] + '<|end_header_id|>\n\n'+ message['content'] | trim + '<|eot_id|>' %}{% if loop.index0 == 0 %}{% set content = bos_token + content %}{% endif %}{{ content }}{% endfor %}{% if add_generation_prompt %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}{% endif %}"
-
-# Anthropic/Vicuna like template without the need for special tokens
-LLAMA_3_CHAT_TEMPLATE = (
-    "{% for message in messages %}"
-        "{% if message['role'] == 'system' %}"
-            "{{ message['content'] }}"
-        "{% elif message['role'] == 'user' %}"
-            "{{ '\n\nHuman: ' + message['content'] +  eos_token }}"
-        "{% elif message['role'] == 'assistant' %}"
-            "{{ '\n\nAssistant: '  + message['content'] +  eos_token  }}"
-        "{% endif %}"
-    "{% endfor %}"
-    "{% if add_generation_prompt %}"
-    "{{ '\n\nAssistant: ' }}"
-    "{% endif %}"
-)
 
 
 # ACCELERATE_USE_FSDP=1 FSDP_CPU_RAM_EFFICIENT_LOADING=1 torchrun --nproc_per_node=4 ./scripts/run_fsdp_qlora.py --config llama_3_70b_fsdp_qlora.yaml
@@ -47,10 +31,10 @@ class ScriptArguments:
     dataset_path: str = field(
         default=None,
         metadata={
-            "help": "Path to the dataset"
+            "help": "Path to the dataset folder with a train and valid csv file inside them"
         },
     )
-    model_id: str = field(
+    model_name_or_path: str = field(
         default=None, metadata={"help": "Model ID to use for SFT training"}
     )
     max_seq_length: int = field(
@@ -64,13 +48,13 @@ def training_function(script_args, training_args):
     ################
     
     train_dataset = load_dataset(
-        "json",
-        data_files=os.path.join(script_args.dataset_path, "train_dataset.json"),
+        "csv",
+        data_files=os.path.join(script_args.dataset_path, "train.csv"),
         split="train",
     )
     test_dataset = load_dataset(
-        "json",
-        data_files=os.path.join(script_args.dataset_path, "test_dataset.json"),
+        "csv",
+        data_files=os.path.join(script_args.dataset_path, "valid.csv"),
         split="train",
     )
 
@@ -81,21 +65,6 @@ def training_function(script_args, training_args):
     # Tokenizer        
     tokenizer = AutoTokenizer.from_pretrained(script_args.model_id, use_fast=True)
     tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.chat_template = LLAMA_3_CHAT_TEMPLATE
-    
-    # template dataset
-    def template_dataset(examples):
-        return{"text":  tokenizer.apply_chat_template(examples["messages"], tokenize=False)}
-    
-    train_dataset = train_dataset.map(template_dataset, remove_columns=["messages"])
-    test_dataset = test_dataset.map(template_dataset, remove_columns=["messages"])
-    
-    # print random sample
-    with training_args.main_process_first(
-        desc="Log a few random samples from the processed training set"
-    ):
-        for index in random.sample(range(len(train_dataset)), 2):
-            print(train_dataset[index]["text"])
 
     # Model    
     torch_dtype = torch.bfloat16
@@ -111,10 +80,11 @@ def training_function(script_args, training_args):
 
     model = AutoModelForCausalLM.from_pretrained(
         script_args.model_id,
-        quantization_config=quantization_config,
         attn_implementation="sdpa", # use sdpa, alternatively use "flash_attention_2"
-        torch_dtype=quant_storage_dtype,
+        device_map="auto",
         use_cache=False if training_args.gradient_checkpointing else True,  # this is needed for gradient checkpointing
+#        quantization_config=quantization_config,
+#        torch_dtype=quant_storage_dtype,
     )
     
     if training_args.gradient_checkpointing:
@@ -132,7 +102,6 @@ def training_function(script_args, training_args):
         bias="none",
         target_modules="all-linear",
         task_type="CAUSAL_LM",
-        # modules_to_save = ["lm_head", "embed_tokens"] # add if you want to use the Llama 3 instruct template
     )
 
     ################
