@@ -63,7 +63,7 @@ def training_function(script_args, training_args):
     ################
 
     # Tokenizer        
-    tokenizer = AutoTokenizer.from_pretrained(script_args.model_id, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(script_args.model_name_or_path, use_fast=True)
     tokenizer.pad_token = tokenizer.eos_token
 
     # Model    
