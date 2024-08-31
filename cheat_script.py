@@ -63,7 +63,7 @@ def training_function(script_args, training_args):
     ################
 
     # Tokenizer        
-    tokenizer = AutoTokenizer.from_pretrained(script_args.model_id, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(script_args.model_name_or_path, use_fast=True)
     tokenizer.pad_token = tokenizer.eos_token
 
     # Model    
@@ -79,7 +79,7 @@ def training_function(script_args, training_args):
         )
 
     model = AutoModelForCausalLM.from_pretrained(
-        script_args.model_id,
+        script_args.model_name_or_path,
         attn_implementation="sdpa", # use sdpa, alternatively use "flash_attention_2"
         device_map="auto",
         use_cache=False if training_args.gradient_checkpointing else True,  # this is needed for gradient checkpointing
