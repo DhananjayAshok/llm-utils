@@ -404,9 +404,14 @@ def predict(data_args, trainer, dataset, special_logging):
         elif hasattr(data_args, "max_output_length"):
             n_expected = data_args.max_output_length
         else:
-            raise ValueError(f"Something is deeply wrong one of the three of these should exist")       
-        assert preds.shape[0] == len(pred_df) and preds.shape[1] == n_expected, f"Predictions shape {preds.shape} does not match expected shape {len(pred_df), n_expected}"
-        preds = trainer.tokenizer.batch_decode(preds, skip_special_tokens=True)
+            raise ValueError(f"Something is deeply wrong one of the three of these should exist")
+        if preds.shape[1] != 2:
+            assert preds.shape[0] == len(pred_df) and preds.shape[1] == n_expected, f"Predictions shape {preds.shape} does not match expected shape {len(pred_df), n_expected}"
+            preds = trainer.tokenizer.batch_decode(preds, skip_special_tokens=True)
+        else:
+            exped = np.exp(preds)
+            softmax = exped / np.sum(exped, axis=1, keepdims=True)
+            preds = softmax[:, 1]
     pred_df[data_args.prediction_column_name] = None
     for i, pred in enumerate(preds):
         pred_df.at[i, data_args.prediction_column_name] = pred
