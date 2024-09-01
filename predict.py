@@ -72,7 +72,7 @@ def predict(args, df, tokenizer, model):
         inputs = tokenizer(text, return_tensors="pt", truncation=True).to(model.device)
         if args.model_kind == 'causal-lm':
             inp_shape = inputs['input_ids'].shape[1]
-            outputs = model.generate(**inputs, max_new_tokens=args.max_new_tokens, repetition_penalty=args.repetition_penalty)
+            outputs = model.generate(**inputs, max_new_tokens=args.max_new_tokens, repetition_penalty=args.repetition_penalty, pad_token_id=tokenizer.eos_token_id)
             outputs = outputs[0, inp_shape:]
             prediction = tokenizer.decode(outputs, skip_special_tokens=True)
         elif args.model_kind == 'seq-classification':
@@ -88,6 +88,8 @@ def predict(args, df, tokenizer, model):
         elif args.model_kind == 'seq2seq-lm':
             outputs = model.generate(**inputs, max_length=100)
             prediction = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        del outputs
+        del inputs
         df.at[i, args.output_column] = prediction
     df.to_csv(args.output_file_path, index=False)
     
