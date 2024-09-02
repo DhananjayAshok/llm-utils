@@ -341,12 +341,12 @@ def handle_data_sizes(data_args, training_args, raw_datasets):
 
 def train(training_args, trainer, last_checkpoint, train_dataset, eval_dataset, special_logging):
     all_metrics = []
-    special_logging.info("*** Before Training Evaluation ***")
-    trainer.model.eval()
-    train_metrics = do_evaluation(trainer, train_dataset, "train", special_logging)
-    all_metrics.append(train_metrics)
-    eval_metrics = do_evaluation(trainer, eval_dataset, "eval", special_logging)
-    all_metrics.append([train_metrics, eval_metrics])
+    #special_logging.info("*** Before Training Evaluation ***")
+    #trainer.model.eval()
+    #train_metrics = do_evaluation(trainer, train_dataset, "train", special_logging)
+    #all_metrics.append(train_metrics)
+    #eval_metrics = do_evaluation(trainer, eval_dataset, "eval", special_logging)
+    #all_metrics.append([train_metrics, eval_metrics])
 
     # Training
     checkpoint = None

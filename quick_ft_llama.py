@@ -28,11 +28,15 @@ from trl import (
 
 @dataclass
 class ScriptArguments:
-    dataset_path: str = field(
+    train_file: str = field(
         default=None,
         metadata={
             "help": "Path to the dataset folder with a train and valid csv file inside them"
         },
+    )
+    valid_file: str = field(
+        default=None,
+        metadata={"help": "Path to the dataset folder with a train and valid csv file inside them"},
     )
     model_name_or_path: str = field(
         default=None, metadata={"help": "Model ID to use for SFT training"}
@@ -49,12 +53,12 @@ def training_function(script_args, training_args):
     
     train_dataset = load_dataset(
         "csv",
-        data_files=os.path.join(script_args.dataset_path, "train.csv"),
+        data_files=script_args.train_file,
         split="train",
     )
     test_dataset = load_dataset(
         "csv",
-        data_files=os.path.join(script_args.dataset_path, "valid.csv"),
+        data_files=script_args.valid_file,
         split="train",
     )
 
@@ -79,7 +83,7 @@ def training_function(script_args, training_args):
         )
 
     model = AutoModelForCausalLM.from_pretrained(
-        "cheat_model",
+        script_args.model_name_or_path,
         attn_implementation="sdpa", # use sdpa, alternatively use "flash_attention_2"
         device_map="auto",
         use_cache=False if training_args.gradient_checkpointing else True,  # this is needed for gradient checkpointing
@@ -128,23 +132,17 @@ def training_function(script_args, training_args):
     ##########################
     # Train model
     ##########################
-    #checkpoint = None
-    #if training_args.resume_from_checkpoint is not None:
-    #    checkpoint = training_args.resume_from_checkpoint
-    #trainer.train(resume_from_checkpoint=checkpoint)
-    breakpoint()
-    try:
-        result = trainer.predict()
-    except:
-        print("oops")
-    breakpoint()
+    checkpoint = None
+    if training_args.resume_from_checkpoint is not None:
+        checkpoint = training_args.resume_from_checkpoint
+    trainer.train(resume_from_checkpoint=checkpoint)
 
     ##########################
     # SAVE MODEL FOR SAGEMAKER
     ##########################
-    #if trainer.is_fsdp_enabled:
-    #    trainer.accelerator.state.fsdp_plugin.set_state_dict_type("FULL_STATE_DICT")
-    #trainer.save_model()
+    if trainer.is_fsdp_enabled:
+        trainer.accelerator.state.fsdp_plugin.set_state_dict_type("FULL_STATE_DICT")
+    trainer.save_model()
     
 if __name__ == "__main__":
     parser = TrlParser((ScriptArguments, TrainingArguments))
