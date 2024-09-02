@@ -34,7 +34,7 @@ class ScriptArguments:
             "help": "Path to the dataset folder with a train and valid csv file inside them"
         },
     )
-    valid_file: str = field(
+    validation_file: str = field(
         default=None,
         metadata={"help": "Path to the dataset folder with a train and valid csv file inside them"},
     )
@@ -58,7 +58,7 @@ def training_function(script_args, training_args):
     )
     test_dataset = load_dataset(
         "csv",
-        data_files=script_args.valid_file,
+        data_files=script_args.validation_file,
         split="train",
     )
 
