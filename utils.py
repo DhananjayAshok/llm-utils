@@ -42,3 +42,6 @@ def metrics_at_k(df, k, label_column, score_column):
     label_0_f1 = 2 * (label_0_precision * label_0_recall) / (label_0_precision + label_0_recall) if label_0_precision + label_0_recall > 0 else 0
     macro_f1 = (label_1_f1 + label_0_f1) / 2
     return acc, macro_f1
+
+if __name__ == '__main__':
+    main()
