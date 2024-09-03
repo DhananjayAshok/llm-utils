@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument('--output_file_path', type=str, required=False)  
     parser.add_argument('--input_column', type=str, default=None)
     parser.add_argument('--output_column', type=str, default=None)
-    parser.add_argument("--max_seq_len", type=int, default=512)
+    parser.add_argument("--max_seq_length", type=int, default=512)
     parser.add_argument("--max_predictions", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--max_new_tokens", type=int, default=10)

@@ -6,8 +6,6 @@ from typing import Optional
 
 import datasets
 import evaluate
-import nltk  # Here to have a nice missing dependency error message early on
-#nltk.download('punkt_tab')
 import numpy as np
 import pandas as pd
 from datasets import load_dataset
