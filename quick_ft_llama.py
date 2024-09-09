@@ -38,6 +38,10 @@ class ScriptArguments:
         default=None,
         metadata={"help": "Path to the dataset folder with a train and valid csv file inside them"},
     )
+    max_train_samples: int = field(
+        default=None,
+        metadata={"help": "The maximum number of training samples to use"}
+    )
     model_name_or_path: str = field(
         default=None, metadata={"help": "Model ID to use for SFT training"}
     )
@@ -61,6 +65,14 @@ def training_function(script_args, training_args):
         data_files=script_args.validation_file,
         split="train",
     )
+
+    # shuffle the training dataset
+    train_dataset = train_dataset.shuffle(seed=training_args.seed)
+    # if max_train_samples is set, we only use a subset of the training dataset
+    if script_args.max_train_samples is not None:
+        max_train_samples = min(len(train_dataset), script_args.max_train_samples)
+        train_dataset = train_dataset.select(range(max_train_samples))
+    
 
     ################
     # Model & Tokenizer

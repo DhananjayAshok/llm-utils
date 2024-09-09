@@ -13,6 +13,7 @@ evaluation_strategy: epoch             # evaluate every epoch
 max_grad_norm: 0.3                     # max gradient norm
 warmup_ratio: 0.03                     # warmup ratio
 gradient_checkpointing: true           # use gradient checkpointing to save memory
+seed: 42                               # random seed
 #bf16: true                             # use bfloat16 precision
 #tf32: false                             # use tf32 precision
 # FSDP parameters: https://huggingface.co/docs/transformers/main/en/fsdp
