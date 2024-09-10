@@ -70,6 +70,8 @@ def predict(args, df, tokenizer, model):
         if i >= args.max_predictions:
             break
         text = row[args.input_column]
+        if text is None or pd.isna(text) or text == "":
+            continue
         inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=args.max_seq_length).to(model.device)
         if args.model_kind == 'causal-lm':
             inp_shape = inputs['input_ids'].shape[1]
