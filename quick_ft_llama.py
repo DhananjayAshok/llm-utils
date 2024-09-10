@@ -1,6 +1,7 @@
 import logging
 from dataclasses import dataclass, field
 import os
+import warnings
 import random
 import torch
 from datasets import load_dataset
@@ -60,10 +61,23 @@ def training_function(script_args, training_args):
         data_files=script_args.train_file,
         split="train",
     )
+    test_dataset = load_dataset(
+        "csv",
+        data_files=script_args.validation_file,
+        split="train",
+    )
 
     # shuffle the training dataset
     train_dataset = train_dataset.shuffle(seed=training_args.seed)
     # if max_train_samples is set, we only use a subset of the training dataset
+    train_size = len(train_dataset)
+    test_size = len(test_dataset)
+    train_dataset = train_dataset.filter(lambda x: pd.notnull(x["text"]))
+    test_dataset = test_dataset.filter(lambda x: pd.notnull(x["text"]))
+    if len(train_dataset) != train_size:
+        warnings.warn(f"Removed {train_size - len(train_dataset)} samples from the training dataset because they had missing text")
+    if len(test_dataset) != test_size:
+        warnings.warn(f"Removed {test_size - len(test_dataset)} samples from the test dataset because they had missing text")
     if script_args.max_train_samples is not None:
         max_train_samples = min(len(train_dataset), script_args.max_train_samples)
         train_dataset = train_dataset.select(range(max_train_samples))
@@ -123,6 +137,7 @@ def training_function(script_args, training_args):
         args=training_args,
         train_dataset=train_dataset,
         dataset_text_field="text",
+        eval_dataset=test_dataset,
         peft_config=peft_config,
         max_seq_length=script_args.max_seq_length,
         tokenizer=tokenizer,
