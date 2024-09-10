@@ -95,6 +95,8 @@ def predict(args, df, tokenizer, model):
         del outputs
         del inputs
         df.at[i, args.output_column] = prediction
+    # drop nans in the input or output column
+    df.dropna(subset=[args.input_column, args.output_column], inplace=True).reset_index(drop=True, inplace=True)
     df.to_csv(args.output_file_path, index=False)
     
 if __name__ == '__main__':
