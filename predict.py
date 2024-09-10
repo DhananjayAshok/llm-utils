@@ -68,6 +68,7 @@ def predict(args, df, tokenizer, model):
     df[args.output_column] = None
     for i, row in tqdm(df.iterrows(), total=args.max_predictions):
         if i >= args.max_predictions:
+            df = df.iloc[:i-1]
             break
         text = row[args.input_column]
         if text is None or pd.isna(text) or text == "":
