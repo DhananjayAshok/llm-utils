@@ -60,11 +60,6 @@ def training_function(script_args, training_args):
         data_files=script_args.train_file,
         split="train",
     )
-    test_dataset = load_dataset(
-        "csv",
-        data_files=script_args.validation_file,
-        split="train",
-    )
 
     # shuffle the training dataset
     train_dataset = train_dataset.shuffle(seed=training_args.seed)
@@ -128,7 +123,6 @@ def training_function(script_args, training_args):
         args=training_args,
         train_dataset=train_dataset,
         dataset_text_field="text",
-        eval_dataset=test_dataset,
         peft_config=peft_config,
         max_seq_length=script_args.max_seq_length,
         tokenizer=tokenizer,
