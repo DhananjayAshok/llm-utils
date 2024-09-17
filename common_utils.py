@@ -8,7 +8,7 @@ import datasets
 import evaluate
 import numpy as np
 import pandas as pd
-from datasets import load_dataset
+from datasets import load_dataset, disable_caching
 from filelock import FileLock
 
 import transformers
@@ -31,6 +31,7 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, is_offline_mode, send_example_telemetry
 from peft import LoraConfig, get_peft_model, IA3Config
 
+disable_caching()
 logger = logging.getLogger(__name__)
 
 def get_metric_report_str(metric_report):
@@ -196,7 +197,7 @@ def common_setup(model_args, data_args, training_args):
     raw_datasets = load_dataset(
         "csv",
         data_files=data_files,
-        cache_dir=model_args.cache_dir,
+        cache_dir=None,
         token=model_args.token,
     )
     if "train" in raw_datasets:
@@ -248,11 +249,23 @@ def common_setup(model_args, data_args, training_args):
 
 def activate_peft(model_args, model, tokenizer, task_type):
     if model_args.peft == "lora":
-        target_modules = ["k_proj", "v_proj", "down_proj"] # Will want to add new stuff here to allow in other models
-        peft_config = LoraConfig(lora_alpha=model_args.lora_alpha, lora_dropout=model_args.lora_dropout, r=model_args.lora_r, bias=model_args.lora_bias, task_type=task_type, target_modules=target_modules)
+        if "llama".lower() in model_args.model_name_or_path.lower():
+            target_modules = ["k_proj", "v_proj", "down_proj"] # Will want to add new stuff here to allow in other models
+            peft_config = LoraConfig(lora_alpha=model_args.lora_alpha, lora_dropout=model_args.lora_dropout, r=model_args.lora_r, bias=model_args.lora_bias, task_type=task_type, target_modules=target_modules)
+        elif "mistral".lower() in model_args.model_name_or_path.lower():
+            peft_config = LoraConfig(lora_alpha=model_args.lora_alpha, lora_dropout=model_args.lora_dropout, r=model_args.lora_r, bias=model_args.lora_bias, task_type=task_type)
+        else:
+            raise ValueError(f"Model {model_args.model_name_or_path} not supported for Lora")
     elif model_args.peft == "ia3":
-        peft_config = IA3Config(task_type=task_type, target_modules=target_modules, feedforward_modules=["down_proj"])
-    #model.add_adapter(peft_config)
+        if "llama".lower() in model_args.model_name_or_path.lower():
+            target_modules = ["k_proj", "v_proj", "down_proj"]
+            peft_config = IA3Config(task_type=task_type, target_modules=target_modules, feedforward_modules=["down_proj"])
+        elif "mistral".lower() in model_args.model_name_or_path.lower():
+            peft_config = IA3Config(task_type=task_type)
+            print(f"IA3 config: {peft_config} UNCHECKED ON MISTRAL")
+        else:
+            raise ValueError(f"Model {model_args.model_name_or_path} not supported for IA3")
+
     if model_args.peft is not None:
         model = get_peft_model(model, peft_config)
         model.print_trainable_parameters()
