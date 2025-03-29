@@ -80,7 +80,7 @@ def get_harmful_prompts(params):
 
 
 @click.command()
-@click.option('--variant', multiple=True, type=click.Choice(["pre", "sft", "clf", "pref"]), default='example_data')
+@click.option('--variant', multiple=True, type=click.Choice(["pre", "sft", "clf", "pref"]), default=["pre", "sft", "clf", "pref"])
 @click.pass_obj
 def generate_example_data(parameters, variant):
     if "pre" in variant:
