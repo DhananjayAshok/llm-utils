@@ -47,7 +47,7 @@ def setup_tulu_instruction_following(params):
     train = train.drop(val.index)
     ds = {"train": train, "val": val, "test": test}
     for split in ds.keys():
-        df = ds[split].to_pandas()
+        df = ds[split]
         df.to_csv(data_dir + "/" + split_map[split] + ".csv", index=False)
     params['logger'].info("Instruction following data (tulu) setup complete")
     return
@@ -76,9 +76,10 @@ def get_harmful_prompts(params):
     val_df = train_df.sample(frac=0.1, random_state=params['random_seed'])
     train_df = train_df.drop(val_df.index)
     test_df = process(ds["test"].to_pandas())
-    train_df.to_csv(data_dir + "/train.csv", index=False)
-    val_df.to_csv(data_dir + "/val.csv", index=False)
-    test_df.to_csv(data_dir + "/test.csv", index=False)
+    ds = {"train": train_df, "val": val_df, "test": test_df}
+    for split in ds.keys():
+        df = ds[split]
+        df.to_csv(data_dir + "/" + split_map[split] + ".csv", index=False)
     params['logger'].info("Preference data (harmful prompts) setup complete")
     return
 
