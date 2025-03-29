@@ -45,13 +45,15 @@ def load_parameters():
     if "private_vars.yaml" not in config_files:
         log_error(logger, "Please create private_vars.yaml in the configs directory")
     for file in config_files:
-        if not file.endswith(".yaml") and file != "README.md":
-            log_error(logger, f"Please remove {file} from the configs directory. Only yaml files that hold project parameters should be present")        
-        configs = load_yaml(os.path.join(project_root, "configs", file))
-        for key in configs:
-            if key in params:
-                log_error(logger, f"{key} is present in multiple config files. At least one of which is {file}. Please remove the duplicate")
-        params.update(configs)
+        if file.endswith(".yaml"):
+            configs = load_yaml(os.path.join(project_root, "configs", file))
+            for key in configs:
+                if key in params:
+                    log_error(logger, f"{key} is present in multiple config files. At least one of which is {file}. Please remove the duplicate")
+            params.update(configs)
+        else:
+            if file != "README.md":
+                log_error(logger, f"Please remove {file} from the configs directory. Only yaml files that hold project parameters should be present")
 
     for key in params:
         if params[key] == "PLACEHOLDER":
