@@ -79,7 +79,7 @@ def get_harmful_prompts(params):
     ds = {"train": train_df, "val": val_df, "test": test_df}
     for split in ds.keys():
         df = ds[split]
-        df.to_csv(data_dir + "/" + split_map[split] + ".csv", index=False)
+        df.to_csv(data_dir + "/" + split_map[split] + ".csv", index=False, escapechar="\\")
     params['logger'].info("Preference data (harmful prompts) setup complete")
     return
 

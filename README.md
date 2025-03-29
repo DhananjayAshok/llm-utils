@@ -1,8 +1,23 @@
-# Project Starter
-This repository is a useful starting point for a project in Python. It has the following set up:
+# Language Model Utilities
 
-1. Parameter dictionaries with optional specification in command line  using click
-2. A single main file that can be used to call all subfunctions as click commands
-3. Meta dictionary hashing to save parameter values to a unique string
+Useful code for training and inference of Language Models.
 
-To get started, use this template to create a new repo
+## Sample Data
+
+To try out the various training and inference codes, you can load in sample data with:
+
+```bash
+python main.py get_example_data
+```
+
+You can specify the specific variants you want with
+
+```bash
+python main.py get_example_data --variant sft --variant pref
+```
+
+Available variants are: 
+1. pre: Pretraining
+2. sft: Supervised Finetuning (text)
+3. clf: Classification 
+4. pref: Preference Optimization
