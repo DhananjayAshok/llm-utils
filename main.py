@@ -1,6 +1,6 @@
 from utils.parameter_handling import load_parameters, compute_secondary_parameters
 import click
-
+from example_data import generate_example_data
 
 loaded_parameters = load_parameters()
 
@@ -25,9 +25,7 @@ def example_command(parameters, example_option):
     pass
 """
 # Then add the custom command to the main group like this:
-"""
-main.add_command(example_command, name="example_command")
-"""
+main.add_command(generate_example_data, name="get_example_data")
 
 if __name__ == "__main__":
     main()
