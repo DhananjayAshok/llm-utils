@@ -39,7 +39,7 @@ def load_parameters():
     essential_keys = ["storage_dir"]
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     params = {"project_root": project_root}
-    logger = get_logger() # TODO: Make log parameters. 
+    logger = get_logger()
     config_files = os.listdir(os.path.join(project_root, "configs"))
 
     if "private_vars.yaml" not in config_files:
