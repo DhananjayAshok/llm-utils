@@ -17,6 +17,7 @@ def setup_sentiment(params):
         df.to_csv(data_dir + "/multi/" + split_map[split] + ".csv", index=False)
         df["label"] = df["label"] == 1 # joy is the positive class all else is negative
         df.to_csv(data_dir + "/binary/" + split_map[split] + ".csv", index=False)
+    params['logger'].info("Classification data (sentiment) setup complete")
     return 
 
 def setup_arxiv(params):
@@ -28,7 +29,8 @@ def setup_arxiv(params):
         df = ds[split].to_pandas()
         df["text"] = df["article"]
         df = df[["text"]]
-        df.to_csv(data_dir + "/" + split_map[split] + ".csv", index=False)
+        df.to_csv(data_dir + "/" + split_map[split] + ".csv", index=False, escapechar="\\")
+    params['logger'].info("Pretraining data (arxiv) setup complete")
     return
 
 def setup_tulu_instruction_following(params):
@@ -47,6 +49,7 @@ def setup_tulu_instruction_following(params):
     for split in ds.keys():
         df = ds[split].to_pandas()
         df.to_csv(data_dir + "/" + split_map[split] + ".csv", index=False)
+    params['logger'].info("Instruction following data (tulu) setup complete")
     return
 
 def get_prompt(x):
@@ -76,6 +79,7 @@ def get_harmful_prompts(params):
     train_df.to_csv(data_dir + "/train.csv", index=False)
     val_df.to_csv(data_dir + "/val.csv", index=False)
     test_df.to_csv(data_dir + "/test.csv", index=False)
+    params['logger'].info("Preference data (harmful prompts) setup complete")
     return
 
 
