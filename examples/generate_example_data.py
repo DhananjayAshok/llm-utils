@@ -1,3 +1,4 @@
+from utils.parameter_handling import load_parameters
 from datasets import load_dataset
 import click
 import os
@@ -91,8 +92,8 @@ def get_harmful_prompts(params):
 
 @click.command()
 @click.option("--variants", default=["pre", "sft", "clf", "pref"], help="The variants of example data to generate")
-@click.pass_obj
-def generate_example_data(parameters, variants):
+def generate_example_data(variants):
+    parameters = load_parameters()
     if "pre" in variants:
         setup_arxiv(parameters)
     if "clf" in variants:
@@ -102,3 +103,6 @@ def generate_example_data(parameters, variants):
     if "pref" in variants:
         get_harmful_prompts(parameters)
     return
+
+if __name__ == "__main__":
+    generate_example_data()
