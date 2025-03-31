@@ -75,7 +75,7 @@ class ScriptArguments:
 
 if __name__ == "__main__":
     parser = HfArgumentParser((ScriptArguments, TrainingArguments))
-    script_args, training_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)
+    script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0]
     if script_args.training_kind in ["pre", "sft"]:
         parser = HfArgumentParser((ScriptArguments, SFTConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
