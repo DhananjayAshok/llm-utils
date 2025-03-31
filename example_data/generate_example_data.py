@@ -14,8 +14,11 @@ def setup_sentiment(params):
             os.makedirs(data_dir + "/" + kind)
     for split in ds.keys():
         df = ds[split].to_pandas()
+        df["input"] = df["text"]
+        df["output"] = df["label"]
+        df = df[["input", "output"]]
         df.to_csv(data_dir + "/multi/" + split_map[split] + ".csv", index=False)
-        df["label"] = df["label"] == 1 # joy is the positive class all else is negative
+        df["output"] = df["output"] == 1 # joy is the positive class all else is negative
         df.to_csv(data_dir + "/binary/" + split_map[split] + ".csv", index=False)
     params['logger'].info("Classification data (sentiment) setup complete")
     return 
@@ -27,14 +30,14 @@ def setup_arxiv(params):
         os.makedirs(data_dir)
     for split in ds.keys():
         df = ds[split].to_pandas()
-        df["text"] = df["article"]
-        df = df[["text"]]
+        df["input"] = df["article"]
+        df = df[["input"]]
         df.to_csv(data_dir + "/" + split_map[split] + ".csv", index=False, escapechar="\\")
     params['logger'].info("Pretraining data (arxiv) setup complete")
     return
 
 def setup_tulu_instruction_following(params):
-    ds = load_dataset("allenai/tulu-3-sft-personas-instruction-following")
+    ds = load_dataset("pushpdeep/UltraFeedback-paired")
     data_dir = params['data_dir'] + "/sft"
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
@@ -48,6 +51,8 @@ def setup_tulu_instruction_following(params):
     ds = {"train": train, "val": val, "test": test}
     for split in ds.keys():
         df = ds[split]
+        df["input"] = df["question"]
+        df["output"] = df["response_j"]
         df.to_csv(data_dir + "/" + split_map[split] + ".csv", index=False)
     params['logger'].info("Instruction following data (tulu) setup complete")
     return
@@ -65,7 +70,7 @@ def get_response(x):
 def get_harmful_prompts(params):
     ds = load_dataset("Anthropic/hh-rlhf")
     def process(df):
-        df["prompt"] = df["chosen"].apply(get_prompt)
+        df["input"] = df["chosen"].apply(get_prompt)
         df["chosen"] = df["chosen"].apply(get_response)
         df["rejected"] = df["rejected"].apply(get_response)
         return df

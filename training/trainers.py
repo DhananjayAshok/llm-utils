@@ -38,7 +38,7 @@ def process_clf(script_args, training_args, dataset, model, tokenizer):
     # Running the preprocessing pipeline on all the datasets
     with training_args.main_process_first(desc="dataset map pre-processing"):
         dataset = dataset.map(
-            lambda x: clf_preprocess_function(x, tokenizer, script_args.max_length, label2id),
+            lambda x: clf_preprocess_function(x, tokenizer, script_args.max_input_length, label2id),
             batched=True,
             num_proc=script_args.preprocessing_num_workers,
             load_from_cache_file=False,

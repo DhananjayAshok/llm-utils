@@ -36,7 +36,7 @@ class ScriptArguments:
     training_kind: str = field(default="sft", metadata={"help": "the kind of training to do. Options: sft, dpo, clf, pre"})
     pretrain_with_output: bool = field(default=True, metadata={"help": "If true, will look for output column during pretraining and try to pretrain on the whole thing after concatenating with a standard template."})
     model_name: str = field(default="meta-llama/Llama-2-7b-hf", metadata={"help": "the model name"})
-    train_file: Optional[str] = field(default=None, metadata={"help": "the training file"})
+    train_file: str = field(metadata={"help": "the training file"})
     validation_file: Optional[str] = field(default=None, metadata={"help": "the validation file to use for internal model selection, early stopping etc."})
     test_file: Optional[str] = field(default=None, metadata={"help": "the test file to measure final fit. If not provided, a random split of the validation file is used."})
     train_split: Optional[float] = field(default=0.8, metadata={"help": "the split of the training file to use for training if validation file is not provided"})
@@ -50,7 +50,7 @@ class ScriptArguments:
     streaming: Optional[bool] = field(default=True, metadata={"help": "whether to stream the dataset"})
     shuffle_buffer: Optional[int] = field(default=5000, metadata={"help": "the shuffle buffer size"})
     seq_length: Optional[int] = field(default=1024, metadata={"help": "the sequence length"})
-    max_length: Optional[int] = field(default=1024, metadata={"help": "the maximum length of the input sequence"})
+    max_input_length: Optional[int] = field(default=1024, metadata={"help": "the maximum input length to be used only for classification training"})
     num_workers: Optional[int] = field(default=4, metadata={"help": "the number of workers"})
 
     # BitsAndBytesConfig
@@ -68,8 +68,6 @@ class ScriptArguments:
 
     # Seeds
     data_seed: Optional[int] = field(default=default_parameters["random_seed"], metadata={"help": "the random seed for some data related sampling etc"})
-    seed: Optional[int] = field(default=42, metadata={"help": "the random seed for the Transformers functions"})
-
     # Log
     log_verbose: Optional[bool] = field(default=False, metadata={"help": "print summary stats of data and processing information."})
 
@@ -91,6 +89,9 @@ if __name__ == "__main__":
         script_args, training_args = parser.parse_args_into_dataclasses()
     else:
         pass
+
+    script_args.seed = training_args.seed
+    script_args.data_seed = training_args.data_seed
 
     if script_args.training_kind == "pre":
         training_args.packing = True

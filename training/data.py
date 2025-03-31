@@ -104,11 +104,11 @@ def load_data(script_args, parameters):
     train_file = script_args.train_file
     logger = parameters["logger"]
     train_file_extension = train_file.split(".")[-1]
-    if training_kind != "pre" and train_file_extension != "csv":
-        log_error(logger, f"Training file must be a csv file for {training_kind} training. Got {train_file_extension}")
-    else:
-        if train_file_extension != "txt":
-            log_error(logger, f"Training file must be a txt file or a csv for {training_kind} training. Got {train_file_extension}")
+    allowed_extensions = ["csv"]
+    if training_kind == "pre":
+        allowed_extensions.append("txt")
+    if train_file_extension not in allowed_extensions:
+        log_error(logger, f"Unsupported file extension {train_file_extension}, only {allowed_extensions} are supported for training kind {training_kind}.")
     dataset = load_data_splits(train_file_extension, script_args, parameters)
     return dataset
 
