@@ -50,7 +50,6 @@ class ScriptArguments:
 
     streaming: Optional[bool] = field(default=True, metadata={"help": "whether to stream the dataset"})
     shuffle_buffer: Optional[int] = field(default=5000, metadata={"help": "the shuffle buffer size"})
-    seq_length: Optional[int] = field(default=1024, metadata={"help": "the sequence length"})
     max_input_length: Optional[int] = field(default=1024, metadata={"help": "the maximum input length to be used only for classification training"})
     num_workers: Optional[int] = field(default=4, metadata={"help": "the number of workers"})
 

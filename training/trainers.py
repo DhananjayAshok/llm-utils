@@ -1,7 +1,6 @@
 import torch
 from transformers import Trainer, default_data_collator
-from trl import SFTConfig, SFTTrainer, DPOConfig, DPOTrainer, DataCollatorForCompletionOnlyLM
-from trl.trainer import ConstantLengthDataset
+from trl import SFTTrainer, DPOTrainer, DataCollatorForCompletionOnlyLM
 import numpy as np
 from training.model import get_peft_config
 
@@ -79,7 +78,7 @@ def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"],
         peft_config=peft_config,
-        max_length=script_args.max_length,
+        max_length=training_args.max_length,
         formatting_func=lambda x: prepare_sample_text(x, input_col, output_col),
         processing_class=tokenizer,
         args=training_args,
@@ -96,7 +95,7 @@ def get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"],
         peft_config=peft_config,
-        max_length=script_args.max_length,
+        max_length=training_args.max_length,
         formatting_func=prepare_sample_text,
         processing_class=tokenizer,
         data_collator=collator,
@@ -114,7 +113,7 @@ def get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         eval_dataset=dataset["validation"],
         processing_class=tokenizer,
         peft_config=peft_config,
-        max_length=script_args.max_length,
+        max_length=training_args.max_length,
     )   
     return trainer
 

@@ -51,10 +51,6 @@ def shuffle_and_handle_data_sizes(script_args, dataset, data_seed):
     dataset["validation"] = dataset["validation"].shuffle(seed=data_seed)
     dataset["test"] = dataset["test"].shuffle(seed=data_seed)
 
-    max_length = script_args.max_length
-    # TODO: Unsure if I should handle max_length here
-
-
     if max_train_samples is not None:
         dataset["train"] = dataset["train"].select(range(max_train_samples))
 
