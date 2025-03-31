@@ -3,6 +3,7 @@ from transformers import Trainer, default_data_collator
 from trl import SFTConfig, SFTTrainer, DPOConfig, DPOTrainer, DataCollatorForCompletionOnlyLM
 from trl.trainer import ConstantLengthDataset
 import numpy as np
+from training.model import get_peft_config
 
 
 class WeightedTrainer(Trainer):
@@ -115,4 +116,21 @@ def get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         peft_config=peft_config,
         max_length=script_args.max_length,
     )   
+    return trainer
+
+def get_trainer(script_args, training_args, dataset, model, tokenizer):
+    if script_args.training_kind == "clf":
+        trainer = get_clf_trainer(script_args, training_args, dataset, model, tokenizer)
+    else:
+        peft_config = None
+        if script_args.use_peft:
+            peft_config = get_peft_config(script_args)
+        if script_args.training_kind == "pre":
+            trainer = get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
+        elif script_args.training_kind == "sft":
+            trainer = get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
+        elif script_args.training_kind == "dpo":
+            trainer = get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
+        else:
+            raise ValueError(f"Training kind {script_args.training_kind} not supported")
     return trainer

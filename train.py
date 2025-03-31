@@ -7,7 +7,8 @@
 """
 from utils.parameter_handling import load_parameters
 from training.data import load_data, log_token_statistics
-from training.model import get_model_tokenizer, get_peft_model_tokenizer, get_peft_config
+from training.model import get_model_tokenizer, get_peft_model_tokenizer
+from training.trainers import get_trainer
 
 
 import os
@@ -33,10 +34,10 @@ default_parameters = load_parameters()
 
 @dataclass
 class ScriptArguments:
-    training_kind: str = field(default="sft", metadata={"help": "the kind of training to do. Options: sft, dpo, clf, pre"})
-    pretrain_with_output: bool = field(default=True, metadata={"help": "If true, will look for output column during pretraining and try to pretrain on the whole thing after concatenating with a standard template."})
-    model_name: str = field(default="meta-llama/Llama-2-7b-hf", metadata={"help": "the model name"})
+    training_kind: str = field(metadata={"help": "the kind of training to do. Options: sft, dpo, clf, pre"})
     train_file: str = field(metadata={"help": "the training file"})
+    model_name: str = field(default="meta-llama/Llama-2-7b-hf", metadata={"help": "the model name"})
+    pretrain_with_output: bool = field(default=True, metadata={"help": "If true, will look for output column during pretraining and try to pretrain on the whole thing after concatenating with a standard template."})
     validation_file: Optional[str] = field(default=None, metadata={"help": "the validation file to use for internal model selection, early stopping etc."})
     test_file: Optional[str] = field(default=None, metadata={"help": "the test file to measure final fit. If not provided, a random split of the validation file is used."})
     train_split: Optional[float] = field(default=0.8, metadata={"help": "the split of the training file to use for training if validation file is not provided"})
@@ -109,16 +110,8 @@ if __name__ == "__main__":
 
     if script_args.log_verbose:
         log_token_statistics(script_args, dataset, tokenizer, default_parameters["logger"])
-    
-    if script_args.training_kind == "clf":
-        # Handle classification separately
-        pass
-        # get trainer
-    else:
-        peft_config = None
-        if script_args.use_peft:
-            peft_config = get_peft_config(script_args)
-        # get trainer
+
+    trainer = get_trainer(script_args, training_args, dataset, model, tokenizer)
 
 
 
