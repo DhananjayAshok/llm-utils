@@ -67,9 +67,7 @@ class ScriptArguments:
     lora_dropout: Optional[float] = field(default=0.05, metadata={"help": "the lora dropout parameter"})
     lora_r: Optional[int] = field(default=8, metadata={"help": "the lora r parameter"})
 
-    # Seeds
-    data_seed: Optional[int] = field(default=default_parameters["random_seed"], metadata={"help": "the random seed for some data related sampling etc"})
-    # Log
+    # Seeds    # Log
     log_verbose: Optional[bool] = field(default=False, metadata={"help": "print summary stats of data and processing information."})
 
 
