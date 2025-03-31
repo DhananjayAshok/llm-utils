@@ -85,15 +85,15 @@ def get_harmful_prompts(params):
 
 
 @click.command()
-@click.option('--variant', multiple=True, type=click.Choice(["pre", "sft", "clf", "pref"]), default=["pre", "sft", "clf", "pref"])
+@click.option("--variants", default=["pre", "sft", "clf", "pref"], help="The variants of example data to generate")
 @click.pass_obj
-def generate_example_data(parameters, variant):
-    if "pre" in variant:
+def generate_example_data(parameters, variants):
+    if "pre" in variants:
         setup_arxiv(parameters)
-    if "clf" in variant:
+    if "clf" in variants:
         setup_sentiment(parameters)
-    if "sft" in variant:
+    if "sft" in variants:
         setup_tulu_instruction_following(parameters)
-    if "pref" in variant:
+    if "pref" in variants:
         get_harmful_prompts(parameters)
     return

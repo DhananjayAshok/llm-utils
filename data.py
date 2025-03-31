@@ -15,16 +15,7 @@ def main(ctx, **input_parameters):
     compute_secondary_parameters(loaded_parameters)
     ctx.obj = loaded_parameters
 
-# Implement custom commands as functions in a separate file in the following way:
-"""
-@click.command()
-@click.option("--example_option")
-@click.pass_obj
-def example_command(parameters, example_option):
-    # have access to parameters here with any additional arguments that are specific to the script
-    pass
-"""
-# Then add the custom command to the main group like this:
+
 main.add_command(generate_example_data, name="get_example_data")
 
 if __name__ == "__main__":
