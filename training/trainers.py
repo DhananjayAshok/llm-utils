@@ -6,6 +6,10 @@ from training.model import get_peft_config
 
 
 class WeightedTrainer(Trainer):
+    """
+    Trainer subclass that allows for weighted loss functions
+    TODO: Integrate this with the args from train.py. Currently needs to be hardcoded in the class
+    """
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.get("labels")
         # forward pass
@@ -19,6 +23,10 @@ class WeightedTrainer(Trainer):
 
 
 def compute_clf_metrics(p):
+    """
+    Compute the accuracy of a classification model. 
+    TODO: Add other metrics like F1, precision and recall
+    """
     preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
     preds = np.argmax(preds, axis=1)
     acc = (preds == p.label_ids).mean()
@@ -28,6 +36,10 @@ def compute_clf_metrics(p):
 
 
 def clf_preprocess_function(examples, tokenizer, max_length, label2id):
+    """
+    Preprocess function for classification tasks.
+    Tokenizes the input text, and converts the label to the corresponding id.
+    """
     # Tokenize the texts
     result = tokenizer(examples["input"], padding=True, max_length=max_length, truncation=True)
     result["output"] = [(label2id[str(l)] if l != -1 else -1) for l in examples["output"]]
@@ -103,6 +115,7 @@ def get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_
 
 
 def get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_config):
+    dataset = dataset.rename_column("input", "prompt")
     trainer = DPOTrainer(
         model,
         ref_model=None,

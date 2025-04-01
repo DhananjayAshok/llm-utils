@@ -1,12 +1,7 @@
 from utils.log_handling import log_error
 
-import os
-
 import datasets
-import numpy as np
-import pandas as pd
 from datasets import load_dataset, disable_caching
-from filelock import FileLock
 from tqdm import tqdm
 from trl.trainer import ConstantLengthDataset
 
@@ -14,6 +9,9 @@ disable_caching()
 
 
 def validate_data(dataset, training_kind, pretrain_with_output, logger):
+    """
+    Check that the dataset has the right columns and data types for the training kind
+    """
     mandatory_columns = ["input"]
     if training_kind in ["sft", "clf"] or training_kind == "pre" and pretrain_with_output:
         mandatory_columns.append("output")
@@ -25,24 +23,25 @@ def validate_data(dataset, training_kind, pretrain_with_output, logger):
             if column not in dataset[split].column_names:
                 log_error(logger, f"Column {column} not found in {split} split of the dataset with columns {dataset[split].column_names}")
     string_columns = ["input", "chosen", "rejected"]
-    int_columns = []
+    string_or_int_columns = []
     if training_kind == "clf":
-        int_columns.append("output")
+        string_or_int_columns.append("output")
     else:
         string_columns.append("output")
     for split in dataset:
         for column in string_columns:
             if column in dataset[split].features:    
                 if dataset[split].features[column].dtype != "string":
-                    log_error(logger, f"Column {column} in {split} split is not a string")
-        for column in int_columns:
-            if column in dataset[split].features:
-                if dataset[split].features[column].dtype not in ["int64", "int32", "int16", "int8", "int"]:
-                    log_error(logger, f"Column {column} in {split} split is not an int")
-    logger.debug("Data validation complete")
-
+                    log_error(logger, f"Column {column} in {split} split is not a string, it is {dataset[split].features[column].dtype}")  
+        for column in string_or_int_columns:
+            if column in dataset[split].features:    
+                if dataset[split].features[column].dtype not in ["string", "int32", "int64", "int"]:
+                    log_error(logger, f"Column {column} in {split} split is not a string or int, it is {dataset[split].features[column].dtype}")
 
 def shuffle_and_handle_data_sizes(script_args, dataset, data_seed):
+    """
+    Shuffle the dataset and cut it to the length specified in the script arguments
+    """
     max_train_samples = script_args.max_train_samples
     max_valid_samples = script_args.max_valid_samples
     max_test_samples = script_args.max_test_samples
@@ -65,6 +64,18 @@ def shuffle_and_handle_data_sizes(script_args, dataset, data_seed):
 
 
 def load_data_splits(extension, script_args, parameters):
+    """
+    Check that the file extension is valid and return Dataset
+    Args:
+        extension: the file extension of the data file
+        script_args: the parsed script arguments
+        parameters: the parameters dictionary from configs
+
+    Returns:
+        dataset: HuggingFace Dataset object with train, validation and test splits and 
+                    columns (input), (input, output) or (input, chosen, rejected) depending on the training kind
+                    It has been shuffled and cut to the length (dataset length not token) specified in args
+    """
     logger = parameters["logger"]
     train_file = script_args.train_file
     validation_file = script_args.validation_file
@@ -96,6 +107,18 @@ def load_data_splits(extension, script_args, parameters):
 
 
 def load_data(script_args, parameters):
+    """
+    Load the data from the file arguments and return the dataset
+
+    Args:
+        script_args: the parsed script arguments
+        parameters: the parameters dictionary from configs
+
+    Returns:
+        dataset: HuggingFace Dataset object with train, validation and test splits and 
+                 columns (input), (input, output) or (input, chosen, rejected) depending on the training kind
+
+    """
     training_kind = script_args.training_kind
     train_file = script_args.train_file
     logger = parameters["logger"]
@@ -153,62 +176,6 @@ def log_token_statistics(script_args, dataset, tokenizer, logger):
     return statistics
 
 
-def estimate_chars_token_ratio(dataset, tokenizer, text_preparation_fn, nb_examples=400):
-    """
-    Estimate the average number of characters per token in the dataset.
-    """
-    total_characters, total_tokens = 0, 0
-    for _, example in tqdm(zip(range(nb_examples), iter(dataset)), total=nb_examples):
-        text = text_preparation_fn(example)
-        total_characters += len(text)
-        if tokenizer.is_fast:
-            total_tokens += len(tokenizer(text).tokens())
-        else:
-            total_tokens += len(tokenizer.tokenize(text))
-
-    return total_characters / total_tokens
-
-
-def get_pretraining_data(dataset, tokenizer, script_args):
-    prepare_sample_text = lambda x: x["input"]
-    if script_args.pretrain_with_output:
-        prepare_sample_text = lambda x: f"Input: {x['input']}\nOutput: {x['output']}"
-
-    chars_per_token = estimate_chars_token_ratio(
-        dataset["train"],
-        tokenizer,
-        prepare_sample_text,
-        nb_examples=script_args.max_train_samples,
-    )
-
-    train_dataset = ConstantLengthDataset(
-        tokenizer,
-        dataset["train"],
-        formatting_func=prepare_sample_text,
-        infinite=True,
-        seq_length=script_args.seq_length,
-        chars_per_token=chars_per_token,
-    )
-    valid_dataset = ConstantLengthDataset(
-        tokenizer,
-        dataset["validation"],
-        formatting_func=prepare_sample_text,
-        infinite=False,
-        seq_length=script_args.seq_length,
-        chars_per_token=chars_per_token,
-    )
-
-    test_dataset = ConstantLengthDataset(
-        tokenizer,
-        dataset["validation"],
-        formatting_func=prepare_sample_text,
-        infinite=False,
-        seq_length=script_args.seq_length,
-        chars_per_token=chars_per_token,
-    )
-
-
-
 def get_label_list(raw_dataset, split="train"):
     """Get the list of labels from a multi-label dataset"""
 
@@ -219,6 +186,9 @@ def get_label_list(raw_dataset, split="train"):
 
 
 def infer_label_list(dataset, logger):
+    """
+    Infer the label list from the dataset with special handling for differences between train and val/test labels
+    """
     label_list = get_label_list(dataset, split="train")
     for split in ["validation", "test"]:
         if split in dataset:

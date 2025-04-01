@@ -1,1 +1,2 @@
 random_seed: 42
+openai_tmp_file_dir: "./openai_tmp_files"

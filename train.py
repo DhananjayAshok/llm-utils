@@ -6,6 +6,7 @@
 	5. Implement SFT, DPO and Pre (packing diff is all)
 """
 from utils.parameter_handling import load_parameters
+from utils.log_handling import log_error
 from training.data import load_data, log_token_statistics
 from training.model import get_model_tokenizer, get_peft_model_tokenizer
 from training.trainers import get_trainer
@@ -14,13 +15,8 @@ from training.trainers import get_trainer
 import os
 from dataclasses import dataclass, field
 from typing import Optional
-
-import torch
 import logging
-from accelerate import Accelerator
-from datasets import load_dataset
-from peft import AutoPeftModelForCausalLM, LoraConfig
-from tqdm import tqdm
+
 from transformers import (
     HfArgumentParser,
     TrainingArguments,
@@ -72,11 +68,21 @@ class ScriptArguments:
 
 
 
+def override_defaults(training_args):
+    if training_args.save_total_limit is None:
+        training_args.save_total_limit = 2
+    if training_args.save_steps is None:
+        training_args.save_steps = 1000
+
+
 
 if __name__ == "__main__":
+    # Parse arguments. The arguments we expect will depend on the training kind, so we have to parse the args twice. 
     parser = HfArgumentParser((ScriptArguments, TrainingArguments))
-    script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0]
+    script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0] # return_remaining_strings stops error out on unknown args
     if script_args.training_kind in ["pre", "sft"]:
+        if script_args.training_kind == "sft":
+            log_error(default_parameters["logger"], "SFT is supported, but it works pretty badly. I think this has to do with the data collater class and is hence a bit more involved to fix.") # TODO: Fix SFT
         parser = HfArgumentParser((ScriptArguments, SFTConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
     elif script_args.training_kind == "dpo":
@@ -90,7 +96,9 @@ if __name__ == "__main__":
 
     script_args.seed = training_args.seed
     script_args.data_seed = training_args.data_seed
+    override_defaults(training_args)
 
+    # set up basic arguments
     if script_args.training_kind == "pre":
         training_args.packing = True
     default_parameters['random_seed'] = script_args.data_seed
@@ -98,15 +106,22 @@ if __name__ == "__main__":
     if script_args.log_verbose:
         default_parameters["logger"].setLevel(logging.DEBUG)
 
+
     dataset = load_data(script_args, default_parameters)
+
+
     model, tokenizer = None, None
     if script_args.training_kind == "clf" and script_args.use_peft:
         model, tokenizer = get_peft_model_tokenizer(script_args, dataset)
     else:
         model, tokenizer = get_model_tokenizer(script_args, dataset)
 
+    # TRL takes in peft_config instead of model, so we load the peft model only for classification which uses Trainer directly
+
     if script_args.log_verbose:
         log_token_statistics(script_args, dataset, tokenizer, default_parameters["logger"])
+
+
 
     trainer = get_trainer(script_args, training_args, dataset, model, tokenizer)
 
