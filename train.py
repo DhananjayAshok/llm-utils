@@ -33,6 +33,7 @@ class ScriptArguments:
     training_kind: str = field(metadata={"help": "the kind of training to do. Options: sft, dpo, clf, pre"})
     train_file: str = field(metadata={"help": "the training file"})
     model_name: str = field(default="meta-llama/Llama-2-7b-hf", metadata={"help": "the model name"})
+    using_deepspeed: bool = field(default=False, metadata={"help": "whether you are using deepspeed"})
     pretrain_with_output: bool = field(default=True, metadata={"help": "If true, will look for output column during pretraining and try to pretrain on the whole thing after concatenating with a standard template."})
     validation_file: Optional[str] = field(default=None, metadata={"help": "the validation file to use for internal model selection, early stopping etc."})
     test_file: Optional[str] = field(default=None, metadata={"help": "the test file to measure final fit. If not provided, a random split of the validation file is used."})

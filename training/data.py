@@ -21,7 +21,10 @@ def validate_data(dataset, training_kind, pretrain_with_output, logger):
     for split in dataset:
         for column in mandatory_columns:
             if column not in dataset[split].column_names:
-                log_error(logger, f"Column {column} not found in {split} split of the dataset with columns {dataset[split].column_names}")
+                err_string = f"Column {column} not found in {split} split of the dataset with columns {dataset[split].column_names}"
+                if training_kind == "pre" and column == "output":
+                    err_string = err_string + " for pretraining with argument pretrain_with_output=True. Either set pretrain_with_output=False or provide an output column."
+                log_error(logger, err_string)
     string_columns = ["input", "chosen", "rejected"]
     string_or_int_columns = []
     if training_kind == "clf":

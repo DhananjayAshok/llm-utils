@@ -21,13 +21,21 @@ def get_model_tokenizer(script_args, dataset):
         )
     
     if script_args.training_kind != "clf":
-        base_model = AutoModelForCausalLM.from_pretrained(
-            script_args.model_name,
-            quantization_config=bnb_config,
-            device_map={"": Accelerator().local_process_index},
-            trust_remote_code=True,
-            use_auth_token=True,
-        )
+        if script_args.using_deepspeed:
+            base_model = AutoModelForCausalLM.from_pretrained(
+                script_args.model_name,
+                quantization_config=bnb_config,
+                trust_remote_code=True,
+                use_auth_token=True,
+                )
+        else:
+            base_model = AutoModelForCausalLM.from_pretrained(
+                script_args.model_name,
+                quantization_config=bnb_config,
+                device_map={"": Accelerator().local_process_index}, #TODO: This doesn't seem to work with older versions + deepspeed
+                trust_remote_code=True,
+                use_auth_token=True,
+            )
     else:
         label_list = infer_label_list(dataset, script_args.logger)
         num_labels = len(label_list)
