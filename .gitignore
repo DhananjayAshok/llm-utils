@@ -174,3 +174,4 @@ cython_debug/
 .pypirc
 *.out
 slurm_scripts/
+llm-utils-env/
