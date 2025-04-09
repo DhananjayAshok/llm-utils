@@ -1,4 +1,4 @@
-This project uses Python 3.????
+This project uses Python 3.12
 
 You can set up a virtual environment using either the [short](requirements.txt) or [more complete](long_requirements.txt) freezes of our pip using:
 

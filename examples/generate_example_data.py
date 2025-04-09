@@ -105,4 +105,4 @@ def generate_example_data(variants):
     return
 
 if __name__ == "__main__":
-    generate_example_data()
+    raise ValueError("This script is not meant to be run directly. Use the create_examples.py script instead.")

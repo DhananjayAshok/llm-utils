@@ -1,5 +1,8 @@
+accelerate==1.5.2
+click
+datasets==3.5.0
+deepspeed==0.16.5
+peft==0.15.1
+torch==2.5.1
 transformers==4.50.3
 trl==0.16.0
-torch==2.5.1
-deepspeed==0.16.5
-accelerate==1.5.2
