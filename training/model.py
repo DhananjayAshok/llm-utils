@@ -26,7 +26,6 @@ def get_model_tokenizer(script_args, dataset):
                 script_args.model_name,
                 quantization_config=bnb_config,
                 trust_remote_code=True,
-                use_auth_token=True,
                 )
         else:
             base_model = AutoModelForCausalLM.from_pretrained(
@@ -34,7 +33,6 @@ def get_model_tokenizer(script_args, dataset):
                 quantization_config=bnb_config,
                 device_map={"": Accelerator().local_process_index}, #TODO: This doesn't seem to work with older versions + deepspeed
                 trust_remote_code=True,
-                use_auth_token=True,
             )
     else:
         label_list = infer_label_list(dataset, script_args.logger)
@@ -48,7 +46,6 @@ def get_model_tokenizer(script_args, dataset):
             script_args.model_name,
             config=config,
             trust_remote_code=True,
-            use_auth_token=True,
         )
         label_to_id = {v: i for i, v in enumerate(label_list)}
         # update config with label infos
