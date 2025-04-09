@@ -5,7 +5,7 @@ import click
 def main():
     pass
 
-main.add_command(generate_example_data)
+main.add_command(generate_example_data, name="generate")
 
 if __name__ == "__main__":
     main()
