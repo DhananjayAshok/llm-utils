@@ -74,8 +74,6 @@ def override_defaults(training_args):
         training_args.save_total_limit = 2
     if training_args.save_steps is None:
         training_args.save_steps = 1000
-    if training_args.use_flash_attn is None:
-        training_args.use_flash_attn = True
     if training_args.logging_steps is None:
         training_args.logging_steps = 10
     training_args.report_to = "wandb"
