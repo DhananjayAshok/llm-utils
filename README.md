@@ -4,16 +4,16 @@ Useful code for training and inference of Language Models.
 
 ## Examples
 
-To try out the various training and inference codes, you can load in sample data with (make sure to first set the relevant parameters in the config directories yaml files):
+You can load in sample data with:
 
 ```bash
-python examples/generate_example_data.py
+python create_examples.py generate
 ```
 
-You can specify the specific variants you want with
+You can specify the specific variants you want with:
 
 ```bash
-python examples/generate_example_data.py get_example_data --variants sft --variants pref
+python create_examples.py generate --variants sft --variants pref
 ```
 
 Available variants are: 
@@ -22,11 +22,50 @@ Available variants are:
 3. clf: Classification 
 4. pref: Preference Optimization
 
+
+Before training, you have to install dependancies with:
+
+```bash
+scripts/create_env.sh
+```
+
+set up the accelerate config file. As a default I use multi-GPU FSDP with Torch Dynamo (inductor) speed up (no quantization). All training scripts here are LoRA, and 
+
+To set this up you can do
+
+```bash
+accelerate config
+```
+
+When going through the options, select the options that correspond to:
+
+```yaml
+fsdp_config:
+  fsdp_activation_checkpointing: false
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+  fsdp_backward_prefetch: BACKWARD_PRE
+  fsdp_cpu_ram_efficient_loading: true
+  fsdp_forward_prefetch: false
+  fsdp_offload_params: false
+  fsdp_reshard_after_forward: FULL_SHARD
+  fsdp_state_dict_type: FULL_STATE_DICT
+  fsdp_sync_module_states: true
+  fsdp_use_orig_params: false # must be set to true if you want to use torch dynamo
+  fsdp_version: 1
+mixed_precision: bf16
+```
+
+
+
 Then, run the script you want to train with using:
+
+
 
 ```bash
 python examples/scripts/sft.sh
 ```
+
+To see the parameters that can be used on the command line (such as --per_device_train_batch_size and --max_length) see the respective Config files for SFTConfig and DPOConfig from TRL
 
 ## Project organization
 
@@ -35,7 +74,7 @@ The inference code:
 The training code is essentially a quick wrapper around HuggingFace Trainer and TRL. In general the only required arguments are training_kind, model_name and a train_file for data. The call looks like
 
 ```bash
-python train.py --training_kind <pre/sft/clf/dpo> --model_name <name> --output_dir tmp/
+python train.py --training_kind <pre/sft/clf/dpo> --model_name <name> --output_dir tmp/ --training_file <something>
 ```
 
 

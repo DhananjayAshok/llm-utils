@@ -74,6 +74,11 @@ def override_defaults(training_args):
         training_args.save_total_limit = 2
     if training_args.save_steps is None:
         training_args.save_steps = 1000
+    if training_args.use_flash_attn is None:
+        training_args.use_flash_attn = True
+    if training_args.logging_steps is None:
+        training_args.logging_steps = 10
+    training_args.report_to = "wandb"
 
 
 
@@ -98,6 +103,9 @@ if __name__ == "__main__":
     script_args.seed = training_args.seed
     script_args.data_seed = training_args.data_seed
     override_defaults(training_args)
+    if script_args.use_bnb:
+        training_args.bf16 = True
+        script_args.model_dtype = "bfloat16"
 
     # set up basic arguments
     if script_args.training_kind == "pre":

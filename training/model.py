@@ -18,6 +18,8 @@ def get_model_tokenizer(script_args, dataset):
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=True, # set storage type
+            bnb_4bit_quant_storage=torch.bfloat16, # set storage type
         )
     
     if script_args.training_kind != "clf":
@@ -73,7 +75,7 @@ def get_peft_config(script_args):
     r=script_args.lora_r,
     lora_alpha=script_args.lora_alpha,
     lora_dropout=script_args.lora_dropout,
-    target_modules=["q_proj", "v_proj"], # TODO: Customize the modules to target inference based on the model architecture
+    target_modules="all-linear", # TODO: Customize the modules to target inference based on the model architecture
     bias="none",
     task_type=task
     )
