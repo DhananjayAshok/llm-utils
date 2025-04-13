@@ -50,16 +50,17 @@ def shuffle_and_handle_data_sizes(script_args, dataset, data_seed):
     max_test_samples = script_args.max_test_samples
 
     dataset["train"] = dataset["train"].shuffle(seed=data_seed)
-    dataset["validation"] = dataset["validation"].shuffle(seed=data_seed)
-    dataset["test"] = dataset["test"].shuffle(seed=data_seed)
+    if "validation" in dataset:
+        dataset["validation"] = dataset["validation"].shuffle(seed=data_seed)
 
     if max_train_samples is not None:
         dataset["train"] = dataset["train"].select(range(max_train_samples))
 
-    if max_valid_samples is not None:
+    if max_valid_samples is not None and "validation" in dataset:
         dataset["validation"] = dataset["validation"].select(range(max_valid_samples))
 
-    if max_test_samples is not None:
+    if max_test_samples is not None and "test" in dataset:
+        dataset["test"] = dataset["test"].shuffle(seed=data_seed)
         dataset["test"] = dataset["test"].select(range(max_test_samples))
 
     return dataset
@@ -95,12 +96,13 @@ def load_data_splits(extension, script_args, parameters):
         dataset = datasets.load_dataset("text", data_files=data_files).rename_column("text", "input")
     else:
         dataset = load_dataset(extension, data_files=data_files)  # should be csv
+    
     validate_data(dataset, script_args.training_kind, script_args.pretrain_with_output, logger)
-    if validation_file is None:
+    if validation_file is None and train_split is not None:
         train_val = dataset["train"].train_test_split(test_size=train_split, seed=random_seed)
         dataset["train"] = train_val["train"]
         dataset["validation"] = train_val["test"]
-    if test_file is None:
+    if test_file is None and validation_split is not None:
         val_test = dataset["validation"].train_test_split(test_size=validation_split, seed=random_seed)
         dataset["validation"] = val_test["train"]
         dataset["test"] = val_test["test"]
