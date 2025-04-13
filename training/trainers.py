@@ -88,7 +88,7 @@ def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_
     trainer = SFTTrainer(
         model=model,
         train_dataset=dataset["train"],
-        eval_dataset=dataset["validation"],
+        eval_dataset=dataset["validation"] if "validation" in dataset else None,
         peft_config=peft_config,
         formatting_func=lambda x: prepare_sample_text(x, input_col, output_col),
         processing_class=tokenizer,
@@ -104,7 +104,7 @@ def get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_
     trainer = SFTTrainer(
         model=model,
         train_dataset=dataset["train"],
-        eval_dataset=dataset["validation"],
+        eval_dataset=dataset["validation"] if "validation" in dataset else None,
         peft_config=peft_config,
         formatting_func=prepare_sample_text,
         processing_class=tokenizer,
@@ -121,7 +121,7 @@ def get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         ref_model=None,
         args=training_args,
         train_dataset=dataset["train"],
-        eval_dataset=dataset["validation"],
+        eval_dataset=dataset["validation"] if "validation" in dataset else None,
         processing_class=tokenizer,
         peft_config=peft_config,
     )   
