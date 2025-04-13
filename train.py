@@ -116,6 +116,7 @@ if __name__ == "__main__":
     set_seed(training_args.seed)
     if script_args.log_verbose:
         default_parameters["logger"].setLevel(logging.DEBUG)
+    script_args.logger = default_parameters["logger"]
 
 
     dataset = load_data(script_args, default_parameters)
