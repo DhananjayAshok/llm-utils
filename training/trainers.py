@@ -10,7 +10,7 @@ class WeightedTrainer(Trainer):
     Trainer subclass that allows for weighted loss functions
     TODO: Integrate this with the args from train.py. Currently needs to be hardcoded in the class
     """
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         labels = inputs.get("labels")
         # forward pass
         outputs = model(**inputs)
