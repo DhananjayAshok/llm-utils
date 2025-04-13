@@ -139,7 +139,7 @@ if __name__ == "__main__":
 
 
 
-    trainer = get_trainer(script_args, training_args, dataset, model, tokenizer)
+    trainer, dataset = get_trainer(script_args, training_args, dataset, model, tokenizer)
 
 
 
