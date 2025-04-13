@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
     model, tokenizer = None, None
     if script_args.training_kind == "clf" and script_args.use_peft:
-        model, tokenizer = get_peft_model_tokenizer(script_args, dataset)
+        model, tokenizer = get_peft_model_tokenizer(script_args)
     else:
         model, tokenizer = get_model_tokenizer(script_args, dataset)
 
