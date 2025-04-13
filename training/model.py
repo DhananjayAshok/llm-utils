@@ -57,8 +57,11 @@ def get_model_tokenizer(script_args, dataset):
 
 
     tokenizer = AutoTokenizer.from_pretrained(script_args.model_name, trust_remote_code=True)
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "right"  # Fix weird overflow issue with fp16 training
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+        base_model.config.pad_token_id = tokenizer.eos_token_id
+        tokenizer.padding_side = "right"  # Fix weird overflow issue with fp16 training
     return base_model, tokenizer
 
 
@@ -89,10 +92,6 @@ def get_peft_model_tokenizer(script_args, dataset):
     base_model, tokenizer = get_model_tokenizer(script_args, dataset)
     peft_config = get_peft_config(script_args)
     model = get_peft_model(base_model, peft_config)
-    if tokenizer.pad_token_id is None:
-        tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.pad_token_id = tokenizer.eos_token_id
-        model.config.pad_token_id = tokenizer.eos_token_id
     return model, tokenizer
 
 
