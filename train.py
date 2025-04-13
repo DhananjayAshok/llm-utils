@@ -52,6 +52,7 @@ class ScriptArguments:
     streaming: Optional[bool] = field(default=True, metadata={"help": "whether to stream the dataset"})
     shuffle_buffer: Optional[int] = field(default=5000, metadata={"help": "the shuffle buffer size"})
     max_input_length: Optional[int] = field(default=512, metadata={"help": "the maximum input length to be used only for classification training"})
+    evaluate_before_training: Optional[bool] = field(default=False, metadata={"help": "whether to evaluate before training"})
     num_workers: Optional[int] = field(default=4, metadata={"help": "the number of workers"})
 
     # BitsAndBytesConfig
@@ -141,7 +142,8 @@ if __name__ == "__main__":
 
     trainer, dataset = get_trainer(script_args, training_args, dataset, model, tokenizer)
 
-
+    if script_args.training_kind == "clf" and script_args.evaluate_before_training and "test" in dataset:
+        trainer.evaluate(dataset["test"])
 
     trainer.train()
     trainer.save_model(training_args.output_dir)
