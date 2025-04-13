@@ -27,6 +27,7 @@ def validate_data(dataset, training_kind, pretrain_with_output, logger):
                 log_error(logger, err_string)
 
     dataset = handle_nans(dataset, mandatory_columns, logger)
+    return dataset # Right now the dtype doesn't seem to update after dropping nans, so just trust the user. 
     string_columns = ["input", "chosen", "rejected"]
     string_or_int_or_bool_columns = []
     if training_kind == "clf":
