@@ -42,7 +42,7 @@ def clf_preprocess_function(examples, tokenizer, max_length, label2id):
     """
     # Tokenize the texts
     result = tokenizer(examples["input"], padding="max_length", max_length=max_length, truncation=True)
-    result["output"] = [(label2id[str(l)] if l != -1 else -1) for l in examples["output"]]
+    result["label"] = [(label2id[str(l)] if l != -1 else -1) for l in examples["output"]]
     return result
 
 def process_clf(script_args, training_args, dataset, model, tokenizer):
