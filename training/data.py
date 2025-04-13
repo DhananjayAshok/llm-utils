@@ -38,7 +38,7 @@ def validate_data(dataset, training_kind, pretrain_with_output, logger):
                     log_error(logger, f"Column {column} in {split} split is not a string, it is {dataset[split].features[column].dtype}")  
         for column in string_or_int_or_bool_columns:
             if column in dataset[split].features:    
-                if dataset[split].features[column].dtype not in ["string", "int32", "int64", "int", bool]:
+                if dataset[split].features[column].dtype not in ["string", "int32", "int64", "int", bool, "bool", int]:
                     log_error(logger, f"Column {column} in {split} split is not a string, bool or int, it is {dataset[split].features[column].dtype}")
 
 def shuffle_and_handle_data_sizes(script_args, dataset, data_seed):
