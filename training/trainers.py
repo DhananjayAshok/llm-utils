@@ -41,7 +41,7 @@ def clf_preprocess_function(examples, tokenizer, max_length, label2id):
     Tokenizes the input text, and converts the label to the corresponding id.
     """
     # Tokenize the texts
-    result = tokenizer(examples["input"], padding="max_length", max_length=max_length, truncation=True, return_tensors="pt")
+    result = tokenizer(examples["input"], padding="max_length", max_length=max_length, truncation=True)
     result["output"] = [(label2id[str(l)] if l != -1 else -1) for l in examples["output"]]
     return result
 
