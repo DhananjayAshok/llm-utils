@@ -41,6 +41,32 @@ def validate_data(dataset, training_kind, pretrain_with_output, logger):
                 if dataset[split].features[column].dtype not in ["string", "int32", "int64", "int", bool, "bool", int]:
                     log_error(logger, f"Column {column} in {split} split is not a string, bool or int, it is {dataset[split].features[column].dtype}")
 
+
+def handle_nans(dataset, script_args, logger):
+    lengths = {}
+    for split in dataset:
+        lengths[split] = len(dataset[split])
+    check_cols = ["input"]
+    if script_args.training_kind in ["sft", "clf"]:
+        check_cols.append("output")
+    if script_args.training_kind in ["dpo", "ppo"]:
+        check_cols.append("chosen")
+        check_cols.append("rejected")
+    if script_args == "pre" and script_args.pretrain_with_output:
+        check_cols.append("output")
+    def filter(x):
+        for col in check_cols:
+            if x[col] is None or x[col] == "":
+                return False
+        return True
+    dataset = dataset.filter(filter)
+    for split in dataset:
+        newlength = len(dataset[split])
+        if newlength != lengths[split]:
+            logger.warning(f"Removed {lengths[split] - newlength} rows with NaN values from {split} split")
+    return dataset
+
+
 def shuffle_and_handle_data_sizes(script_args, dataset, data_seed):
     """
     Shuffle the dataset and cut it to the length specified in the script arguments
@@ -105,6 +131,7 @@ def load_data_splits(extension, script_args, parameters):
     if script_args.rejected_column is not None:
         dataset = dataset.rename_column(script_args.rejected_column, "rejected")
     validate_data(dataset, script_args.training_kind, script_args.pretrain_with_output, logger)
+    handle_nans(dataset, script_args, logger)
     if validation_file is None and train_split is not None:
         train_val = dataset["train"].train_test_split(test_size=train_split, seed=random_seed)
         dataset["train"] = train_val["train"]
