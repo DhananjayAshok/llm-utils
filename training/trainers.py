@@ -69,7 +69,7 @@ def get_clf_trainer(script_args, training_args, dataset, model, tokenizer):
         tokenizer=tokenizer,
         data_collator=default_data_collator,
     )
-    return trainer
+    return trainer, dataset
 
 
 def prepare_sample_text(example, input_col="input", output_col="output"):
@@ -94,7 +94,7 @@ def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         processing_class=tokenizer,
         args=training_args,
     )
-    return trainer
+    return trainer, dataset
 
 
 
@@ -111,7 +111,7 @@ def get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         data_collator=collator,
         args=training_args,
     )
-    return trainer
+    return trainer, dataset
 
 
 def get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_config):
@@ -125,21 +125,21 @@ def get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         processing_class=tokenizer,
         peft_config=peft_config,
     )   
-    return trainer
+    return trainer, dataset
 
 def get_trainer(script_args, training_args, dataset, model, tokenizer):
     if script_args.training_kind == "clf":
-        trainer = get_clf_trainer(script_args, training_args, dataset, model, tokenizer)
+        trainer, dataset = get_clf_trainer(script_args, training_args, dataset, model, tokenizer)
     else:
         peft_config = None
         if script_args.use_peft:
             peft_config = get_peft_config(script_args)
         if script_args.training_kind == "pre":
-            trainer = get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
+            trainer, dataset = get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
         elif script_args.training_kind == "sft":
-            trainer = get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
+            trainer, dataset = get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
         elif script_args.training_kind == "dpo":
-            trainer = get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
+            trainer, dataset = get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
         else:
             raise ValueError(f"Training kind {script_args.training_kind} not supported")
-    return trainer
+    return trainer, dataset

@@ -21,9 +21,9 @@ def validate_data(dataset, training_kind, pretrain_with_output, logger):
     for split in dataset:
         for column in mandatory_columns:
             if column not in dataset[split].column_names:
-                err_string = f"Column {column} not found in {split} split of the dataset with columns {dataset[split].column_names}"
+                err_string = f"Column {column} not found in {split} split of the dataset with columns {dataset[split].column_names}. Pass --input_column,  --output_column, --chosen_column or --rejected_column to rename the columns in the dataset."
                 if training_kind == "pre" and column == "output":
-                    err_string = err_string + " for pretraining with argument pretrain_with_output=True. Either set pretrain_with_output=False or provide an output column."
+                    err_string = err_string + " For pretraining with argument pretrain_with_output=True. Either set pretrain_with_output=False or provide an output column."
                 log_error(logger, err_string)
     string_columns = ["input", "chosen", "rejected"]
     string_or_int_or_bool_columns = []
@@ -96,7 +96,14 @@ def load_data_splits(extension, script_args, parameters):
         dataset = datasets.load_dataset("text", data_files=data_files).rename_column("text", "input")
     else:
         dataset = load_dataset(extension, data_files=data_files)  # should be csv
-    
+    if script_args.input_column != "input":
+        dataset = dataset.rename_column(script_args.input_column, "input")
+    if script_args.output_column != "output":
+        dataset = dataset.rename_column(script_args.output_column, "output")
+    if script_args.chosen_column is not None:
+        dataset = dataset.rename_column(script_args.chosen_column, "chosen")
+    if script_args.rejected_column is not None:
+        dataset = dataset.rename_column(script_args.rejected_column, "rejected")
     validate_data(dataset, script_args.training_kind, script_args.pretrain_with_output, logger)
     if validation_file is None and train_split is not None:
         train_val = dataset["train"].train_test_split(test_size=train_split, seed=random_seed)
