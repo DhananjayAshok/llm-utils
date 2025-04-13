@@ -26,9 +26,9 @@ def validate_data(dataset, training_kind, pretrain_with_output, logger):
                     err_string = err_string + " for pretraining with argument pretrain_with_output=True. Either set pretrain_with_output=False or provide an output column."
                 log_error(logger, err_string)
     string_columns = ["input", "chosen", "rejected"]
-    string_or_int_columns = []
+    string_or_int_or_bool_columns = []
     if training_kind == "clf":
-        string_or_int_columns.append("output")
+        string_or_int_or_bool_columns.append("output")
     else:
         string_columns.append("output")
     for split in dataset:
@@ -36,10 +36,10 @@ def validate_data(dataset, training_kind, pretrain_with_output, logger):
             if column in dataset[split].features:    
                 if dataset[split].features[column].dtype != "string":
                     log_error(logger, f"Column {column} in {split} split is not a string, it is {dataset[split].features[column].dtype}")  
-        for column in string_or_int_columns:
+        for column in string_or_int_or_bool_columns:
             if column in dataset[split].features:    
-                if dataset[split].features[column].dtype not in ["string", "int32", "int64", "int"]:
-                    log_error(logger, f"Column {column} in {split} split is not a string or int, it is {dataset[split].features[column].dtype}")
+                if dataset[split].features[column].dtype not in ["string", "int32", "int64", "int", bool]:
+                    log_error(logger, f"Column {column} in {split} split is not a string, bool or int, it is {dataset[split].features[column].dtype}")
 
 def shuffle_and_handle_data_sizes(script_args, dataset, data_seed):
     """

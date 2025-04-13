@@ -29,7 +29,13 @@ Before training, you have to install dependancies with:
 scripts/create_env.sh
 ```
 
-set up the accelerate config file. As a default I use multi-GPU FSDP with Torch Dynamo (inductor) speed up (no quantization). All training scripts here are LoRA, and 
+Log in to WandB with 
+
+```bash
+wandb login
+```
+
+Set up the accelerate config file. As a default I use multi-GPU FSDP with Torch Dynamo (inductor) speed up (no quantization). All training scripts here are LoRA, and 
 
 To set this up you can do
 
