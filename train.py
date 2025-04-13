@@ -74,7 +74,8 @@ def override_defaults(training_args):
         training_args.save_total_limit = 2
     if training_args.save_steps is None:
         training_args.save_steps = 1000
-    if training_args.logging_steps is None:
+    if training_args.logging_strategy is None and training_args.logging_steps is None:
+        training_args.logging_strategy = "steps"
         training_args.logging_steps = 10
     training_args.report_to = "wandb"
 
@@ -86,7 +87,7 @@ if __name__ == "__main__":
     script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0] # return_remaining_strings stops error out on unknown args
     if script_args.training_kind in ["pre", "sft"]:
         if script_args.training_kind == "sft":
-            log_error(default_parameters["logger"], "SFT is supported, but it works pretty badly. I think this has to do with the data collater class and is hence a bit more involved to fix.") # TODO: Fix SFT
+            default_parameters["logger"].warn("SFT is supported, but it works pretty badly. I think this has to do with the data collater class and is hence a bit more involved to fix.") # TODO: Fix SFT
         parser = HfArgumentParser((ScriptArguments, SFTConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
     elif script_args.training_kind == "dpo":
@@ -95,8 +96,11 @@ if __name__ == "__main__":
     elif script_args.training_kind == "ppo":
         parser = HfArgumentParser((ScriptArguments, PPOConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
+    elif script_args.training_kind == "clf":
+        parser = HfArgumentParser((ScriptArguments, TrainingArguments))
+        script_args, training_args = parser.parse_args_into_dataclasses()
     else:
-        pass
+        log_error(default_parameters["logger"], f"Training kind {script_args.training_kind} not supported. Please use one of sft, dpo, clf, pre.")
 
     script_args.seed = training_args.seed
     script_args.data_seed = training_args.data_seed
