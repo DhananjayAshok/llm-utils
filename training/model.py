@@ -82,11 +82,11 @@ def get_peft_config(script_args):
     return peft_config
 
 
-def get_peft_model_tokenizer(script_args):
+def get_peft_model_tokenizer(script_args, dataset):
     """
     Load the model and tokenizer with PEFT set up for the given script arguments.
     """
-    base_model, tokenizer = get_model_tokenizer(script_args)
+    base_model, tokenizer = get_model_tokenizer(script_args, dataset)
     peft_config = get_peft_config(script_args)
     model = get_peft_model(base_model, peft_config)
     if tokenizer.pad_token_id is None:
