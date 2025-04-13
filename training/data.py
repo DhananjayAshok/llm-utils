@@ -91,7 +91,12 @@ def shuffle_and_handle_data_sizes(script_args, dataset, data_seed):
 
     return dataset
 
-
+def drop_column_if_needed(dataset, column_name):
+    for split in dataset:
+        if column_name in dataset[split].features:
+            dataset = dataset.remove_columns(column_name)
+            return dataset
+    return dataset
 
 def load_data_splits(extension, script_args, parameters):
     """
@@ -123,12 +128,16 @@ def load_data_splits(extension, script_args, parameters):
     else:
         dataset = load_dataset(extension, data_files=data_files)  # should be csv
     if script_args.input_column != "input":
+        dataset = drop_column_if_needed(dataset, "input")
         dataset = dataset.rename_column(script_args.input_column, "input")
     if script_args.output_column != "output":
+        dataset = drop_column_if_needed(dataset, "output")
         dataset = dataset.rename_column(script_args.output_column, "output")
     if script_args.chosen_column is not None:
+        dataset = drop_column_if_needed(dataset, "chosen")
         dataset = dataset.rename_column(script_args.chosen_column, "chosen")
     if script_args.rejected_column is not None:
+        dataset = drop_column_if_needed(dataset, "rejected")
         dataset = dataset.rename_column(script_args.rejected_column, "rejected")
     validate_data(dataset, script_args.training_kind, script_args.pretrain_with_output, logger)
     handle_nans(dataset, script_args, logger)
