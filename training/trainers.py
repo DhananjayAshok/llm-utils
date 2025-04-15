@@ -21,6 +21,22 @@ class WeightedTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
     
 
+def compute_recall(preds, labels, label):
+    """
+    Compute the recall for a specific label
+    """
+    tp = ((preds == label) & (labels == label)).sum()
+    fn = ((preds != label) & (labels == label)).sum()
+    return tp / (tp + fn) if (tp + fn) > 0 else -1
+
+def compute_precision(preds, labels, label):
+    """
+    Compute the precision for a specific label
+    """
+    tp = ((preds == label) & (labels == label)).sum()
+    fp = ((preds == label) & (labels != label)).sum()
+    return tp / (tp + fp) if (tp + fp) > 0 else -1
+
 
 def compute_clf_metrics(p):
     """
@@ -31,6 +47,12 @@ def compute_clf_metrics(p):
     preds = np.argmax(preds, axis=1)
     acc = (preds == p.label_ids).mean()
     result = {"accuracy": acc}
+    distinct_labels = set(p.label_ids)
+    for label in distinct_labels:
+        recall = compute_recall(preds, p.label_ids, label)
+        precision = compute_precision(preds, p.label_ids, label)
+        result[f"recall_{label}"] = recall
+        result[f"precision_{label}"] = precision
     return result
 
 
@@ -66,7 +88,7 @@ def get_clf_trainer(script_args, training_args, dataset, model, tokenizer):
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"] if "validation" in dataset else None,
         compute_metrics=compute_clf_metrics,
-        tokenizer=tokenizer,
+        tokenizer=tokenizer, # getting processing_class warning Deprication
         data_collator=default_data_collator,
     )
     return trainer, dataset

@@ -71,7 +71,11 @@ Then, run the script you want to train with using:
 python examples/scripts/sft.sh
 ```
 
-To see the parameters that can be used on the command line (such as --per_device_train_batch_size and --max_length) see the respective Config files for SFTConfig and DPOConfig from TRL
+To see the parameters that can be used on the command line (such as `--per_device_train_batch_size', --eval_strategy, --max_steps or --num_train_epochs, --max_length) see the respective Config files for 
+
+1. [SFTConfig](github.com/huggingface/trl/blob/main/trl/trainer/sft_config.py) 
+2. [DPOConfig](github.com/huggingface/trl/blob/main/trl/trainer/dpo_config.py)
+3. [TrainingArguments](github.com/huggingface/transformers/blob/main/src/transformers/training_args.py)
 
 ## Project organization
 
