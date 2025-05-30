@@ -86,15 +86,15 @@ def get_checkpoint_file(output_csv_path, parameters):
 @click.option("--model_name", type=str, required=True)
 @click.option("--model_kind", type=click.Choice(["gen", "clf"], case_sensitive=False), default="gen")
 @click.option("--input_csv_path", type=str, required=True)
-@click.option("--output_csv_path", type=str, required=True)
+@click.option("--output_csv_path", type=str, default=None, help="If not provided, will be set to the input CSV path with '_output' appended before the file extension.")
 @click.option("--input_column", type=str, default="input")
 @click.option("--output_column", type=str, default="output")
 @click.option("--batch_size", type=int, default=1)
-@click.option("--save_every", type=int, default=500)
+@click.option("--save_every", type=int, default=0.2)
 @click.option('--restart_from_checkpoint', type=bool, default=True)
 @click.option('--stop_idx', type=int, default=None)
 @click.option("--max_new_tokens", type=int, default=10)
-@click.option("--stop_strings", type=str, default="[STOP]")
+@click.option("--stop_strings", type=str, default=["[STOP]"], multiple=True)
 @click.option("--remove_stop_strings", type=bool, default=True)
 @click.option("--track_output_perplexity", type=bool, default=False)
 @click.option("--output_perplexity_column", type=str, default="output_perplexity")
@@ -106,8 +106,9 @@ def get_checkpoint_file(output_csv_path, parameters):
 @click.option('--track_token', type=click.Choice(["input", "output"], case_sensitive=False), default="input", help="Whether to track hidden state embeddings of the last input or output token.")
 @click.pass_obj
 def hf_inference(parameters, model_name, model_kind, input_csv_path, output_csv_path, input_column, output_column, batch_size, save_every, restart_from_checkpoint, stop_idx, max_new_tokens, stop_strings, remove_stop_strings, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, save_hidden, output_hidden_dir, track_layers, track_token):
+    if output_csv_path is None:
+        output_csv_path = input_csv_path.replace(".csv", "_output.csv")
     setup_directories(save_hidden, output_csv_path, output_hidden_dir, parameters)
-
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token = tokenizer.eos_token
     model = get_model(model_name, model_kind)
@@ -138,9 +139,10 @@ def hf_inference(parameters, model_name, model_kind, input_csv_path, output_csv_
     else:
         stop_idx = len(data_df)
 
+    save_every = int(save_every * ((stop_idx - start_idx) / batch_size))
     for i in tqdm(range(start_idx, stop_idx, batch_size)):
-        prompts = data_df.loc[i:i+batch_size-1, input_column]
-        inputs = tokenizer(prompts, padding=True, return_tensors="pt").to(model.device)
+        prompts = data_df.loc[i:i+batch_size-1, input_column].tolist()
+        inputs = tokenizer(prompts, padding=True, truncation=True, return_tensors="pt").to(model.device)
         input_length = inputs["input_ids"].shape[1] # TODO: Check this works for batch size > 1
         output = model.generate(**inputs, max_new_tokens=max_new_tokens, stop_strings=stop_strings, pad_token_id=tokenizer.eos_token_id, tokenizer=tokenizer, output_attentions=False, output_hidden_states=save_hidden, output_scores=track_input_perplexity or track_output_perplexity, return_dict_in_generate=True)
         output_sequences = output.sequences
@@ -154,13 +156,14 @@ def hf_inference(parameters, model_name, model_kind, input_csv_path, output_csv_
             input_normed_perplexity = None # TODO: Use this to get perplexity of the input too.
             pass
 
-        output_only = output_sequences[0, input_length:]
-        out = tokenizer.decode(output_only, skip_special_tokens=True)
+        output_only = output_sequences[:, input_length:]
+        out = tokenizer.batch_decode(output_only, skip_special_tokens=True)
         if remove_stop_strings:
-            for stop_string in stop_strings:
-                out = out.replace(stop_string, "")
+            for out_i in range(len(out)):
+                for stop_string in stop_strings:
+                    out[out_i] = out[out_i].replace(stop_string, "")
 
-        data_df.loc[i, output_column] = out
+        data_df.loc[i:i+batch_size-1, output_column] = out
         if track_output_perplexity:
             data_df.loc[i, output_perplexity_column] = output_normed_perplexity
         if track_input_perplexity:
