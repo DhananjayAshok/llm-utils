@@ -90,7 +90,7 @@ def get_checkpoint_file(output_csv_path, parameters):
 @click.option("--input_column", type=str, default="input")
 @click.option("--output_column", type=str, default="output")
 @click.option("--batch_size", type=int, default=1)
-@click.option("--save_every", type=int, default=0.2)
+@click.option("--save_every", type=float, default=0.2)
 @click.option('--restart_from_checkpoint', type=bool, default=True)
 @click.option('--stop_idx', type=int, default=None)
 @click.option("--max_new_tokens", type=int, default=10)
@@ -139,7 +139,7 @@ def hf_inference(parameters, model_name, model_kind, input_csv_path, output_csv_
     else:
         stop_idx = len(data_df)
 
-    save_every = int(save_every * ((stop_idx - start_idx) / batch_size))
+    save_every = int(save_every * ((stop_idx - start_idx) / batch_size))+1
     for i in tqdm(range(start_idx, stop_idx, batch_size)):
         prompts = data_df.loc[i:i+batch_size-1, input_column].tolist()
         inputs = tokenizer(prompts, padding=True, truncation=True, return_tensors="pt").to(model.device)
