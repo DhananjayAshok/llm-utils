@@ -60,6 +60,7 @@ def get_hidden_states_lists(config, layers_to_track, parameters):
 @click.command()
 @click.option("--model_kind", type=click.Choice(["gen", "clf"], case_sensitive=False), default="gen")
 @click.option("--quantization", type=click.Choice(["none", "8b", "4b"]), default="none", help="The bitsandbytes quantization method to use.")
+@click.option("--padding_side", type=click.Choice(["left", "right"]), default="right", help="The padding side to use for the tokenizer.")
 @click.option("--batch_size", type=int, default=1)
 @click.option("--checkpoint_every", type=float, default=0.2)
 @click.option("--track_output_perplexity", type=bool, default=False)
@@ -71,10 +72,10 @@ def get_hidden_states_lists(config, layers_to_track, parameters):
 @click.option("--track_layers", type=str, default="mid+", help="How to track MLP layer outputs. 'mid+' means the 65th percentile layer, 'many' means every one ever four layers, 'all' means all layers and a specific number means that layer.")
 @click.option('--track_token', type=click.Choice(["input", "output"], case_sensitive=False), default="input", help="Whether to track hidden state embeddings of the last input or output token.")
 @click.pass_obj
-def hf_inference(parameters, quantization, model_kind, batch_size, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, save_hidden, output_hidden_dir, track_layers, track_token):
+def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, save_hidden, output_hidden_dir, track_layers, track_token):
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
     setup_hidden_directory(save_hidden, output_filepath, output_hidden_dir)
-    tokenizer = AutoTokenizer.from_pretrained(parameters["model_name"])
+    tokenizer = AutoTokenizer.from_pretrained(parameters["model_name"], padding_side=padding_side)
     tokenizer.pad_token = tokenizer.eos_token
     model = get_model(parameters, quantization, model_kind)
     config = model.config
