@@ -114,11 +114,11 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
                 out[out_i] = out[out_i].replace(stop_string, "")
 
         data_df.loc[i:i+batch_size-1, parameters["output_column"]] = out
+        data_df.loc[i:i+batch_size-1, parameters["generation_complete_column"]] = True
         if track_output_perplexity:
             data_df.loc[i, output_perplexity_column] = output_normed_perplexity
         if track_input_perplexity:
             data_df.loc[i, input_perplexity_column] = input_normed_perplexity
-        data_df.loc[i, "inference_completed"] = True
 
         if (i % save_every == 0 and i > 0) or i == len(data_df) - 1:
             data_df.to_csv(output_filepath, index=False)
