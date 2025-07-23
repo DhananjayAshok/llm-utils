@@ -20,6 +20,7 @@ def load_file(file_path, extension, parameters):
     elif extension == ".parquet":
         return pd.read_parquet(file_path)
     else: # should be unreachable
+        log_error("Should be unreachable, but got an unsupported file extension", parameters)
         return None
 
 def get_input_file(input_file, input_column, generation_complete_column, parameters):
@@ -77,7 +78,7 @@ def handle_files(input_file, output_file, input_column, generation_complete_colu
         input_df[generation_complete_column] = False
         return input_df, output_file_path
     else:
-        output_df = load_file(output_file_path, output_column, parameters)
+        output_df = load_file(output_file_path, output_file_path.rsplit(".", 1)[-1], parameters)
         for required_column in [input_column, generation_complete_column, output_column]:
             if required_column not in output_df.columns:
                 log_error(f"Output file checkpoint at {output_file_path} should have a column named '{required_column}'. Available columns: {output_df.columns.tolist()}", parameters)
