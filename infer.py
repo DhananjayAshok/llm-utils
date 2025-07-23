@@ -8,9 +8,9 @@ from inference.inference_utils import handle_files
 loaded_parameters = load_parameters()
 
 @click.group()
-@click.option("--model_name", required=True)
-@click.option("--dtype", type=click.Choice(["auto", "float32", "float16", "bfloat16"]), default="auto", help="The data type for the model")
+@click.option("--model_name", required=True, help="The name of the model to use for inference. This can be a Hugging Face model name or a local path to a model.")
 @click.option("--input_file", required=True, help="The path to the input file. Must be either a CSV, json lines or parquet file.")
+@click.option("--dtype", type=click.Choice(["auto", "float32", "float16", "bfloat16"]), default="auto", help="The data type for the model")
 @click.option("--output_file", default=None, help="The path to the output file. If not provided, it will be set to the input file path with '_output' appended before the file extension.")
 @click.option("--input_column", default="input", help="The column in the input file to use as input for the model")
 @click.option("--generation_complete_column", default="inference_completed", help="The column in the output file to indicate if the inference is completed")
