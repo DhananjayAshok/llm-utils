@@ -1,7 +1,15 @@
 This project uses Python 3.12
 
-You can set up a virtual environment using either the [short](requirements.txt) or [more complete](long_requirements.txt) freezes of our pip using:
+You can set up a fresh virtual environment using either the [short](requirements.txt) or [more complete](long_requirements.txt) freezes of our pip using:
 
 ```console
-pip install -r setup/requirements.txt
+pip install -u pip uv
+uv venv llm-env --python 3.12
+source llm-env/bin/activate
+```
+
+Then, install the requirements:
+
+```console
+uv pip install -r setup/requirements.txt
 ```
