@@ -16,10 +16,9 @@ def setup_hidden_directory(save_hidden, output_filepath, output_hidden_dir):
     return
 
 
-def get_model(parameters, model_kind):
+def get_model(parameters, quantization, model_kind):
     model_name = parameters["model_name"]
     dtype = parameters["dtype"]
-    quantization = parameters["quantization"]
     if model_kind == "gen":
         load_class = AutoModelForCausalLM
     elif model_kind == "clf":
@@ -72,12 +71,12 @@ def get_hidden_states_lists(config, layers_to_track, parameters):
 @click.option("--track_layers", type=str, default="mid+", help="How to track MLP layer outputs. 'mid+' means the 65th percentile layer, 'many' means every one ever four layers, 'all' means all layers and a specific number means that layer.")
 @click.option('--track_token', type=click.Choice(["input", "output"], case_sensitive=False), default="input", help="Whether to track hidden state embeddings of the last input or output token.")
 @click.pass_obj
-def hf_inference(parameters, model_kind, batch_size, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, save_hidden, output_hidden_dir, track_layers, track_token):
+def hf_inference(parameters, quantization, model_kind, batch_size, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, save_hidden, output_hidden_dir, track_layers, track_token):
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
     setup_hidden_directory(save_hidden, output_filepath, output_hidden_dir)
     tokenizer = AutoTokenizer.from_pretrained(parameters["model_name"])
     tokenizer.pad_token = tokenizer.eos_token
-    model = get_model(parameters, model_kind)
+    model = get_model(parameters, quantization, model_kind)
     config = model.config
 
     all_layers_to_track = []
