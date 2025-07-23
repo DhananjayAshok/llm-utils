@@ -1,26 +1,28 @@
-import logging
-
-def get_logger(level=logging.INFO, filename=None, add_console=True):
-    fmt_str = "%(asctime)s, [%(levelname)s, %(filename)s:%(lineno)d] %(message)s"
-    logging.basicConfig(format=fmt_str)
-    logger = logging.getLogger("KnowledgeAcquisition")
-    if add_console:
-        logger.handlers.clear()
-        console_handler = logging.StreamHandler()
-        log_formatter = logging.Formatter(fmt_str)
-        console_handler.setFormatter(log_formatter)
-        logger.addHandler(console_handler)
-    if filename is not None:
-        file_handler = logging.FileHandler(filename, mode="a")
-        log_formatter = logging.Formatter(fmt_str)
-        file_handler.setFormatter(log_formatter)
-        logger.addHandler(file_handler)
-    if level is not None:
-        logger.setLevel(level)
-        logger.propagate = False
-    return logger
+from utils.fundamental import meta_dict_to_str
+from utils.parameter_handling import load_parameters
 
 
-def log_error(logger, message):
+def log_error(message, parameters=None):
+    parameters = load_parameters(parameters)
+    logger = parameters["logger"]
     logger.error(message)
     raise ValueError(message)
+
+def log_warn(message, parameters=None):
+    parameters = load_parameters(parameters)
+    logger = parameters["logger"]
+    logger.warn(message)
+
+def log_info(message, parameters=None):
+    parameters = load_parameters(parameters)
+    logger = parameters["logger"]
+    logger.info(message)
+
+def log_dict(meta_dict, n_indents=1, parameters=None):
+    """
+    Print a dictionary in a readable format
+    """
+    parameters = load_parameters(parameters)
+    logger = parameters["logger"]
+    meta_dict_str = meta_dict_to_str(meta_dict, print_mode=True, n_indents=n_indents, skip_write_timestamp=False)
+    logger.info(meta_dict_str)

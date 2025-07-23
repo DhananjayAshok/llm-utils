@@ -1,6 +1,6 @@
 import os
 import yaml
-from .log_handling import get_logger, log_error
+from utils.fundamental import get_logger
 
 
 def load_yaml(yaml_path):
@@ -11,11 +11,12 @@ def load_yaml(yaml_path):
 def compute_secondary_parameters(params):
     params["data_dir"] = os.path.join(params["storage_dir"], "data")
     params["model_dir"] = os.path.join(params["storage_dir"], "models")
-    params["log_dir"] = os.path.join(params["storage_dir"], "logs")
     params["tmp_dir"] = os.path.join(params["storage_dir"], "tmp")
-    for dir in ["data_dir", "model_dir", "log_dir"]:
-        if not os.path.exists(params[dir]):
-            os.makedirs(params[dir])
+    params["log_dir"] = os.path.join(params["results_dir"], "logs")
+    params["figure_dir"] = os.path.join(params["results_dir"], "figures")
+    for dirname in ["data_dir", "model_dir", "log_dir", "figure_dir", "tmp_dir"]:
+        if not os.path.exists(params[dirname]):
+            os.makedirs(params[dirname])
     if "log_file" not in params:
         log_file = os.path.join(params["log_dir"], "log.txt")
         params["log_file"] = log_file
@@ -30,41 +31,47 @@ def compute_secondary_parameters(params):
     params["logger"] = logger
 
 
-def load_parameters():
+def load_parameters(parameters=None):
     """
     Loads the parameters for the project from configs/private_vars.yaml and any other yaml files in the configs directory.
 
+    That is, unless a non None parameters dictionary is passed through, in which case we assume all is good and just return it.
+
         :return: A dictionary of parameters
     """
-    essential_keys = ["storage_dir"]
+    if parameters is not None:
+        if "logger" not in parameters: # this is a flag that secondary parameters need to be computed
+            compute_secondary_parameters(parameters)
+        return parameters
+    essential_keys = ["storage_dir", "results_dir", "figure_force_save"]
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     params = {"project_root": project_root}
     logger = get_logger()
     config_files = os.listdir(os.path.join(project_root, "configs"))
 
     if "private_vars.yaml" not in config_files:
-        log_error(logger, "Please create private_vars.yaml in the configs directory")
+        logger.error("Please create private_vars.yaml in the configs directory")
     for file in config_files:
         if file.endswith(".yaml"):
             configs = load_yaml(os.path.join(project_root, "configs", file))
             for key in configs:
                 if key in params:
-                    log_error(logger, f"{key} is present in multiple config files. At least one of which is {file}. Please remove the duplicate")
+                    logger.error(f"{key} is present in multiple config files. At least one of which is {file}. Please remove the duplicate")
             params.update(configs)
         else:
             if file != "README.md":
-                log_error(logger, f"Please remove {file} from the configs directory. Only yaml files that hold project parameters should be present")
+                logger.error(f"Please remove {file} from the configs directory. Only yaml files that hold project parameters should be present")
 
     for key in params:
         if params[key] == "PLACEHOLDER":
-            log_error(logger, f"{key} is currently the placeholder value in private_vars.yaml. Please set it")
+            logger.error(f"{key} is currently the placeholder value in private_vars.yaml. Please set it")
     for essential_key in essential_keys:
         if essential_key not in params:
-            log_error(logger, f"Please set {essential_key} in one of the config yamls")
+            logger.error(f"Please set {essential_key} in one of the config yamls")
     # check if there are any .py files in storage_dir, if so, log error
     if os.path.exists(params['storage_dir']):
         if any([f.endswith(".py") for f in os.listdir(params["storage_dir"])]):
-            log_error(logger, f"There are .py files in the storage_dir {params['storage_dir']}. It is recommended to set a path which has nothing else inside it to avoid issues.")
+            logger.warning(f"There are .py files in the storage_dir {params['storage_dir']}. It is recommended to set a path which has nothing else inside it to avoid issues.")
     else:
         os.makedirs(params['storage_dir'])
         logger.info(f"Created storage directory {params['storage_dir']}")
