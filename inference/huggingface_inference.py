@@ -1,8 +1,8 @@
 from utils import log_error, log_info
 import click
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig, AutoModelForSequenceClassification
+import torch
 
-import pandas as pd
 from tqdm import tqdm
 import numpy as np
 import os
@@ -31,7 +31,7 @@ def get_model(parameters, quantization, model_kind):
         from transformers import BitsAndBytesConfig
         quantization_config = BitsAndBytesConfig(load_in_4bit=quantization == "4b", load_in_8bit=quantization == "8b")
         model = load_class.from_pretrained(model_name, device_map="auto", torch_dtype=dtype, quantization_config=quantization_config)
-    return model
+    return model.eval()
 
 
 
@@ -73,6 +73,7 @@ def get_hidden_states_lists(config, layers_to_track, parameters):
 @click.option('--track_token', type=click.Choice(["input", "output"], case_sensitive=False), default="input", help="Whether to track hidden state embeddings of the last input or output token.")
 @click.pass_obj
 def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, save_hidden, output_hidden_dir, track_layers, track_token):
+    torch.set_grad_enabled(False)
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
     setup_hidden_directory(save_hidden, output_filepath, output_hidden_dir)
     tokenizer = AutoTokenizer.from_pretrained(parameters["model_name"], padding_side=padding_side)
