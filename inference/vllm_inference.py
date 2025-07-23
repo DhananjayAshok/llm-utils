@@ -10,7 +10,7 @@ import torch
 def vllm_inference(parameters, temperature, top_p):
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
     sampling_params = SamplingParams(temperature=temperature, top_p=top_p, max_tokens=parameters["max_new_tokens"],
-                                     stop_strings=parameters["stop_strings"])
+                                     stop=parameters["stop_strings"])
     n_gpus = torch.cuda.device_count()
     llm = LLM(model=parameters["model_name"], tensor_parallel_size=n_gpus)
     outputs = llm.generate(data_df[parameters["input_column"]], sampling_params)
