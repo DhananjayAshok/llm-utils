@@ -48,26 +48,29 @@ def load_parameters(parameters=None):
     params = {"project_root": project_root}
     logger = get_logger()
     config_files = os.listdir(os.path.join(project_root, "configs"))
+    def error(msg):
+        logger.error(msg)
+        raise ValueError(msg)
 
     if "private_vars.yaml" not in config_files:
-        logger.error("Please create private_vars.yaml in the configs directory")
+        error("Please create private_vars.yaml in the configs directory")
     for file in config_files:
         if file.endswith(".yaml"):
             configs = load_yaml(os.path.join(project_root, "configs", file))
             for key in configs:
                 if key in params:
-                    logger.error(f"{key} is present in multiple config files. At least one of which is {file}. Please remove the duplicate")
+                    error(f"{key} is present in multiple config files. At least one of which is {file}. Please remove the duplicate")
             params.update(configs)
         else:
             if file != "README.md":
-                logger.error(f"Please remove {file} from the configs directory. Only yaml files that hold project parameters should be present")
+                error(f"Please remove {file} from the configs directory. Only yaml files that hold project parameters should be present")
 
     for key in params:
         if params[key] == "PLACEHOLDER":
-            logger.error(f"{key} is currently the placeholder value in private_vars.yaml. Please set it")
+            error(f"{key} is currently the placeholder value in private_vars.yaml. Please set it")
     for essential_key in essential_keys:
         if essential_key not in params:
-            logger.error(f"Please set {essential_key} in one of the config yamls")
+            error(f"Please set {essential_key} in one of the config yamls")
     # check if there are any .py files in storage_dir, if so, log error
     if os.path.exists(params['storage_dir']):
         if any([f.endswith(".py") for f in os.listdir(params["storage_dir"])]):
