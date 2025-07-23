@@ -10,6 +10,7 @@ from openai import OpenAI
 
 class OpenAIInference:
     def __init__(self, variant="gpt-4o-mini", parameters=None):
+        raise NotImplementedError
         assert variant in ["gpt-4o", "gpt-4o-mini"]
         self.client = OpenAI()
         self.variant = variant
