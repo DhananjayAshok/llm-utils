@@ -121,7 +121,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         if track_input_perplexity:
             data_df.loc[i, input_perplexity_column] = input_normed_perplexity
 
-        if (i % save_every == 0 and i > 0) or i == len(data_df) - 1:
+        if (i % save_every == 0 and i > 0) or i >= len(data_df) - batch_size:
             data_df.to_csv(output_filepath, index=False)
             if save_hidden:
                 for layer in all_layers_to_track:
