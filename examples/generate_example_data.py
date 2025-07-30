@@ -101,17 +101,16 @@ class ManyModalQAExample:
 def setup_manymodalqa(parameters):
     log_info("Setting up ManyModalQA dataset...", parameters)
     import gdown
-    data_dir = parameters["data_dir"]
+    data_dir = parameters["data_dir"]+"/"
     os.makedirs(data_dir, exist_ok=True)
-    for url, output in [("https://drive.google.com/file/d/1nV4w1wOLfg4MfsghG0KI1YVtqmMl54gN/view","ManyModalQAData"),
-                        ("https://drive.google.com/file/d/1rGZod-5OXxBqVDpR2F4TPH1GRXeOrIRG/view", "ManyModalImages")]:
+    for url, output in [("https://drive.google.com/file/d/1nV4w1wOLfg4MfsghG0KI1YVtqmMl54gN/view","ManyModalQAData")]:
         gdown.download(url, data_dir+output+".zip", fuzzy=True)
         with zipfile.ZipFile(data_dir+output+".zip", 'r') as zip_ref:
             zip_ref.extractall(data_dir+output)
         os.remove(data_dir+output+".zip")
     log_info("ManyModalQA downloaded. Now setting up...")
     qa_path = os.path.join(data_dir, "ManyModalQAData", "ManyModalQAData")
-    files = [f"official_aaai_split_{split}_data.json" for split in ["train", "val"]]
+    files = [f"official_aaai_split_{split}_data.json" for split in ["train", "dev"]]
     dfs = []
     for file in files:
         df = pd.read_json(os.path.join(qa_path, file))
