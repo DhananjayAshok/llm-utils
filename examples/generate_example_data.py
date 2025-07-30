@@ -20,8 +20,6 @@ class PubMedQAExample:
     background_question_2 = "Is there a nuanced understanding of patients hospitalized with heart failure?"
     background_answer_2 = "Many assume that most patients hospitalized with heart failure are short of breath at rest.\nConclusion: No"
 
-
-
     qa_gen_val_instruction = f"Generate a true or false question and answer pair from the context. Make the question pertaining to the results and findings of the study"
     qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_1 + "\nQuestion: " + question_1 + "\nAnswer: " + answer_1 + " [STOP]"
     qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_2 + "\nQuestion: " + question_2 + "\nAnswer: " + answer_2 + " [STOP]"
@@ -91,6 +89,9 @@ def setup_pubmedqa(parameters):
         f.write(qa_gen_val_prompt)
     with open(save_dir + "qa_gen_background_prompt.txt", "w") as f:
         f.write(qa_gen_background_prompt)
+
+    test_df = df[["question", "long_answer", "final_decision"]]
+    test_df.to_csv(save_dir + "test_qa.csv", index=False)
     log_info("PubMedQA dataset setup complete. Files saved in: " + save_dir)
 
 
