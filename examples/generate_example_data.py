@@ -6,76 +6,92 @@ import pandas as pd
 import os
 
 
-split_map = {"train": "train", "val": "validation", "test": "test", "dev": "validation", "validation": "validation"}
+
+class PubMedQAExample:
+    context_1 = "Group 2 innate lymphoid cells (ILC2s) represent a recently discovered cell population which has been implicated in driving Th2 inflammation in CRS; however, their relationship with clinical disease characteristics has yet to be investigated. In the CRS with nasal polyps (CRSwNP) population, ILC2s were increased in patients with co-existing asthma (P = 0.03)."
+    question_1 = "Are group 2 innate lymphoid cells ( ILC2s ) increased in chronic rhinosinusitis with nasal polyps or eosinophilia?"
+    answer_1 = "As ILC2s are elevated in patients with CRSwNP, they may drive nasal polyp formation in CRS.\nConclusion: Yes"
+    background_question_1 = "Are ILC2s involved in any kind of inflammation?"
+    background_answer_1 = "Group 2 innate lymphoid cells (ILC2s) are a recently discovered cell population implicated in driving Th2 inflammation in chronic rhinosinusitis (CRS).\nConclusion: Yes"
+
+    context_2 = "Many assume that most patients hospitalized with heart failure (HF) are short of breath at rest (SOBAR). The National HF Audit for England and Wales suggests that this assumption is false, which has profound implications for management. Vital signs were tracked and those who were SOBAR had higher median heart rate (HR), systolic blood pressure (SBP), and respiratory rate (RR) compared with those who were CARBOSE"
+    question_2 = "Is breathlessness at rest the dominant presentation of patients admitted with heart failure?"
+    answer_2 = "Many patients admitted with HF are CARBOSE. Shortness of breath at rest may be more alarming, but those who are CARBOSE have a worse prognosis. \nConclusion: No"
+    background_question_2 = "Is there a nuanced understanding of patients hospitalized with heart failure?"
+    background_answer_2 = "Many assume that most patients hospitalized with heart failure are short of breath at rest.\nConclusion: No"
 
 
-class SquadExample:
-    context_1 = "(Regarding University of Notre Dam) Architecturally, the school has a Catholic character. Atop the Main Building's gold dome is a golden statue of the Virgin Mary."
-    question_1 = "What is the architectural character of the University of Notre Dam?"
-    answer_1 = "Catholic character"
-    short_question_1 = question_1
-    short_answer_1 = answer_1
-    long_question_1 = "Write a short sentence on the architectural character of the University of Notre Dam, with special reference on the materials used."
-    long_answer_1 = "The University of Notre Dam has a Catholic character, with a gold dome and a golden statue of the Virgin Mary on top of the Main Building."
-    context_2 = "(Regarding Kathmandu) The National Museum is located in the western part of Kathmandu, near the Swayambhunath stupa in an historical building."
-    question_2 = "Which stupa is near the National Museum in Kathmandu?"
-    answer_2 = "Swayambhunath stupa"
-    short_question_2 = question_2
-    short_answer_2 = answer_2
-    long_question_2 = "Describe the location of the National Museum in Kathmandu, complete with references to landmarks around it."
-    long_answer_2 = "The National Museum is located in the western part of Kathmandu, near the Swayambhunath stupa in an historical building."
 
-    qa_gen_val_instruction = f"Generate a question and answer pair from the context:"
+    qa_gen_val_instruction = f"Generate a true or false question and answer pair from the context. Make the question pertaining to the results and findings of the study"
     qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_1 + "\nQuestion: " + question_1 + "\nAnswer: " + answer_1 + " [STOP]"
     qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_2 + "\nQuestion: " + question_2 + "\nAnswer: " + answer_2 + " [STOP]"
     qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: "
 
-    # set up the short and long answer instructions
-    qa_gen_short_instruction = f"Generate a short QA pair from the context:"
-    qa_gen_short_instruction = qa_gen_short_instruction + "\nContext: " + context_1 + "\nQuestion: " + short_question_1 + "\nAnswer: " + short_answer_1 + " [STOP]"
-    qa_gen_short_instruction = qa_gen_short_instruction + "\nContext: " + context_2 + "\nQuestion: " + short_question_2 + "\nAnswer: " + short_answer_2 + " [STOP]"
-    qa_gen_short_instruction = qa_gen_short_instruction + "\nContext: "
-
-    qa_gen_long_instruction = f"Generate a long QA pair from the context:"
-    qa_gen_long_instruction = qa_gen_long_instruction + "\nContext: " + context_1 + "\nQuestion: " + long_question_1 + "\nAnswer: " + long_answer_1 + " [STOP]"
-    qa_gen_long_instruction = qa_gen_long_instruction + "\nContext: " + context_2 + "\nQuestion: " + long_question_2 + "\nAnswer: " + long_answer_2 + " [STOP]"
-    qa_gen_long_instruction = qa_gen_long_instruction + "\nContext: "
+    qa_gen_background_instruction = f"Generate a true or false QA pair from the context. Make the question pertaining to the background or premise of the study, not the results."
+    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_1 + "\nQuestion: " + background_question_1 + "\nAnswer: " + background_answer_1 + " [STOP]"
+    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_2 + "\nQuestion: " + background_question_2 + "\nAnswer: " + background_answer_2 + " [STOP]"
+    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: "
 
 
 
-def setup_squad(parameters):
+def setup_pubmedqa(parameters):
     """
-    Loads the SQuAD dataset and sets up the following files:
+    Loads the PubmedQA dataset and sets up the following files:
         qa_gen_val.csv: contains columns: [context_id, input] which prompts a LM to generate a question, answer pair from the validation set contexts
             We finetune on these QA pairs to see if knowledge can be absorbed by the model.
-        qa_gen_short_csv: same columns and contexts as above, but with prompts that ask for short answers
-            We use this to test the contrastive learning approaches in this repo.
-        qa_gen_long_csv: same columns and contexts as above, but with prompts that ask for long answers
+        qa_gen_background_csv: same columns and contexts as above, but with prompts that ask for questions about the background or premise of the study.
             We use this to test the contrastive learning approaches in this repo.
         val_qa: contains columns: [input, output] where the input is a question and the output is the answer from the validation set.
     """
     log_info("Setting up SQuAD dataset...", parameters)
-    df = load_dataset("rajpurkar/squad", split="validation").to_pandas()
-    df["title"] = df["title"].apply(lambda x: x.replace("_", " "))
-    df["context"] = "(Regarding "+ df["title"] + ") " + df["context"]
+    df = load_dataset("qiaojin/PubMedQA", "pqa_artificial", split="train").to_pandas().sample(n=20_000, random_state=parameters["random_seed"])
+    df["context"] = df["context"].apply(lambda x: "\n".join(x['contexts']))
     contexts = df["context"].unique()
+    pretraining_columns = ["input"]
     columns = ["context_id", "input"]
+    pretraining_data = []
     qa_gen_val = []
-    qa_gen_short = []
-    qa_gen_long = []
+    qa_gen_background = []
+    qa_gen_val_prompt = PubMedQAExample.qa_gen_val_instruction
+    qa_gen_background_prompt = PubMedQAExample.qa_gen_background_instruction
+    qa_gen_val_no_prompt = []
+    qa_gen_background_no_prompt = []
     for i, context in enumerate(contexts):
-        qa_gen_val.append([i, SquadExample.qa_gen_val_instruction + context + "\nQuestion: "])
-        qa_gen_short.append([i, SquadExample.qa_gen_short_instruction + context + "\nQuestion: "])
-        qa_gen_long.append([i, SquadExample.qa_gen_long_instruction + context + "\nQuestion: "])
+        pretraining_data.append(context)
+        qa_gen_val.append([i, qa_gen_val_prompt + context + "\nQuestion: "])
+        qa_gen_background.append([i, qa_gen_background_prompt + context + "\nQuestion: "])
+        qa_gen_val_no_prompt.append([i, context + "\nQuestion: "])
+        qa_gen_background_no_prompt.append([i, context + "\nQuestion: "])
+    pretraining_df = pd.DataFrame(pretraining_data, columns=pretraining_columns)
     qa_gen_val_df = pd.DataFrame(qa_gen_val, columns=columns)
-    qa_gen_short_df = pd.DataFrame(qa_gen_short, columns=columns)
-    qa_gen_long_df = pd.DataFrame(qa_gen_long, columns=columns)
-    save_dir = parameters["data_dir"]
+    qa_gen_background_df = pd.DataFrame(qa_gen_background, columns=columns)
+    qa_gen_val_no_prompt_df = pd.DataFrame(qa_gen_val_no_prompt, columns=columns)
+    qa_gen_background_no_prompt_df = pd.DataFrame(qa_gen_background_no_prompt, columns=columns)
+    save_dir = parameters["data_dir"] + "/pubmedqa/"
     os.makedirs(save_dir, exist_ok=True)
-    qa_gen_val_df.to_csv(os.path.join(save_dir, "squad_qa_gen_val.csv"), index=False)
-    qa_gen_short_df.to_csv(os.path.join(save_dir, "squad_qa_gen_short.csv"), index=False)
-    qa_gen_long_df.to_csv(os.path.join(save_dir, "squad_qa_gen_long.csv"), index=False)
-    log_info("SQuAD dataset setup complete. Files saved in: " + save_dir)
+    train_index = qa_gen_val_df.sample(frac=0.8, random_state=parameters["random_seed"]).index
+    qa_gen_train_df = qa_gen_val_df.loc[train_index].reset_index(drop=True)
+    qa_gen_val_df = qa_gen_val_df.drop(train_index).reset_index(drop=True)
+    qa_gen_background_train_df = qa_gen_background_df.loc[train_index].reset_index(drop=True)
+    qa_gen_background_val_df = qa_gen_background_df.drop(train_index).reset_index(drop=True)
+    qa_gen_train_no_prompt_df = qa_gen_val_no_prompt_df.loc[train_index].reset_index(drop=True)
+    qa_gen_val_no_prompt_df = qa_gen_val_no_prompt_df.drop(train_index).reset
+    qa_gen_background_train_no_prompt_df = qa_gen_background_no_prompt_df.loc[train_index].reset_index(drop=True)
+    qa_gen_background_val_no_prompt_df = qa_gen_background_no_prompt_df.drop(train_index).reset_index(drop=True)
+    pretraining_df.to_csv(save_dir + "pretraining.csv", index=False)
+    qa_gen_val_df.to_csv(save_dir + "qa_gen_val.csv", index=False)
+    qa_gen_train_df.to_csv(save_dir + "qa_gen_train.csv", index=False)
+    qa_gen_val_no_prompt_df.to_csv(save_dir + "qa_gen_no_prompt_val.csv", index=False)
+    qa_gen_train_no_prompt_df.to_csv(save_dir + "qa_gen_no_prompt_train.csv", index=False)
+    qa_gen_background_val_df.to_csv(save_dir + "qa_gen_background_val.csv", index=False)
+    qa_gen_background_train_df.to_csv(save_dir + "qa_gen_background_train.csv", index=False)
+    qa_gen_background_train_no_prompt_df.to_csv(save_dir + "qa_gen_background_no_prompt_train.csv", index=False)
+    qa_gen_background_val_no_prompt_df.to_csv(save_dir + "qa_gen_background_no_prompt_val.csv", index=False)
+    with open(save_dir + "qa_gen_prompt.txt", "w") as f:
+        f.write(qa_gen_val_prompt)
+    with open(save_dir + "qa_gen_background_prompt.txt", "w") as f:
+        f.write(qa_gen_background_prompt)
+    log_info("PubMedQA dataset setup complete. Files saved in: " + save_dir)
 
 
 class ManyModalQAExample:
@@ -92,11 +108,11 @@ class ManyModalQAExample:
     colour_instruction = f"Generate a question and answer pair from the image and caption context, focusing on the colours:"
     colour_instruction = colour_instruction + "\nExample Question: " + colour_question_1 + "\nAnswer: " + colour_answer_1 + " [STOP]"
     colour_instruction = colour_instruction + "\nExample Question: " + colour_question_2 + "\nAnswer: " + colour_answer_2 + " [STOP]"
-    colour_instruction = colour_instruction + "\nImage: <image>\nCaption: "
+
+
     shape_instruction = f"Generate a question and answer pair from the image and caption context, focusing on the shapes:"
     shape_instruction = shape_instruction + "\nExample Question: " + shape_question_1 + "\nAnswer: " + shape_answer_1 + " [STOP]"
     shape_instruction = shape_instruction + "\nExample Question: " + shape_question_2 + "\nAnswer: " + shape_answer_2 + " [STOP]"
-    shape_instruction = shape_instruction + "\nImage: <image>\nCaption: "
 
 def setup_manymodalqa(parameters):
     log_info("Setting up ManyModalQA dataset...", parameters)
@@ -123,21 +139,48 @@ def setup_manymodalqa(parameters):
     df = pd.concat(dfs, ignore_index=True)
     prompt_df = df[["image_path", "image_path_local"]]
     color_df = prompt_df.copy()
-    color_df["input"] = ManyModalQAExample.colour_instruction + df["image_caption"] + "\nQuestion: "
+    color_df_no_prompt = prompt_df.copy()
+    color_df["input"] = (ManyModalQAExample.colour_instruction + "\nImage: <image>\nCaption: " + df["image_caption"]
+                         + "\nQuestion: ")
+    color_df_no_prompt["input"] = ("Image: <image>\nCaption: " + df["image_caption"] + "\nQuestion: ")
     shape_df = prompt_df.copy()
+    shape_df_no_prompt = prompt_df.copy()
     shape_df["input"] = ManyModalQAExample.shape_instruction + df["image_caption"] + "\nQuestion: "
-    color_df.to_csv(os.path.join(data_dir, "manymodalqa_colour.csv"), index=False)
-    shape_df.to_csv(os.path.join(data_dir, "manymodalqa_shape.csv"), index=False)
+    shape_df_no_prompt["input"] = "Image: <image>\nCaption: " + df["image_caption"] + "\nQuestion: "
+
+    train_index = color_df.sample(frac=0.8, random_state=parameters["random_seed"]).index
+    color_train_df = color_df.loc[train_index].reset_index(drop=True)
+    color_val_df = color_df.drop(train_index).reset_index(drop=True)
+    color_train_no_prompt_df = color_df_no_prompt.loc[train_index].reset_index(drop=True)
+    color_val_no_prompt_df = color_df_no_prompt.drop(train_index).reset_index(drop=True)
+    shape_train_df = shape_df.loc[train_index].reset_index(drop=True)
+    shape_val_df = shape_df.drop(train_index).reset_index(drop=True)
+    shape_train_no_prompt_df = shape_df_no_prompt.loc[train_index].reset_index(drop=True)
+    shape_val_no_prompt_df = shape_df_no_prompt.drop(train_index).reset_index(drop=True)
+    save_dir = parameters["data_dir"] + "/manymodalqa/"
+    os.makedirs(save_dir, exist_ok=True)
+    color_train_df.to_csv(save_dir + "color_train.csv", index=False)
+    color_val_df.to_csv(save_dir + "color_val.csv", index=False)
+    color_train_no_prompt_df.to_csv(save_dir + "color_no_prompt_train.csv", index=False)
+    color_val_no_prompt_df.to_csv(save_dir + "color_no_prompt_val.csv", index=False)
+    shape_train_df.to_csv(save_dir + "shape_train.csv", index=False)
+    shape_val_df.to_csv(save_dir + "shape_val.csv", index=False)
+    shape_train_no_prompt_df.to_csv(save_dir + "shape_no_prompt_train.csv", index=False)
+    shape_val_no_prompt_df.to_csv(save_dir + "shape_no_prompt_val.csv", index=False)
+    with open(save_dir + "color_prompt.txt", "w") as f:
+        f.write(ManyModalQAExample.colour_instruction)
+    with open(save_dir + "shape_prompt.txt", "w") as f:
+        f.write(ManyModalQAExample.shape_instruction)
     log_info("ManyModalQA dataset setup complete. Files saved in: " + data_dir, parameters)
 
 
 
 @click.command()
-@click.option("--dataset_names", default=["squad", "manymodalqa"], multiple=True)
+@click.option("--dataset_names", default=["pubmedqa", "manymodalqa"], multiple=True)
 @click.pass_obj
 def setup_data(parameters, dataset_names):
-    if "squad" in dataset_names:
-        setup_squad(parameters)
+    if "pubmedqa" in dataset_names:
+        setup_pubmedqa(parameters)
     if "manymodalqa" in dataset_names:
         setup_manymodalqa(parameters)
 
