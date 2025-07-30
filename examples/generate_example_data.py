@@ -135,6 +135,7 @@ def setup_manymodalqa(parameters):
 
 @click.command()
 @click.option("--dataset_names", default=["squad", "manymodalqa"], multiple=True)
+@click.pass_obj
 def setup_data(parameters, dataset_names):
     if "squad" in dataset_names:
         setup_squad(parameters)

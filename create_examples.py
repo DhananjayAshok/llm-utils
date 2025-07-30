@@ -8,9 +8,10 @@ loaded_parameters = load_parameters()
 @click.group()
 @click.pass_context
 def main(ctx):
+    ctx.obj = loaded_parameters
     pass
 
-main.add_command(setup_data, name="generate")
+main.add_command(setup_data, name="setup")
 
 if __name__ == "__main__":
     main()
