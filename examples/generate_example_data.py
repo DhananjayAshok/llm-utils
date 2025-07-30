@@ -43,7 +43,7 @@ def setup_pubmedqa(parameters):
             We use this to test the contrastive learning approaches in this repo.
         val_qa: contains columns: [input, output] where the input is a question and the output is the answer from the validation set.
     """
-    log_info("Setting up SQuAD dataset...", parameters)
+    log_info("Setting up PubmedQA dataset...", parameters)
     df = load_dataset("qiaojin/PubMedQA", "pqa_artificial", split="train").to_pandas().sample(n=20_000, random_state=parameters["random_seed"])
     df["context"] = df["context"].apply(lambda x: "\n".join(x['contexts']))
     contexts = df["context"].unique()
@@ -75,7 +75,7 @@ def setup_pubmedqa(parameters):
     qa_gen_background_train_df = qa_gen_background_df.loc[train_index].reset_index(drop=True)
     qa_gen_background_val_df = qa_gen_background_df.drop(train_index).reset_index(drop=True)
     qa_gen_train_no_prompt_df = qa_gen_val_no_prompt_df.loc[train_index].reset_index(drop=True)
-    qa_gen_val_no_prompt_df = qa_gen_val_no_prompt_df.drop(train_index).reset
+    qa_gen_val_no_prompt_df = qa_gen_val_no_prompt_df.drop(train_index).reset_index(drop=True)
     qa_gen_background_train_no_prompt_df = qa_gen_background_no_prompt_df.loc[train_index].reset_index(drop=True)
     qa_gen_background_val_no_prompt_df = qa_gen_background_no_prompt_df.drop(train_index).reset_index(drop=True)
     pretraining_df.to_csv(save_dir + "pretraining.csv", index=False)
