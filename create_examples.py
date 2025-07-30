@@ -1,4 +1,4 @@
-from examples.generate_example_data import generate_example_data
+from examples.generate_example_data import setup_data
 from utils import load_parameters
 import click
 
@@ -10,7 +10,7 @@ loaded_parameters = load_parameters()
 def main(ctx):
     pass
 
-main.add_command(generate_example_data, name="generate")
+main.add_command(setup_data, name="generate")
 
 if __name__ == "__main__":
     main()
