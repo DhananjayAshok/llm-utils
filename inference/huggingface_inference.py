@@ -50,6 +50,8 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
     discrepancies = {}
     keys = generation_parameters.keys()
     for key in keys:
+        if key in ["max_new_tokens"]:
+            continue
         if hasattr(original_generation_config, key):
             original_val = getattr(original_generation_config, key)
             new_val = generation_parameters[key]

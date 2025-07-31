@@ -25,4 +25,4 @@ def log_dict(meta_dict, n_indents=1, parameters=None):
     parameters = load_parameters(parameters)
     logger = parameters["logger"]
     meta_dict_str = meta_dict_to_str(meta_dict, print_mode=True, n_indents=n_indents, skip_write_timestamp=False)
-    logger.info(meta_dict_str)
+    logger.info("\n"+ meta_dict_str)
