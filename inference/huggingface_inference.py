@@ -65,6 +65,8 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
 @click.option("--quantization", type=click.Choice(["none", "8b", "4b"]), default="none", help="The bitsandbytes quantization method to use.")
 @click.option("--padding_side", type=click.Choice(["left", "right"]), default="right", help="The padding side to use for the tokenizer.")
 @click.option("--batch_size", type=int, default=1)
+@click.option("--num_beams", type=int, default=None, help="The number of beams to use for beam search. Set to 1 for greedy decoding.")
+@click.option("--num_beam_groups", type=int, default=None, help="The number of beam groups to use for group beam search. Set to 1 for standard beam search.")
 @click.option("--cache_implementation", default="dynamic", type=click.Choice(["dynamic", "static", "offloaded", "offloaded_static"]), help="The implementation to use for cache.")
 @click.option("--cache_prefix", type=bool, default=True, help="If true, will search for a prefix prompt in the input column and precompute its KV cache.")
 @click.option("--checkpoint_every", type=float, default=0.2)
@@ -73,7 +75,7 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
 @click.option("--track_input_perplexity", type=bool, default=False)
 @click.option("--input_perplexity_column", type=str, default="input_perplexity")
 @click.pass_obj
-def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, cache_implementation, cache_prefix, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column):
+def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, num_beams, num_beam_groups, cache_implementation, cache_prefix, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column):
     torch.set_grad_enabled(False)
     set_seed(parameters["random_seed"])
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
@@ -81,13 +83,18 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     tokenizer.pad_token = tokenizer.eos_token
     model = get_model(parameters, quantization, model_kind)
     track_scores = track_input_perplexity or track_output_perplexity
-    generation_parameter_keys = ["max_new_tokens", "num_beams", "num_beam_groups", "temperature", "do_sample", "top_p", "top_k"]
+    generation_parameter_keys = ["max_new_tokens", "temperature", "do_sample", "top_p", "top_k", "num_return_sequences"]
     generation_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}
+    if num_beams is not None:
+        generation_parameters["num_beams"] = num_beams
+    if num_beam_groups is not None:
+        generation_parameters["num_beam_groups"] = num_beam_groups
     try:
         original_generation_config = GenerationConfig.from_pretrained(parameters["model_name"])
-        pad_token_id = tokenizer.eos_token_id
         if hasattr(original_generation_config, "pad_token_id"):
             generation_parameters['pad_token_id'] = original_generation_config.pad_token_id
+        else:
+            generation_parameters['pad_token_id'] = tokenizer.eos_token_id
         log_discrepancies(generation_parameters, original_generation_config, parameters)
     except Exception as e:
         log_warn(f"Could not load generation config from {parameters['model_name']}. Will fall back to default...",

@@ -4,14 +4,24 @@ import torch
 
 
 @click.command()
-@click.option("--temperature", type=float, default=1)
-@click.option("--top_p", type=float, default=1)
 @click.option("--enable_prefix_caching", type=bool, default=True, help="Enable prefix caching for vLLM inference.")
 @click.pass_obj
 def vllm_inference(parameters, temperature, top_p, enable_prefix_caching):
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
+    temperature = 1.0
+    if parameters["temperature"] is not None:
+        temperature = parameters["temperature"]
+    top_p = 1.0
+    if parameters["top_p"] is not None:
+        top_p = parameters["top_p"]
+    top_k = -1
+    if parameters["top_k"] is not None:
+        top_k = parameters["top_k"]
+    n = 1
+    if parameters["num_return_sequences"] is not None:
+        n = parameters["num_return_sequences"]
     sampling_params = SamplingParams(temperature=temperature, top_p=top_p, max_tokens=parameters["max_new_tokens"],
-                                     stop=parameters["stop_strings"])
+                                     stop=parameters["stop_strings"], n=n, top_k=top_k)
     n_gpus = torch.cuda.device_count()
     llm = LLM(model=parameters["model_name"], tensor_parallel_size=n_gpus, enable_prefix_caching=enable_prefix_caching)
     if enable_prefix_caching:
