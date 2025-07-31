@@ -35,14 +35,10 @@ def main(ctx, **input_parameters):
 
     if not input_parameters["do_sample"]:
         for sampling_parameter in ["temperature", "top_p", "top_k"]:
-            if sampling_parameter in input_parameters:
-                input_parameters[sampling_parameter] = None
+            input_parameters[sampling_parameter] = None
 
 
     loaded_parameters.update(input_parameters)
-    for parameter in input_parameters:
-        if input_parameters[parameter] is None:
-            loaded_parameters[parameter] = None
     compute_secondary_parameters(loaded_parameters)
     output_df, output_filepath = handle_files(input_file=input_parameters["input_file"],
                                               output_file=input_parameters["output_file"],
