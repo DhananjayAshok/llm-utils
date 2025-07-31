@@ -49,7 +49,9 @@ def get_model(parameters, quantization, model_kind):
 def log_discrepancies(generation_config, original_generation_config, parameters):
     discrepancies = {}
     keys = dir(generation_config)
-    dont_count_keys = ["save_pretrained", "dict_torch_dtype_to_str", "push_to_hub", "get_generation_mode", "to_dict", "to_diff_dict", "to_json_file", "to_json_string", "update", "validate"]
+    dont_count_keys = ["save_pretrained", "dict_torch_dtype_to_str", "push_to_hub", "get_generation_mode",
+                       "to_dict", "to_diff_dict", "to_json_file", "to_json_string", "update", "validate",
+                       "return_dict_in_generate", "output_scores"]
     keys = [key for key in keys if not key.startswith("_") and key not in dont_count_keys]
     for key in keys:
         original_val = getattr(original_generation_config, key)
@@ -86,8 +88,11 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     geneneration_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}
     try:
         original_generation_config = GenerationConfig.from_pretrained(parameters["model_name"])
+        pad_token_id = tokenizer.eos_token_id
+        if hasattr(original_generation_config, "pad_token_id"):
+            pad_token_id = original_generation_config.pad_token_id
         generation_config, unused_args = GenerationConfig.from_pretrained(parameters["model_name"], **geneneration_parameters,
-                                                                          pad_token_id=tokenizer.eos_token_id,
+                                                                          pad_token_id=pad_token_id,
                                                                           output_scores=track_scores,
                                                                           return_dict_in_generate=True,
                                                                           return_unused_kwargs=True)
