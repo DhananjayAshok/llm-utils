@@ -120,7 +120,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             inputs["cache_implementation"] = cache_implementation
         output = model.generate(**inputs, tokenizer=tokenizer, output_scores=track_scores,
                                 return_dict_in_generate=True,
-                                **override_params)
+                                **generation_parameters)
         output_sequences = output.sequences
         output_normed_perplexity = None
         input_normed_perplexity = None
