@@ -84,7 +84,6 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         original_generation_config = GenerationConfig.from_pretrained(parameters["model_name"])
         generation_config, unused_args = GenerationConfig.from_pretrained(parameters["model_name"], **parameters,
                                                                           pad_token_id=tokenizer.eos_token_id,
-                                                                          tokenizer=tokenizer,
                                                                           output_scores=track_scores,
                                                                           return_dict_in_generate=True,
                                                                           return_unused_kwargs=True)
@@ -119,7 +118,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             inputs["past_key_values"] = past_key_values
         else:
             inputs["cache_implementation"] = cache_implementation
-        output = model.generate(**inputs, generation_config=generation_config)
+        output = model.generate(**inputs, generation_config=generation_config, tokenizer=tokenizer)
         output_sequences = output.sequences
         output_normed_perplexity = None
         input_normed_perplexity = None
