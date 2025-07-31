@@ -49,6 +49,8 @@ def get_input_file(input_file, input_column, generation_complete_column, paramet
             log_error(f"Input file must have a column named '{input_column}'. Available columns: {df.columns.tolist()}", parameters)
         if generation_complete_column in df.columns:
             log_error(f"Input file already has a column named '{generation_complete_column}'. This is used to track inference completion, reset it with --generation_complete_column or rename the column in your df", parameters)
+        if len(df) == 0:
+            log_error(f"Input file {input_file} is empty.", parameters)
         return df
     return None
 
@@ -89,3 +91,44 @@ def handle_files(input_file, output_file, input_column, generation_complete_colu
             start_idx = output_df[output_df[generation_complete_column] == False].index[0]
             log_info(f"Checkpoint detected. Starting inference from index {start_idx}/{len(output_df)}...", parameters)
             return output_df, output_file_path
+
+
+def discover_prefix_prompt(input_df, input_column, parameters, n_samples=10):
+    """
+    Discover a prefix prompt from the input column of the input DataFrame.
+    """
+    if len(input_df) == 0:
+        log_error("Input DataFrame is empty. No prefix prompt to discover.", parameters)
+        return None
+    n_samples = min(n_samples, len(input_df))
+
+    input_texts = input_df[input_column].sample(n_samples, random_state=parameters["random_seed"])
+    indexes = input_texts.index.tolist()
+    input_texts = input_texts.tolist()
+    prefix_end_index = -1
+    discontinuity_found = False
+    limiting_index = None
+    while not discontinuity_found:
+        next_chars = []
+        for i, text in enumerate(input_texts):
+            if len(text) <= prefix_end_index + 1:
+                limiting_index = indexes[i]
+                break
+            next_chars.append(text[prefix_end_index + 1])
+        discontinuity_found = len(set(next_chars)) > 1
+        if not discontinuity_found:
+            prefix_end_index += 1
+
+    if limiting_index is not None:
+        message =  f"""
+        Sampled {n_samples} random input texts and found an input at index {limiting_index} that seems to be a subset of the others.
+        This suggests a bug in the creation of the input file.
+        Please check the input file and ensure that all inputs are unique.
+        \n Input: {input_df.loc[limiting_index, input_column]}
+        """
+        log_error(message, parameters)
+
+    if prefix_end_index == -1:
+        return None
+
+    return input_texts[0][:prefix_end_index] # TODO: Check if this should have a +1

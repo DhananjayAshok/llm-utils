@@ -52,19 +52,13 @@ def setup_pubmedqa(parameters):
     qa_gen_background = []
     qa_gen_val_prompt = PubMedQAExample.qa_gen_val_instruction
     qa_gen_background_prompt = PubMedQAExample.qa_gen_background_instruction
-    qa_gen_val_no_prompt = []
-    qa_gen_background_no_prompt = []
     for i, context in enumerate(contexts):
         pretraining_data.append(context)
         qa_gen_val.append([i, qa_gen_val_prompt + context + "\nQuestion: "])
         qa_gen_background.append([i, qa_gen_background_prompt + context + "\nQuestion: "])
-        qa_gen_val_no_prompt.append([i, context + "\nQuestion: "])
-        qa_gen_background_no_prompt.append([i, context + "\nQuestion: "])
     pretraining_df = pd.DataFrame(pretraining_data, columns=pretraining_columns)
     qa_gen_val_df = pd.DataFrame(qa_gen_val, columns=columns)
     qa_gen_background_df = pd.DataFrame(qa_gen_background, columns=columns)
-    qa_gen_val_no_prompt_df = pd.DataFrame(qa_gen_val_no_prompt, columns=columns)
-    qa_gen_background_no_prompt_df = pd.DataFrame(qa_gen_background_no_prompt, columns=columns)
     save_dir = parameters["data_dir"] + "/pubmedqa/"
     os.makedirs(save_dir, exist_ok=True)
     train_index = qa_gen_val_df.sample(frac=0.8, random_state=parameters["random_seed"]).index
@@ -72,23 +66,11 @@ def setup_pubmedqa(parameters):
     qa_gen_val_df = qa_gen_val_df.drop(train_index).reset_index(drop=True)
     qa_gen_background_train_df = qa_gen_background_df.loc[train_index].reset_index(drop=True)
     qa_gen_background_val_df = qa_gen_background_df.drop(train_index).reset_index(drop=True)
-    qa_gen_train_no_prompt_df = qa_gen_val_no_prompt_df.loc[train_index].reset_index(drop=True)
-    qa_gen_val_no_prompt_df = qa_gen_val_no_prompt_df.drop(train_index).reset_index(drop=True)
-    qa_gen_background_train_no_prompt_df = qa_gen_background_no_prompt_df.loc[train_index].reset_index(drop=True)
-    qa_gen_background_val_no_prompt_df = qa_gen_background_no_prompt_df.drop(train_index).reset_index(drop=True)
     pretraining_df.to_csv(save_dir + "pretraining.csv", index=False)
     qa_gen_val_df.to_csv(save_dir + "qa_gen_val.csv", index=False)
     qa_gen_train_df.to_csv(save_dir + "qa_gen_train.csv", index=False)
-    qa_gen_val_no_prompt_df.to_csv(save_dir + "qa_gen_no_prompt_val.csv", index=False)
-    qa_gen_train_no_prompt_df.to_csv(save_dir + "qa_gen_no_prompt_train.csv", index=False)
     qa_gen_background_val_df.to_csv(save_dir + "qa_gen_background_val.csv", index=False)
     qa_gen_background_train_df.to_csv(save_dir + "qa_gen_background_train.csv", index=False)
-    qa_gen_background_train_no_prompt_df.to_csv(save_dir + "qa_gen_background_no_prompt_train.csv", index=False)
-    qa_gen_background_val_no_prompt_df.to_csv(save_dir + "qa_gen_background_no_prompt_val.csv", index=False)
-    with open(save_dir + "qa_gen_prompt.txt", "w") as f:
-        f.write(qa_gen_val_prompt)
-    with open(save_dir + "qa_gen_background_prompt.txt", "w") as f:
-        f.write(qa_gen_background_prompt)
 
     test_df = df[["question", "long_answer", "final_decision"]]
     test_df.to_csv(save_dir + "test_qa.csv", index=False)
@@ -140,38 +122,22 @@ def setup_manymodalqa(parameters):
     df = pd.concat(dfs, ignore_index=True)
     prompt_df = df[["image_path", "image_path_local"]]
     color_df = prompt_df.copy()
-    color_df_no_prompt = prompt_df.copy()
     color_df["input"] = (ManyModalQAExample.colour_instruction + "\nImage: <image>\nCaption: " + df["image_caption"]
                          + "\nQuestion: ")
-    color_df_no_prompt["input"] = ("Image: <image>\nCaption: " + df["image_caption"] + "\nQuestion: ")
     shape_df = prompt_df.copy()
-    shape_df_no_prompt = prompt_df.copy()
     shape_df["input"] = ManyModalQAExample.shape_instruction + df["image_caption"] + "\nQuestion: "
-    shape_df_no_prompt["input"] = "Image: <image>\nCaption: " + df["image_caption"] + "\nQuestion: "
 
     train_index = color_df.sample(frac=0.8, random_state=parameters["random_seed"]).index
     color_train_df = color_df.loc[train_index].reset_index(drop=True)
     color_val_df = color_df.drop(train_index).reset_index(drop=True)
-    color_train_no_prompt_df = color_df_no_prompt.loc[train_index].reset_index(drop=True)
-    color_val_no_prompt_df = color_df_no_prompt.drop(train_index).reset_index(drop=True)
     shape_train_df = shape_df.loc[train_index].reset_index(drop=True)
     shape_val_df = shape_df.drop(train_index).reset_index(drop=True)
-    shape_train_no_prompt_df = shape_df_no_prompt.loc[train_index].reset_index(drop=True)
-    shape_val_no_prompt_df = shape_df_no_prompt.drop(train_index).reset_index(drop=True)
     save_dir = parameters["data_dir"] + "/manymodalqa/"
     os.makedirs(save_dir, exist_ok=True)
     color_train_df.to_csv(save_dir + "color_train.csv", index=False)
     color_val_df.to_csv(save_dir + "color_val.csv", index=False)
-    color_train_no_prompt_df.to_csv(save_dir + "color_no_prompt_train.csv", index=False)
-    color_val_no_prompt_df.to_csv(save_dir + "color_no_prompt_val.csv", index=False)
     shape_train_df.to_csv(save_dir + "shape_train.csv", index=False)
     shape_val_df.to_csv(save_dir + "shape_val.csv", index=False)
-    shape_train_no_prompt_df.to_csv(save_dir + "shape_no_prompt_train.csv", index=False)
-    shape_val_no_prompt_df.to_csv(save_dir + "shape_no_prompt_val.csv", index=False)
-    with open(save_dir + "color_prompt.txt", "w") as f:
-        f.write(ManyModalQAExample.colour_instruction)
-    with open(save_dir + "shape_prompt.txt", "w") as f:
-        f.write(ManyModalQAExample.shape_instruction)
     log_info("ManyModalQA dataset setup complete. Files saved in: " + data_dir, parameters)
 
 
