@@ -46,24 +46,18 @@ def get_model(parameters, quantization, model_kind):
     return model.eval()
 
 
-def log_discrepancies(generation_config, original_generation_config, parameters):
+def log_discrepancies(generation_parameters, original_generation_config, parameters):
     discrepancies = {}
-    override_params = {}
-    keys = dir(generation_config)
-    dont_count_keys = ["save_pretrained", "dict_torch_dtype_to_str", "push_to_hub", "get_generation_mode",
-                       "to_dict", "to_diff_dict", "to_json_file", "to_json_string", "update", "validate",
-                       "return_dict_in_generate", "output_scores"]
-    keys = [key for key in keys if not key.startswith("_") and key not in dont_count_keys]
+    keys = generation_parameters.keys()
     for key in keys:
-        original_val = getattr(original_generation_config, key)
-        new_val = getattr(generation_config, key)
-        if original_val != new_val:
-            discrepancies[key] = (original_val, new_val)
-            override_params[key] = new_val
+        if hasattr(original_generation_config, key):
+            original_val = getattr(original_generation_config, key)
+            new_val = generation_parameters[key]
+            if original_val != new_val:
+                discrepancies[key] = (original_val, new_val)
     if len(discrepancies) > 0:
         log_info("You have changed the following generation config parameters from their original values: (original_val, new_val)", parameters)
         log_dict(discrepancies, parameters=parameters)
-    return override_params
 
 
 @click.command()
@@ -93,18 +87,12 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         original_generation_config = GenerationConfig.from_pretrained(parameters["model_name"])
         pad_token_id = tokenizer.eos_token_id
         if hasattr(original_generation_config, "pad_token_id"):
-            pad_token_id = original_generation_config.pad_token_id
-        generation_config, unused_args = GenerationConfig.from_pretrained(parameters["model_name"], **generation_parameters,
-                                                                          pad_token_id=pad_token_id,
-                                                                          output_scores=track_scores,
-                                                                          return_dict_in_generate=True,
-                                                                          return_unused_kwargs=True)
-        override_params = log_discrepancies(generation_config, original_generation_config, parameters)
+            generation_parameters['pad_token_id'] = original_generation_config.pad_token_id
+        log_discrepancies(generation_parameters, original_generation_config, parameters)
     except Exception as e:
         log_warn(f"Could not load generation config from {parameters['model_name']}. Will fall back to default...",
                  parameters)
-        override_params = generation_parameters
-        override_params["pad_token_id"] = tokenizer.eos_token_id
+        generation_parameters["pad_token_id"] = tokenizer.eos_token_id
     start_idx = data_df[data_df[parameters["generation_complete_column"]] == False].index.min()
     save_every = int(checkpoint_every * ((len(data_df) - start_idx) / batch_size))+1
     log_warn(f"Saving every {save_every} batches", parameters)
