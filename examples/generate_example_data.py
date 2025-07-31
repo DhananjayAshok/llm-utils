@@ -39,7 +39,7 @@ def setup_pubmedqa(parameters):
             We finetune on these QA pairs to see if knowledge can be absorbed by the model.
         qa_gen_background_csv: same columns and contexts as above, but with prompts that ask for questions about the background or premise of the study.
             We use this to test the contrastive learning approaches in this repo.
-        val_qa: contains columns: [input, output] where the input is a question and the output is the answer from the validation set.
+        test_qa: contains columns: [input, output] where the input is a question and the output is the answer from the validation set.
     """
     log_info("Setting up PubmedQA dataset...", parameters)
     df = load_dataset("qiaojin/PubMedQA", "pqa_artificial", split="train").to_pandas().sample(n=20_000, random_state=parameters["random_seed"])
