@@ -19,5 +19,5 @@ def vllm_inference(parameters, temperature, top_p, enable_prefix_caching):
     outputs = llm.generate(data_df[parameters["input_column"]], sampling_params)
     data_df[parameters["output_column"]] = outputs
     data_df[parameters["generation_complete_column"]] = True
-    data_df.to_csv(output_filepath, index=False)
+    data_df.to_json(output_filepath, index=False, lines=True, orient="records")
     return
