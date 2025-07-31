@@ -16,6 +16,12 @@ loaded_parameters = load_parameters()
 @click.option("--generation_complete_column", default="inference_completed", help="The column in the output file to indicate if the inference is completed")
 @click.option("--output_column", default="output", help="The column in the output file to store the model's output")
 @click.option("--max_new_tokens", type=int, default=10, help="The maximum number of new tokens to generate")
+@click.option("--num_beams", type=int, default=None, help="The number of beams to use for beam search. Set to 1 for greedy decoding.")
+@click.option("--num_beam_groups", type=int, default=None, help="The number of beam groups to use for group beam search. Set to 1 for standard beam search.")
+@click.option("--temperature", type=float, default=None, help="The temperature to use for sampling. Higher values lead to more random outputs.")
+@click.option("--do_sample", is_flag=True, default=False, help="If set, will use sampling instead of greedy decoding.")
+@click.option("--top_p", type=float, default=None, help="The cumulative probability for nucleus sampling. Set to 1 for no nucleus sampling.")
+@click.option("--top_k", type=int, default=None, help="The number of highest probability vocabulary tokens to keep for top-k-filtering. Set to -1 for no top-k filtering.")
 @click.option("--stop_strings", default=["[STOP]"], multiple=True, help="Strings that will stop the generation when encountered")
 @click.option("--ignore_checkpoint", is_flag=True, help="If set, will ignore any existing checkpoint and start from scratch")
 @click.option("--random_seed", default=loaded_parameters["random_seed"], help="The random seed for the project")
@@ -23,6 +29,9 @@ loaded_parameters = load_parameters()
 @click.pass_context
 def main(ctx, **input_parameters):
     input_parameters["stop_strings"] = list(input_parameters["stop_strings"])
+    for default_parameter in ["num_beams", "num_beam_groups", "temperature", "top_p", "top_k"]:
+        if input_parameters[default_parameter] is None:
+            input_parameters.pop(default_parameter)
     loaded_parameters.update(input_parameters)
     compute_secondary_parameters(loaded_parameters)
     output_df, output_filepath = handle_files(input_file=input_parameters["input_file"],
