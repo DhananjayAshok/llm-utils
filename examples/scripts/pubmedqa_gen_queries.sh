@@ -1,2 +1,2 @@
 storage_dir= # whatever you set in configs/private_vars.yaml
-python infer.py --model_name Qwen/Qwen3-8B --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 150 --num_return_sequences 5 --do_sample hf --num_beams 5 --num_beam_groups 5
+python infer.py --model_name Qwen/Qwen3-8B --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 150 --num_return_sequences 5 hf --num_beams 5 --num_beam_groups 5

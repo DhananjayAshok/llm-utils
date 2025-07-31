@@ -33,7 +33,7 @@ This will create a few files in the `$storage_dir/data/pubmedqa` directory:
 The first step is to run inference on the qa_gen files to generate the synthetic QA pairs. This is done with the following command:
 ```bash
 storage_dir= # whatever you set in configs/private_vars.yaml
-python infer.py --model_name Qwen/Qwen3-8B --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 150 --num_return_sequences 5 --do_sample hf --num_beams 5 --num_beam_groups 5
+python infer.py --model_name Qwen/Qwen3-8B --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 150 --num_return_sequences 5  hf --num_beams 5 --num_beam_groups 5
 ```
 This will trigger the huggingface inference pipeline, which has the following arguments you can pass in after the `hf` command
 - `--model_kind`: whether the model is a classification model (clf) or a generative model (gen, default.)
