@@ -36,6 +36,7 @@ def main(ctx, **input_parameters):
     if not input_parameters["do_sample"]:
         input_parameters["temperature"] = 0.0
         input_parameters["top_p"] = 1.0
+        input_parameters["top_k"] = -1
 
     loaded_parameters.update(input_parameters)
     compute_secondary_parameters(loaded_parameters)
