@@ -34,7 +34,7 @@ def main(ctx, **input_parameters):
             input_parameters.pop(default_parameter)
 
     if not input_parameters["do_sample"]:
-        for sampling_parameter in :
+        for sampling_parameter in ["temperature", "top_p", "top_k"]:
             if sampling_parameter in input_parameters:
                 input_parameters[sampling_parameter] = None
 
