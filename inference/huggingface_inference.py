@@ -88,11 +88,10 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         input_length = inputs["input_ids"].shape[1]
         if prompt_cache is not None:
             past_key_values = copy.deepcopy(prompt_cache)
+            inputs["past_key_values"] = past_key_values
         else:
-            past_key_values = None
+            inputs["cache_implementation"] = cache_implementation
         output = model.generate(**inputs,
-                                cache_implementation=cache_implementation,
-                                past_key_values=past_key_values,
                                 max_new_tokens=parameters["max_new_tokens"], stop_strings=parameters["stop_strings"],
                                 pad_token_id=tokenizer.eos_token_id, tokenizer=tokenizer,
                                 output_scores=track_input_perplexity or track_output_perplexity,
