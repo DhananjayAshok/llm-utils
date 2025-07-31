@@ -89,7 +89,6 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     track_scores = track_input_perplexity or track_output_perplexity
     generation_parameter_keys = ["max_new_tokens", "num_beams", "num_beam_groups", "temperature", "do_sample", "top_p", "top_k"]
     generation_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}
-    override_params = {}
     try:
         original_generation_config = GenerationConfig.from_pretrained(parameters["model_name"])
         pad_token_id = tokenizer.eos_token_id
@@ -105,6 +104,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         log_warn(f"Could not load generation config from {parameters['model_name']}. Will fall back to default...",
                  parameters)
         override_params = generation_parameters
+        override_params["pad_token_id"] = tokenizer.eos_token_id
     start_idx = data_df[data_df[parameters["generation_complete_column"]] == False].index.min()
     save_every = int(checkpoint_every * ((len(data_df) - start_idx) / batch_size))+1
     log_warn(f"Saving every {save_every} batches", parameters)
