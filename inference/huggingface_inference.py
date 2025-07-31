@@ -58,7 +58,7 @@ def log_discrepancies(generation_config, original_generation_config, parameters)
             discrepancies[key] = (original_val, new_val)
     if len(discrepancies) > 0:
         log_info("You have changed the following generation config parameters from their original values: (original_val, new_val)", parameters)
-        log_dict(discrepancies, parameters)
+        log_dict(discrepancies, parameters=parameters)
 
 
 @click.command()
