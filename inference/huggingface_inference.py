@@ -99,7 +99,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             generation_parameters["diversity_penalty"] = diversity_penalty
     try:
         original_generation_config = GenerationConfig.from_pretrained(parameters["model_name"])
-        if hasattr(original_generation_config, "pad_token_id"):
+        if hasattr(original_generation_config, "pad_token_id") and original_generation_config.pad_token_id is not None:
             generation_parameters['pad_token_id'] = original_generation_config.pad_token_id
         else:
             generation_parameters['pad_token_id'] = tokenizer.eos_token_id
