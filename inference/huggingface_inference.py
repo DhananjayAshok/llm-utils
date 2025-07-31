@@ -2,7 +2,7 @@ from utils import log_error, log_warn, log_info, log_dict
 import click
 from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSequenceClassification,
                           DynamicCache, StaticCache, OffloadedCache, OffloadedStaticCache,
-                          QuantizedCache, QuantizedCacheConfig, GenerationConfig)
+                          QuantizedCache, QuantizedCacheConfig, GenerationConfig, set_seed)
 import torch
 import copy
 from inference.inference_utils import discover_prefix_prompt
@@ -75,6 +75,7 @@ def log_discrepancies(generation_config, original_generation_config, parameters)
 @click.pass_obj
 def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, cache_implementation, cache_prefix, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column):
     torch.set_grad_enabled(False)
+    set_seed(parameters["random_seed"])
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
     tokenizer = AutoTokenizer.from_pretrained(parameters["model_name"], padding_side=padding_side)
     tokenizer.pad_token = tokenizer.eos_token
