@@ -87,6 +87,9 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     generation_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}
     if num_beams is not None:
         generation_parameters["num_beams"] = num_beams
+        if cache_prefix:
+            log_warn("Beam search is enabled, prefix caching will not be used...")
+            cache_prefix = False
     if num_beam_groups is not None:
         generation_parameters["num_beam_groups"] = num_beam_groups
     try:
@@ -140,9 +143,10 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         for out_i in range(len(out)):
             for stop_string in parameters["stop_strings"]:
                 out[out_i] = out[out_i].replace(stop_string, "")
-
-        data_df.loc[i:i+batch_size-1, parameters["output_column"]] = out
-        data_df.loc[i:i+batch_size-1, parameters["generation_complete_column"]] = True
+        out = np.array(out)
+        out_reshaped = out.reshape(batch_size, parameters["num_return_sequences"], -1).tolist()
+        data_df.at[i:i+batch_size-1, parameters["output_column"]] = out_reshaped
+        data_df.at[i:i+batch_size-1, parameters["generation_complete_column"]] = True
         del inputs
         del output
         if track_output_perplexity:
