@@ -15,7 +15,7 @@ This guided example will take you through using the following features of this r
 
 The example centers around the PubMedQA dataset, which is a question answering dataset based on scientific, biomedical articles. The goal is to train a language model to acquire the knowledge in the articles, so that it can later answer the questions in without having to look at the articles again.
 
-We'll be using the Qwen3-8B model for this example, but you can use any other model that is compatible with the HuggingFace Transformers library.
+We'll be using the Llama3-8B model for this example, but you can use any other model that is compatible with the HuggingFace Transformers library.
 
 
 ### Setup
@@ -33,7 +33,7 @@ This will create a few files in the `$storage_dir/data/pubmedqa` directory:
 The first step is to run inference on the qa_gen files to generate the synthetic QA pairs. This is done with the following command:
 ```bash
 storage_dir= # whatever you set in configs/private_vars.yaml
-python infer.py --model_name Qwen/Qwen3-8B --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 150 --num_return_sequences 5  hf --num_beams 5 --num_beam_groups 5
+python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 150 hf 
 ```
 This will trigger the huggingface inference pipeline, which has the following arguments you can pass in after the `hf` command
 - `--model_kind`: whether the model is a classification model (clf) or a generative model (gen, default.)
@@ -43,6 +43,11 @@ This will trigger the huggingface inference pipeline, which has the following ar
 - `--cache_prefix`: should we [prefill the cache with the prefix](https://huggingface.co/docs/transformers/en/kv_cache#prefill-a-cache). Should speed up generation for large models.
 
 There are other options for tracking perplexity, see [the click options](inference/huggingface_inference.py) for more. 
+
+To run all of the generation files, you can use the following command (make sure to set the storage_dir variable first):
+```bash
+bash examples/scripts/pubmedqa_gen_queries.sh
+```
 
 
 ## Question Generation with Vision Language Models

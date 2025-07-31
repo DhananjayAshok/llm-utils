@@ -149,7 +149,8 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             for stop_string in parameters["stop_strings"]:
                 out[out_i] = out[out_i].replace(stop_string, "")
         out = np.array(out)
-        out_reshaped = out.reshape(batch_size, parameters["num_return_sequences"], -1).tolist()
+        n_items_in_batch = inputs['input_ids'].shape[0]
+        out_reshaped = out.reshape(n_items_in_batch, parameters["num_return_sequences"], -1).tolist()
         data_df.at[i:i+batch_size-1, parameters["output_column"]] = out_reshaped
         data_df.at[i:i+batch_size-1, parameters["generation_complete_column"]] = True
         del inputs
@@ -161,4 +162,5 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
 
         if (i % save_every == 0 and i > 0) or i >= len(data_df) - batch_size:
             data_df.to_json(output_filepath, index=False, orient="records", lines=True)
-    return 
+    log_info(f"Saved output to {output_filepath}", parameters)
+    return

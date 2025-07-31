@@ -1,4 +1,5 @@
 from vllm import LLM, SamplingParams
+from utils import log_info
 import click
 import torch
 
@@ -6,7 +7,7 @@ import torch
 @click.command()
 @click.option("--enable_prefix_caching", type=bool, default=True, help="Enable prefix caching for vLLM inference.")
 @click.pass_obj
-def vllm_inference(parameters, temperature, top_p, enable_prefix_caching):
+def vllm_inference(parameters, enable_prefix_caching):
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
     temperature = 1.0
     if parameters["temperature"] is not None:
@@ -30,4 +31,5 @@ def vllm_inference(parameters, temperature, top_p, enable_prefix_caching):
     data_df[parameters["output_column"]] = outputs
     data_df[parameters["generation_complete_column"]] = True
     data_df.to_json(output_filepath, index=False, lines=True, orient="records")
+    log_info(f"Saved output to {output_filepath}", parameters)
     return
