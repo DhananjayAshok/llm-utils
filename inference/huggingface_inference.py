@@ -48,6 +48,7 @@ def get_model(parameters, quantization, model_kind):
 
 def log_discrepancies(generation_config, original_generation_config, parameters):
     discrepancies = {}
+    override_params = {}
     keys = dir(generation_config)
     dont_count_keys = ["save_pretrained", "dict_torch_dtype_to_str", "push_to_hub", "get_generation_mode",
                        "to_dict", "to_diff_dict", "to_json_file", "to_json_string", "update", "validate",
@@ -58,9 +59,11 @@ def log_discrepancies(generation_config, original_generation_config, parameters)
         new_val = getattr(generation_config, key)
         if original_val != new_val:
             discrepancies[key] = (original_val, new_val)
+            override_params[key] = new_val
     if len(discrepancies) > 0:
         log_info("You have changed the following generation config parameters from their original values: (original_val, new_val)", parameters)
         log_dict(discrepancies, parameters=parameters)
+    return override_params
 
 
 @click.command()
@@ -85,22 +88,23 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     model = get_model(parameters, quantization, model_kind)
     track_scores = track_input_perplexity or track_output_perplexity
     generation_parameter_keys = ["max_new_tokens", "num_beams", "num_beam_groups", "temperature", "do_sample", "top_p", "top_k"]
-    geneneration_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}
+    generation_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}
+    override_params = {}
     try:
         original_generation_config = GenerationConfig.from_pretrained(parameters["model_name"])
         pad_token_id = tokenizer.eos_token_id
         if hasattr(original_generation_config, "pad_token_id"):
             pad_token_id = original_generation_config.pad_token_id
-        generation_config, unused_args = GenerationConfig.from_pretrained(parameters["model_name"], **geneneration_parameters,
+        generation_config, unused_args = GenerationConfig.from_pretrained(parameters["model_name"], **generation_parameters,
                                                                           pad_token_id=pad_token_id,
                                                                           output_scores=track_scores,
                                                                           return_dict_in_generate=True,
                                                                           return_unused_kwargs=True)
-        log_discrepancies(generation_config, original_generation_config, parameters)
+        override_params = log_discrepancies(generation_config, original_generation_config, parameters)
     except Exception as e:
         log_warn(f"Could not load generation config from {parameters['model_name']}. Will fall back to default...",
                  parameters)
-        generation_config = GenerationConfig(**geneneration_parameters, pad_token_id=tokenizer.eos_token_id,
+        generation_config = GenerationConfig(**generation_parameters, pad_token_id=tokenizer.eos_token_id,
                                               output_scores=track_scores,
                                               return_dict_in_generate=True)
 
@@ -129,7 +133,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             inputs["past_key_values"] = past_key_values
         else:
             inputs["cache_implementation"] = cache_implementation
-        output = model.generate(**inputs, generation_config=generation_config, tokenizer=tokenizer)
+        output = model.generate(**inputs, generation_config=generation_config, tokenizer=tokenizer, **override_params)
         output_sequences = output.sequences
         output_normed_perplexity = None
         input_normed_perplexity = None
