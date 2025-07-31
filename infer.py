@@ -32,6 +32,11 @@ def main(ctx, **input_parameters):
     for default_parameter in ["num_beams", "num_beam_groups", "temperature", "top_p", "top_k"]:
         if input_parameters[default_parameter] is None:
             input_parameters.pop(default_parameter)
+
+    if not input_parameters["do_sample"]:
+        input_parameters["temperature"] = 0.0
+        input_parameters["top_p"] = 1.0
+
     loaded_parameters.update(input_parameters)
     compute_secondary_parameters(loaded_parameters)
     output_df, output_filepath = handle_files(input_file=input_parameters["input_file"],
