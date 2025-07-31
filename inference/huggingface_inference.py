@@ -1,6 +1,8 @@
-from utils import log_error, log_warn, log_info
+from utils import log_error, log_warn, log_info, log_dict
 import click
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoModelForSequenceClassification, DynamicCache, StaticCache, OffloadedCache, OffloadedStaticCache, QuantizedCache, QuantizedCacheConfig
+from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSequenceClassification,
+                          DynamicCache, StaticCache, OffloadedCache, OffloadedStaticCache,
+                          QuantizedCache, QuantizedCacheConfig, GenerationConfig)
 import torch
 import copy
 from inference.inference_utils import discover_prefix_prompt
@@ -44,6 +46,19 @@ def get_model(parameters, quantization, model_kind):
     return model.eval()
 
 
+def log_discrepancies(generation_config, original_generation_config, parameters):
+    discrepancies = {}
+    keys = dir(generation_config)
+    keys = [key for key in keys if not key.startswith("_")]
+    for key in keys:
+        original_val = getattr(original_generation_config, key)
+        new_val = getattr(generation_config, key)
+        if original_val != new_val:
+            discrepancies[key] = (original_val, new_val)
+    if len(discrepancies) > 0:
+        log_info("You have changed the following generation config parameters from their original values: (original_val, new_val)", parameters)
+        log_dict(discrepancies, parameters)
+
 
 @click.command()
 @click.option("--model_kind", type=click.Choice(["gen", "clf"], case_sensitive=False), default="gen")
@@ -64,9 +79,22 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     tokenizer = AutoTokenizer.from_pretrained(parameters["model_name"], padding_side=padding_side)
     tokenizer.pad_token = tokenizer.eos_token
     model = get_model(parameters, quantization, model_kind)
+    track_scores = track_input_perplexity or track_output_perplexity
+    try:
+        original_generation_config = GenerationConfig.from_pretrained(parameters["model_name"])
+        generation_config, unused_args = GenerationConfig.from_pretrained(parameters["model_name"], **parameters,
+                                                                          pad_token_id=tokenizer.eos_token_id,
+                                                                          tokenizer=tokenizer,
+                                                                          output_scores=track_scores,
+                                                                          return_dict_in_generate=True,
+                                                                          return_unused_kwargs=True)
+        log_discrepancies(generation_config, original_generation_config, parameters)
+    except Exception as e:
+        log_warn(f"Could not load generation config from {parameters['model_name']}. Will fall back to default...",
+                 parameters)
+        generation_config = GenerationConfig(**parameters)
 
     start_idx = data_df[data_df[parameters["generation_complete_column"]] == False].index.min()
-
     save_every = int(checkpoint_every * ((len(data_df) - start_idx) / batch_size))+1
     log_warn(f"Saving every {save_every} batches", parameters)
     prompt_cache = None
@@ -91,11 +119,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             inputs["past_key_values"] = past_key_values
         else:
             inputs["cache_implementation"] = cache_implementation
-        output = model.generate(**inputs,
-                                max_new_tokens=parameters["max_new_tokens"], stop_strings=parameters["stop_strings"],
-                                pad_token_id=tokenizer.eos_token_id, tokenizer=tokenizer,
-                                output_scores=track_input_perplexity or track_output_perplexity,
-                                return_dict_in_generate=True)
+        output = model.generate(**inputs, generation_config=generation_config)
         output_sequences = output.sequences
         output_normed_perplexity = None
         input_normed_perplexity = None
