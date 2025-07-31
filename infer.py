@@ -22,6 +22,7 @@ loaded_parameters = load_parameters()
 @click.option("--log_file", default=loaded_parameters["log_file"], help="The file to log to")
 @click.pass_context
 def main(ctx, **input_parameters):
+    input_parameters["stop_strings"] = list(input_parameters["stop_strings"])
     loaded_parameters.update(input_parameters)
     compute_secondary_parameters(loaded_parameters)
     output_df, output_filepath = handle_files(input_file=input_parameters["input_file"],
