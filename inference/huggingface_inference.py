@@ -80,9 +80,11 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     tokenizer.pad_token = tokenizer.eos_token
     model = get_model(parameters, quantization, model_kind)
     track_scores = track_input_perplexity or track_output_perplexity
+    generation_parameter_keys = ["max_new_tokens", "num_beams", "num_beam_groups", "temperature", "do_sample", "top_p", "top_k"]
+    geneneration_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}
     try:
         original_generation_config = GenerationConfig.from_pretrained(parameters["model_name"])
-        generation_config, unused_args = GenerationConfig.from_pretrained(parameters["model_name"], **parameters,
+        generation_config, unused_args = GenerationConfig.from_pretrained(parameters["model_name"], **geneneration_parameters,
                                                                           pad_token_id=tokenizer.eos_token_id,
                                                                           output_scores=track_scores,
                                                                           return_dict_in_generate=True,
@@ -91,7 +93,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     except Exception as e:
         log_warn(f"Could not load generation config from {parameters['model_name']}. Will fall back to default...",
                  parameters)
-        generation_config = GenerationConfig(**parameters, pad_token_id=tokenizer.eos_token_id,
+        generation_config = GenerationConfig(**geneneration_parameters, pad_token_id=tokenizer.eos_token_id,
                                               output_scores=track_scores,
                                               return_dict_in_generate=True)
 
