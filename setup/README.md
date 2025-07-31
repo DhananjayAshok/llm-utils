@@ -13,3 +13,5 @@ Then, install the requirements:
 ```console
 uv pip install -r setup/requirements.txt
 ```
+
+To be honest, you can probably get away with just installing the latest version of most of these, but be careful with TRL, that ones p weird. 

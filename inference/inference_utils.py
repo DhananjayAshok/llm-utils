@@ -55,13 +55,20 @@ def get_input_file(input_file, input_column, generation_complete_column, paramet
     return None
 
 def get_output_file_path(output_file, input_file, input_df, output_column, parameters):
-    if output_file == input_file:
-        log_error("Output file cannot be the same as input file", parameters)
     if output_file is None:
         # replace the extension of input_file with '_output' before the extension
-        output_file = input_file.rsplit('.', 1)[0] + "_output." + input_file.rsplit('.', 1)[-1]
+        output_file = input_file.rsplit('.', 1)[0] + "_output." + "jsonl"
         if output_column in input_df.columns:
             log_error(f"Output file already has a column named '{output_column}'. This is used to store the model's output, reset it with --output_column or rename the column in your df", parameters)
+
+    for possible_extension in ["csv", "tsv", "json", "txt", "parquet"]:
+        if output_file.endswith(possible_extension):
+            output_file = output_file.rsplit('.', 1)[0] + "." + "jsonl"
+            break
+
+    if not output_file.endswith(".jsonl"):
+        log_error(f"Output file must be a JSON lines file (ending with .jsonl). Got {output_file}", parameters)
+
     file_makedir(output_file)
     return output_file
 

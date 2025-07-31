@@ -10,8 +10,6 @@ import torch
 @click.pass_obj
 def vllm_inference(parameters, temperature, top_p, enable_prefix_caching):
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
-    if isinstance(parameters["stop_strings"], str):
-        parameters["stop_strings"] = [parameters["stop_strings"]]
     sampling_params = SamplingParams(temperature=temperature, top_p=top_p, max_tokens=parameters["max_new_tokens"],
                                      stop=parameters["stop_strings"])
     n_gpus = torch.cuda.device_count()

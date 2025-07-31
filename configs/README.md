@@ -1,3 +1,3 @@
-## General Philosophy
+# Variables
 
-You should put all private variables in the private_vars yaml (currently storage_dir is mandatory), the remaining can go into any .yaml file in this directory and will be read as parameters. You can use this README to list all relevant parameters and what they do.
+For this project, there is only one mandatory variable. Make sure to set storage_dir in [the config file](configs/private_vars.yaml) to a directory where you want to store the data and models. This directory will be used for all data storage, including training data, model checkpoints, and logs.

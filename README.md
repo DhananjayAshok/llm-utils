@@ -1,33 +1,25 @@
 # Language Model Utilities
 
-Useful code for training and inference of Language Models. 
+Useful code for training and inference of Language Models. I currently support the following functionality:
 
-## Examples
+Language Models:
+1. Inference (with HuggingFace Transformers and vLLM)
+2. Pretraining
+3. Finetuning (Classification and SFT for Generation)
+4. Preference Optimization / RL Training
 
-You can load in sample data with:
+Vision Language Models:
+1. Inference
+2. Finetuning (Classification and SFT for Generation)
+3. Preference Optimization / RL Training
 
-```bash
-python create_examples.py generate
-```
+All code is based on HuggingFace Transformers and TRL and supports multiple GPUs as well as quantization. 
 
-You can specify the specific variants you want with:
+## Setup
 
-```bash
-python create_examples.py generate --variants sft --variants pref
-```
-
-Available variants are: 
-1. pre: Pretraining
-2. sft: Supervised Finetuning (text)
-3. clf: Classification 
-4. pref: Preference Optimization
+Follow the [instructions](setup/README.md) to set up the environment with the right packages and Python version. Then, before running anything you should make sure to populate the essential fields in the [config files](configs/README.md).
 
 
-Before training, you have to install dependancies with:
-
-```bash
-scripts/create_env.sh
-```
 
 Log in to WandB with 
 
@@ -35,7 +27,7 @@ Log in to WandB with
 wandb login
 ```
 
-Set up the accelerate config file. As a default I use multi-GPU FSDP with Torch Dynamo (inductor) speed up (no quantization). All training scripts here are LoRA, and 
+Set up the accelerate config file. As a default I use multi-GPU FSDP with Torch Dynamo (inductor) speed up (no quantization).
 
 To set this up you can do
 
@@ -61,15 +53,24 @@ fsdp_config:
 mixed_precision: bf16
 ```
 
+## Examples
+
+I have a [set of examples](examples/README.md) that show how to use the code for different tasks. The examples cover all functionality of the code. 
+
+## Project Organization
+
+### Inference
+
+#### Language Model Inference
+
+#### Vision Language Model Inference
+
+### Training
 
 
-Then, run the script you want to train with using:
+#### LM Training
 
-
-
-```bash
-python examples/scripts/sft.sh
-```
+#### VLM Training
 
 To see the parameters that can be used on the command line (such as `--per_device_train_batch_size', --eval_strategy, --max_steps or --num_train_epochs, --max_length) see the respective Config files for 
 
