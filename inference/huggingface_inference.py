@@ -49,7 +49,8 @@ def get_model(parameters, quantization, model_kind):
 def log_discrepancies(generation_config, original_generation_config, parameters):
     discrepancies = {}
     keys = dir(generation_config)
-    keys = [key for key in keys if not key.startswith("_")]
+    dont_count_keys = ["save_pretrained", "dict_torch_dtype_to_str", "push_to_hub", "get_generation_mode", "to_dict", "to_diff_dict", "to_json_file", "to_json_string", "update", "validate"]
+    keys = [key for key in keys if not key.startswith("_") and key not in dont_count_keys]
     for key in keys:
         original_val = getattr(original_generation_config, key)
         new_val = getattr(generation_config, key)
