@@ -91,7 +91,9 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     except Exception as e:
         log_warn(f"Could not load generation config from {parameters['model_name']}. Will fall back to default...",
                  parameters)
-        generation_config = GenerationConfig(**parameters)
+        generation_config = GenerationConfig(**parameters, pad_token_id=tokenizer.eos_token_id,
+                                              output_scores=track_scores,
+                                              return_dict_in_generate=True)
 
     start_idx = data_df[data_df[parameters["generation_complete_column"]] == False].index.min()
     save_every = int(checkpoint_every * ((len(data_df) - start_idx) / batch_size))+1
