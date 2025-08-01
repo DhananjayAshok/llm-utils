@@ -3,6 +3,8 @@ import os
 import subprocess
 from utils import log_info, log_warn, log_error
 from time import time
+from tqdm import tqdm
+import math
 
 def do_batch_size_run(data_df, tmp_path, batch_size, command, hf_command, parameters):
     sample_df = data_df.sample(n=batch_size, random_state=parameters["random_seed"]).reset_index(drop=True)
@@ -78,6 +80,8 @@ def infer_batch_size(parameters, **kwargs):
     current_high = batch_size_high
     current_low = batch_size_low
     tried_values = {}
+    total = math.log(batch_size_high - batch_size_low + 1, 2)
+    pbar = tqdm(total=total, desc="Binary Search for Batch Size", unit="batch_size")
     while current_low < mid < current_high:
         passes = do_batch_size_run(data_df, tmp_file, mid, command, hf_command, parameters)
         tried_values[mid] = passes
@@ -86,6 +90,8 @@ def infer_batch_size(parameters, **kwargs):
         else:
             current_high = mid
         mid = (current_high + current_low) // 2
+        pbar.update(1)
+    log_info(f"Binary search finished. Tried the following batch_sizes (True is fits on GPU): {tried_values} ")
     if mid == batch_size_low:
         low_pass = do_batch_size_run(data_df, tmp_file, mid, command, hf_command, parameters)
         if not low_pass:
