@@ -28,11 +28,11 @@ def do_batch_size_run(data_df, tmp_path, batch_size, command, hf_command, parame
 @click.option("--tmp_dir", default=None, help="The path to the temporary directory to use for the input_file csv. If not provided will use storage_dir/tmp")
 @click.option("--avoid_conflicts", default=False, is_flag=True, help="If true, will use the timestamp of the current run to avoid overwriting existing files in the tmp_dir.")
 @click.pass_obj
-def determine_batch_size(parameters, **kwargs):
-    batch_size_low = parameters.pop("batch_size_low")
-    batch_size_high = parameters.pop("batch_size_high")
-    tmp_path = parameters.pop("tmp_dir")
-    avoid_conflicts = parameters.pop("avoid_conflicts")
+def infer_batch_size(parameters, **kwargs):
+    batch_size_low = kwargs.pop("batch_size_low")
+    batch_size_high = kwargs.pop("batch_size_high")
+    tmp_path = kwargs.pop("tmp_dir")
+    avoid_conflicts = kwargs.pop("avoid_conflicts")
     if tmp_path is None:
         tmp_path = os.path.join(parameters["storage_dir"], "tmp")  # should already exist
     tmp_file = "tmp_input.csv"
