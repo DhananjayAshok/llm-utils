@@ -1,6 +1,8 @@
 # Examples
 
-Once you've followed the environment [setup instructions](README.md), you can start running these example experiments to get a hang of this repo and its functionalities. 
+Once you've followed the environment [setup instructions](README.md), add the `storage_dir` variable to the example [environment file](examples/scripts/env.sh). 
+
+You can now start running these example experiments to get a hang of this repo and its functionalities. 
 
 Any and all commands should be run from the root of the repo. 
 
@@ -30,9 +32,10 @@ This will create a few files in the `$storage_dir/data/pubmedqa` directory:
 - `qa_gen_[train/val].csv`: Contains articles, and prompts that get a LM to generate question answer pairs from the articles. We will use this to generate synthetic QA pairs for finetuning a LM.
 - `qa_gen_background_[train/val].csv`: Quite similar to the above, but the prompts incentivize the model to only generate questions on the background or premise of the article, as opposed to its results. We will use this and the data generated from the previous file to preference tune a LM that only asks background related questions. 
 
-The first step is to run inference on the qa_gen files to generate the synthetic QA pairs. This is done with the following command:
+### Inference
+
+The first step is to run inference on the qa_gen files to generate the synthetic QA pairs. This is done with the following command (don't run it just yet):
 ```bash
-storage_dir= # whatever you set in configs/private_vars.yaml
 python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 150 hf 
 ```
 You may get the warning message: 
@@ -51,7 +54,25 @@ This will trigger the huggingface inference pipeline, which has the following ar
 
 There are other options for tracking perplexity, see [the click options](inference/huggingface_inference.py) for more. 
 
-To run all of the generation files, you can use the following command (make sure to set the storage_dir variable first):
+### Inferring Batch Size
+But before running inference, let's  identify the largest batch size we can use. To do that, we will fix some generation configurations, so our code knows how we plan on running the model:
+- `max_new_tokens`: 200
+- `num_return_sequences`: 5
+- `num_beams`: 5
+- `num_beam_groups`: 5
+
+This should get a nice variety of questions from each article. 
+
+Now let's run the following command to find the largest batch size we can use:
+```bash
+python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 200 --num_return_sequences 5 --do_sample infer_batch_size --num_beams 5
+```
+
+This gives me the recommended maximum batch size of 6. If you get 0 (i.e. nothing works), try setting `cache_implementation=offloaded` and try again.
+
+We'll pick a batch_size slightly smaller than the maximum: 4. 
+
+To run inference on all of the generation files, you can use the following command (make sure to set your desired batch_size first):
 ```bash
 bash examples/scripts/pubmedqa_gen_queries.sh
 ```
