@@ -52,10 +52,12 @@ def infer_batch_size(parameters, **kwargs):
         if drop_col in data_df.columns:
             data_df.drop(columns=[drop_col], inplace=True)
     relevant_arguments = ["model_name", "input_column", "output_column", "generation_complete_column",
-                          "max_new_tokens", "stop_strings", "dtype", "num_return_sequences"]
-    command = ["python infer.py"]
+                          "max_new_tokens", "dtype", "num_return_sequences"]
+    command = ["python", " infer.py"]
     for arg in relevant_arguments:
         command.append(f"--{arg} {parameters[arg]}")
+    for stop_string in parameters["stop_strings"]:
+        command.append(f"--stop_strings {stop_string}")
     command.append(f"--input_file {tmp_file}")
     hf_command = []
     for key, value in kwargs.items():
