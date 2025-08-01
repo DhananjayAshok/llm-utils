@@ -98,6 +98,7 @@ def infer_batch_size(parameters, **kwargs):
     pbar.close()
     log_info(f"Binary search finished. Tried the following batch_sizes (True is fits on GPU): {tried_values} ")
     if mid == batch_size_low:
+        log_info(f"Trying one last run...", parameters)
         low_pass = do_batch_size_run(data_df, tmp_file, mid, command, hf_command, parameters)
         if not low_pass:
             if batch_size_low == 1:
@@ -109,6 +110,7 @@ def infer_batch_size(parameters, **kwargs):
                          f"Either there is a bug in the code, or you should try lower values.")
                 return
     if mid == batch_size_high:
+        log_info(f"Trying one last run...", parameters)
         high_pass = do_batch_size_run(data_df, tmp_file, mid, command, hf_command, parameters)
         if high_pass:
             log_warn(f"Even the highest attempted batch size ({batch_size_high}) fits on GPU. Try higher.")
