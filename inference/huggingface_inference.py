@@ -77,8 +77,9 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
 @click.option("--output_perplexity_column", type=str, default="output_perplexity")
 @click.option("--track_input_perplexity", type=bool, default=False)
 @click.option("--input_perplexity_column", type=str, default="input_perplexity")
+@click.option("--debug", type=bool, default=True, help="If set, will print the first generated output for a sanity check")
 @click.pass_obj
-def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, num_beams, num_beam_groups, diversity_penalty, cache_implementation, cache_prefix, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column):
+def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, num_beams, num_beam_groups, diversity_penalty, cache_implementation, cache_prefix, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, debug):
     torch.set_grad_enabled(False)
     set_seed(parameters["random_seed"])
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
@@ -154,6 +155,8 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         out_reshaped = out.reshape(n_items_in_batch, parameters["num_return_sequences"], -1).tolist()
         data_df.at[i:i+batch_size-1, parameters["output_column"]] = out_reshaped
         data_df.at[i:i+batch_size-1, parameters["generation_complete_column"]] = True
+        if i == start_idx and debug:
+            log_info(f"First generated output for sanity check: \nInput: {data_df.loc[i, parameters['input_column']]}\nOutput: {out_reshaped[0]}", parameters)
         del inputs
         del output
         if track_output_perplexity:
