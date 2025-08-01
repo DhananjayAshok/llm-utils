@@ -68,6 +68,7 @@ def infer_batch_size(parameters, **kwargs):
     command.extend(["--input_file", tmp_file])
     if parameters["do_sample"]:
         command.append("--do_sample")
+    command.append("--ignore_checkpoint")
     hf_command = []
     for key, value in kwargs.items():
         if value is not None:
