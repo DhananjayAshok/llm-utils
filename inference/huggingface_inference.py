@@ -159,7 +159,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             output_str = "\n[Output]: ".join(out_reshaped[0])
             input_str = data_df.loc[i, parameters["input_column"]]
             if prefix_text is not None:
-                input_str = input_str[len(prefix_text):]  # remove prefix from input
+                input_str = "(Common prefix removed...) + " + input_str[len(prefix_text):]  # remove prefix from input
             log_info(f"First generated output for sanity check: \nInput: {input_str} \nOutput(s): {output_str}", parameters)
         del inputs
         del output
