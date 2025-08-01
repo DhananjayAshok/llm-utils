@@ -152,7 +152,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
                 out[out_i] = out[out_i].replace(stop_string, "")
         out = np.array(out)
         n_items_in_batch = inputs['input_ids'].shape[0]
-        out_reshaped = out.reshape(n_items_in_batch, parameters["num_return_sequences"], -1).tolist()
+        out_reshaped = out.reshape(n_items_in_batch, parameters["num_return_sequences"]).tolist()
         data_df.at[i:i+batch_size-1, parameters["output_column"]] = out_reshaped
         data_df.at[i:i+batch_size-1, parameters["generation_complete_column"]] = True
         if i == start_idx and debug:
