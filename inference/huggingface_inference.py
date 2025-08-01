@@ -154,7 +154,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         n_items_in_batch = inputs['input_ids'].shape[0]
         out_reshaped = out.reshape(n_items_in_batch, parameters["num_return_sequences"]).tolist()
         data_df.loc[i:i+batch_size-1, parameters["generation_complete_column"]] = True
-        for counter, j in enumerate(range(i, i + batch_size)):
+        for counter, j in enumerate(range(i, n_items_in_batch + 1)):
             data_df.at[j, parameters["output_column"]] = out_reshaped[counter]
         if i == start_idx and debug:
             output_str = "\n[Output]: ".join(out_reshaped[0])
