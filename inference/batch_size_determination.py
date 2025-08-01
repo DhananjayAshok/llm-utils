@@ -34,12 +34,14 @@ def do_batch_size_run(data_df, tmp_path, batch_size, command, hf_command, parame
 @click.option("--cache_prefix", type=bool, default=False, help="If true, will search for a prefix prompt in the input column and precompute its KV cache.")
 @click.option("--tmp_dir", default=None, help="The path to the temporary directory to use for the input_file csv. If not provided will use storage_dir/tmp")
 @click.option("--avoid_conflicts", default=False, is_flag=True, help="If true, will use the timestamp of the current run to avoid overwriting existing files in the tmp_dir.")
+@click.option("--verbose", is_flag=True, default=False, help="If set, will print each batch_size failure or success as it is done.")
 @click.pass_obj
 def infer_batch_size(parameters, **kwargs):
     batch_size_low = kwargs.pop("batch_size_low")
     batch_size_high = kwargs.pop("batch_size_high")
     tmp_path = kwargs.pop("tmp_dir")
     avoid_conflicts = kwargs.pop("avoid_conflicts")
+    verbose = kwargs.pop("verbose")
     if tmp_path is None:
         tmp_path = os.path.join(parameters["storage_dir"], "tmp")  # should already exist
     tmp_file = "tmp_input.csv"
@@ -85,6 +87,8 @@ def infer_batch_size(parameters, **kwargs):
     while current_low < mid < current_high:
         passes = do_batch_size_run(data_df, tmp_file, mid, command, hf_command, parameters)
         tried_values[mid] = passes
+        if verbose:
+            log_info(f"Batch size {mid} {'fits' if passes else 'does not fit'} on GPU.", parameters)
         if passes: # then search up
             current_low = mid
         else:
