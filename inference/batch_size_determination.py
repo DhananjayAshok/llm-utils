@@ -7,7 +7,7 @@ from time import time
 def do_batch_size_run(data_df, tmp_path, batch_size, command, hf_command, parameters):
     sample_df = data_df.sample(n=batch_size, random_state=parameters["random_seed"]).reset_index(drop=True)
     sample_df.to_csv(tmp_path, index=False)
-    final_command = command + hf_command + [f"--batch_size {batch_size}"]
+    final_command = command + hf_command + [f"--batch_size", f"{batch_size}"]
     log_info(f"Running command: {' '.join(final_command)}", parameters)
     result = subprocess.run(final_command, capture_output=True, text=True)
     if result.returncode != 0:
@@ -53,16 +53,19 @@ def infer_batch_size(parameters, **kwargs):
             data_df.drop(columns=[drop_col], inplace=True)
     relevant_arguments = ["model_name", "input_column", "output_column", "generation_complete_column",
                           "max_new_tokens", "dtype", "num_return_sequences"]
-    command = ["python", " infer.py"]
+    command = ["python", "infer.py"]
     for arg in relevant_arguments:
-        command.append(f"--{arg} {parameters[arg]}")
+        command.append(f"--{arg}")
+        command.append(f"{parameters[arg]}")
     for stop_string in parameters["stop_strings"]:
-        command.append(f"--stop_strings {stop_string}")
-    command.append(f"--input_file {tmp_file}")
+        command.append("--stop_strings")
+        command.append(stop_string)
+    command.extend(["--input_file", tmp_file])
     hf_command = []
     for key, value in kwargs.items():
         if value is not None:
-            hf_command.append(f"--{key} {value}")
+            hf_command.append(f"--{key}")
+            hf_command.append(str(value))
     mid = (batch_size_high - batch_size_low) // 2
     current_high = batch_size_high
     current_low = batch_size_low
