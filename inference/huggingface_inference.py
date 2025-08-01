@@ -114,8 +114,8 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     save_every = int(checkpoint_every * ((len(data_df) - start_idx) / batch_size))+1
     log_warn(f"Saving every {save_every} batches", parameters)
     prompt_cache = None
+    prefix_text = discover_prefix_prompt(data_df, parameters["input_column"], parameters)
     if cache_prefix:
-        prefix_text = discover_prefix_prompt(data_df, parameters["input_column"], parameters)
         if prefix_text is None:
             log_warn(f"Prefix caching is enabled but no prefix prompt could be discovered. "
                      f"Running inference without prefix caching...", parameters)
@@ -156,7 +156,11 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         data_df.at[i:i+batch_size-1, parameters["output_column"]] = out_reshaped
         data_df.at[i:i+batch_size-1, parameters["generation_complete_column"]] = True
         if i == start_idx and debug:
-            log_info(f"First generated output for sanity check: \nInput: {data_df.loc[i, parameters['input_column']]}\nOutput: {out_reshaped[0]}", parameters)
+            output_str = "\n[Output]: ".join(out_reshaped[0])
+            input_str = data_df.loc[i, parameters["input_column"]]
+            if prefix_text is not None:
+                input_str = input_str[len(prefix_text):]  # remove prefix from input
+            log_info(f"First generated output for sanity check: \nInput: {input_str} \nOutput(s): {output_str}", parameters)
         del inputs
         del output
         if track_output_perplexity:
