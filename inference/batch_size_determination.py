@@ -74,7 +74,7 @@ def infer_batch_size(parameters, **kwargs):
         if value is not None:
             hf_command.append(f"--{key}")
             hf_command.append(str(value))
-    mid = (batch_size_high - batch_size_low) // 2
+    mid = (batch_size_high + batch_size_low) // 2
     current_high = batch_size_high
     current_low = batch_size_low
     tried_values = {}
@@ -85,7 +85,7 @@ def infer_batch_size(parameters, **kwargs):
             current_low = mid
         else:
             current_high = mid
-        mid = (current_high - current_low) // 2
+        mid = (current_high + current_low) // 2
     if mid == batch_size_low:
         low_pass = do_batch_size_run(data_df, tmp_file, mid, command, hf_command, parameters)
         if not low_pass:
