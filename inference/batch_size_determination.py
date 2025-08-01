@@ -1,16 +1,20 @@
 import click
 import os
+import subprocess
 from utils import log_info, log_warn, log_error
 import pandas as pd
 from time import time
 
 def do_batch_size_run(data_df, tmp_path, batch_size, command, hf_command, parameters):
-
-    return True
-
-
-
-
+    sample_df = data_df.sample(n=batch_size, random_state=parameters["random_seed"]).reset_index(drop=True)
+    sample_df.to_csv(tmp_path, index=False)
+    final_command = command + hf_command + [f"--batch_size {batch_size}"]
+    log_info(f"Running command: {' '.join(final_command)}", parameters)
+    result = subprocess.run(final_command, capture_output=True, text=True)
+    if result.returncode != 0:
+        return False
+    else:
+        return True
 
 
 @click.command()
@@ -53,7 +57,7 @@ def determine_batch_size(parameters, **kwargs):
     command = ["python infer.py"]
     for arg in relevant_arguments:
         command.append(f"--{arg} {parameters[arg]}")
-    command.append("--ignore_checkpoint")
+    command.append(f"--input_file {tmp_file}")
     hf_command = []
     for key, value in kwargs.items():
         if value is not None:
@@ -78,7 +82,8 @@ def determine_batch_size(parameters, **kwargs):
                          f"This suggests you cannot run under current configuations. "
                          f"Change num_return_sequences, quantization and cache_implementation etc.", parameters)
             else:
-                log_warn(f"Even the lowest attempted batch size ({batch_size_low}) does not fit on GPU. Try lower.")
+                log_warn(f"Even the lowest attempted batch size ({batch_size_low}) does not fit on GPU. "
+                         f"Either there is a bug in the code, or you should try lower values.")
                 return
     if mid == batch_size_high:
         high_pass = do_batch_size_run(data_df, tmp_file, mid, command, hf_command, parameters)
