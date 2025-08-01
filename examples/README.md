@@ -35,6 +35,13 @@ The first step is to run inference on the qa_gen files to generate the synthetic
 storage_dir= # whatever you set in configs/private_vars.yaml
 python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 150 hf 
 ```
+You may get the warning message: 
+```bash
+A decoder-only architecture is being used, but right-padding was detected! For correct generation results, please set `padding_side='left'` when initializing the tokenizer.
+```
+
+In that case, add the `--padding_side left` argument to the command above, after the `hf` command.
+
 This will trigger the huggingface inference pipeline, which has the following arguments you can pass in after the `hf` command
 - `--model_kind`: whether the model is a classification model (clf) or a generative model (gen, default.)
 - `--batch_size`: duh

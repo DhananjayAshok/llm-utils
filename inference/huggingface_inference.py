@@ -71,7 +71,7 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
 @click.option("--num_beam_groups", type=int, default=None, help="The number of beam groups to use for group beam search. Set to 1 for standard beam search.")
 @click.option("--diversity_penalty", type=float, default=0.2, help="The diversity penalty to use for group beam search. Set to 0.0 for no diversity penalty.")
 @click.option("--cache_implementation", default="dynamic", type=click.Choice(["dynamic", "static", "offloaded", "offloaded_static"]), help="The implementation to use for cache.")
-@click.option("--cache_prefix", type=bool, default=True, help="If true, will search for a prefix prompt in the input column and precompute its KV cache.")
+@click.option("--cache_prefix", type=bool, default=False, help="If true, will search for a prefix prompt in the input column and precompute its KV cache.")
 @click.option("--checkpoint_every", type=float, default=0.2)
 @click.option("--track_output_perplexity", type=bool, default=False)
 @click.option("--output_perplexity_column", type=str, default="output_perplexity")
@@ -88,11 +88,12 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     track_scores = track_input_perplexity or track_output_perplexity
     generation_parameter_keys = ["max_new_tokens", "temperature", "do_sample", "top_p", "top_k", "num_return_sequences"]
     generation_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}
+    if parameters["num_return_sequences"] > 1 or batch_size > 1:
+        if cache_prefix:
+            log_warn("Prefix caching does not seem to work with num_return_sequences > 1 or batch_size > 1. Deactivating ...")
+            cache_prefix = False
     if num_beams is not None:
         generation_parameters["num_beams"] = num_beams
-        if cache_prefix:
-            log_warn("Beam search is enabled, prefix caching will not be used...")
-            cache_prefix = False
     if num_beam_groups is not None:
         if num_beam_groups > 1:
             generation_parameters["num_beam_groups"] = num_beam_groups
@@ -118,9 +119,9 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             log_warn(f"Prefix caching is enabled but no prefix prompt could be discovered. "
                      f"Running inference without prefix caching...", parameters)
         else:
-            prompt_cache = get_cache(cache_implementation=cache_implementation, model=model, batch_size=batch_size)
+            #prompt_cache = get_cache(cache_implementation=cache_implementation, model=model, batch_size=batch_size)
             prefix_inputs = tokenizer([prefix_text], padding=True, truncation=True, return_tensors="pt").to(model.device)
-            prompt_cache = model(**prefix_inputs, past_key_values=prompt_cache).past_key_values
+            prompt_cache = model(**prefix_inputs, cache_implementation=cache_implementation).past_key_values # had past_key_values=prompt_cache
             del prefix_inputs
             log_info(f"Prefix prompt discovered and KV cache precomputed.\nPrefix: {prefix_text}", parameters)
 
