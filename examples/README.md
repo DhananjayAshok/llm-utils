@@ -65,7 +65,7 @@ This should get a nice variety of questions from each article.
 
 Now let's run the following command to find the largest batch size we can use:
 ```bash
-python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 200 --num_return_sequences 5 --do_sample infer_batch_size --num_beams 5
+python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 200 --num_return_sequences 5 infer_batch_size --num_beams 5
 ```
 
 This gives me the recommended maximum batch size of 6. If you get 0 (i.e. nothing works), try setting `cache_implementation=offloaded` and try again.
