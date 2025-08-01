@@ -11,7 +11,12 @@ def do_batch_size_run(data_df, tmp_path, batch_size, command, hf_command, parame
     log_info(f"Running command: {' '.join(final_command)}", parameters)
     result = subprocess.run(final_command, capture_output=True, text=True)
     if result.returncode != 0:
-        return False
+        error_text = result.stderr.strip()
+        if "CUDA out of memory" in error_text or "OOM" in error_text:
+            return False
+        else:
+            log_error(f"Command failed with error: {error_text}", parameters)
+            return False
     else:
         return True
 
@@ -61,6 +66,8 @@ def infer_batch_size(parameters, **kwargs):
         command.append("--stop_strings")
         command.append(stop_string)
     command.extend(["--input_file", tmp_file])
+    if parameters["do_sample"]:
+        command.append("--do_sample")
     hf_command = []
     for key, value in kwargs.items():
         if value is not None:
