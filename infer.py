@@ -2,6 +2,7 @@ import click
 from utils.parameter_handling import load_parameters, compute_secondary_parameters
 from utils import log_error
 from inference.huggingface_inference import hf_inference
+from inference.batch_size_determination import determine_batch_size
 from inference.vllm_inference import vllm_inference
 from inference.inference_utils import handle_files
 
@@ -56,6 +57,7 @@ def main(ctx, **input_parameters):
 
 main.add_command(hf_inference, name="hf")
 main.add_command(vllm_inference, name="vllm")
+main.add_command(determine_batch_size, name="discover_batch_size")
 
 if __name__ == "__main__":
     main()

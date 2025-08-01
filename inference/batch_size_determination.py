@@ -2,7 +2,6 @@ import click
 import os
 import subprocess
 from utils import log_info, log_warn, log_error
-import pandas as pd
 from time import time
 
 def do_batch_size_run(data_df, tmp_path, batch_size, command, hf_command, parameters):
