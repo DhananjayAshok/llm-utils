@@ -70,7 +70,7 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
 @click.option("--num_beams", type=int, default=None, help="The number of beams to use for beam search. Set to 1 for greedy decoding.")
 @click.option("--num_beam_groups", type=int, default=None, help="The number of beam groups to use for group beam search. Set to 1 for standard beam search.")
 @click.option("--diversity_penalty", type=float, default=0.2, help="The diversity penalty to use for group beam search. Set to 0.0 for no diversity penalty.")
-@click.option("--cache_implementation", default="dynamic", type=click.Choice(["dynamic", "static", "offloaded", "offloaded_static"]), help="The implementation to use for cache.")
+@click.option("--cache_implementation", default="dynamic", type=click.Choice(["dynamic", "static", "offloaded", "offloaded_static", "quantized"]), help="The implementation to use for cache.")
 @click.option("--cache_prefix", type=bool, default=False, help="If true, will search for a prefix prompt in the input column and precompute its KV cache.")
 @click.option("--checkpoint_every", type=float, default=0.2)
 @click.option("--track_output_perplexity", type=bool, default=False)
