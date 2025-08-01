@@ -7,7 +7,7 @@ from time import time
 def do_batch_size_run(data_df, tmp_path, batch_size, command, hf_command, parameters):
     sample_df = data_df.sample(n=batch_size, random_state=parameters["random_seed"]).reset_index(drop=True)
     sample_df.to_csv(tmp_path, index=False)
-    final_command = command + hf_command + [f"--batch_size", f"{batch_size}"]
+    final_command = command + ["hf"] + hf_command + [f"--batch_size", f"{batch_size}"]
     log_info(f"Running command: {' '.join(final_command)}", parameters)
     result = subprocess.run(final_command, capture_output=True, text=True)
     if result.returncode != 0:
