@@ -159,7 +159,7 @@ def save_meta_file(meta_vars, output_filepath, parameters, consider_checkpoint=F
         conflicts = []
         for key, value in meta_vars.items():
             if key not in existing_meta or existing_meta[key] != value:
-                conflicts.append(f"{key}: {existing_meta[key]} -> {value}")
+                conflicts.append(f"{key}: {existing_meta.get(key, None)} -> {value}")
         if len(conflicts) > 0:
             conflict_str = ", ".join(conflicts)
             log_error(f"There was already a meta file for this output file at {meta_filepath}. "
