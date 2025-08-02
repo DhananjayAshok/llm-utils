@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-import json
+import yaml
 from utils import log_warn, log_error, log_info, file_makedir
 from datetime import datetime, timezone
 
@@ -155,7 +155,7 @@ def save_meta_file(meta_vars, output_filepath, parameters, consider_checkpoint=F
     meta_vars.update(update_dict)
     if consider_checkpoint and os.path.exists(meta_filepath):
         with open(meta_filepath, "r") as f:
-            existing_meta = json.load(f)
+            existing_meta = yaml.load(f, Loader=yaml.FullLoader)
         conflicts = []
         for key, value in meta_vars.items():
             if key not in existing_meta or existing_meta[key] != value:
@@ -169,6 +169,6 @@ def save_meta_file(meta_vars, output_filepath, parameters, consider_checkpoint=F
 
     meta_vars["timestamp_utc"] = utc_datetime.strftime("%Y-%m-%d %H:%M:%S %Z")
     with open(meta_filepath, "w") as f:
-        json.dump(meta_vars, f)
+        yaml.dump(meta_vars, f)
     log_info(f"Wrote meta file to {meta_filepath}", parameters)
     return meta_filepath
