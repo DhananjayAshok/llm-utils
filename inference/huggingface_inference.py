@@ -5,7 +5,7 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSeque
                           QuantizedCache, QuantizedCacheConfig, GenerationConfig, set_seed)
 import torch
 import copy
-from inference.inference_utils import discover_prefix_prompt
+from inference.inference_utils import discover_prefix_prompt, save_meta_file
 
 from tqdm import tqdm
 import numpy as np
@@ -83,22 +83,30 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     torch.set_grad_enabled(False)
     set_seed(parameters["random_seed"])
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
+    meta_vars = {
+                 "quantization": quantization,
+                 "cache_prefix": cache_prefix,
+                 "cache_implementation": cache_implementation}
     tokenizer = AutoTokenizer.from_pretrained(parameters["model_name"], padding_side=padding_side)
     tokenizer.pad_token = tokenizer.eos_token
     model = get_model(parameters, quantization, model_kind)
     track_scores = track_input_perplexity or track_output_perplexity
     generation_parameter_keys = ["max_new_tokens", "temperature", "do_sample", "top_p", "top_k", "num_return_sequences"]
     generation_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}
+    meta_vars.update(generation_parameters)
     if parameters["num_return_sequences"] > 1 or batch_size > 1:
         if cache_prefix:
             log_warn("Prefix caching does not seem to work with num_return_sequences > 1 or batch_size > 1. Deactivating ...")
             cache_prefix = False
     if num_beams is not None:
         generation_parameters["num_beams"] = num_beams
+        meta_vars["num_beams"] = num_beams
     if num_beam_groups is not None:
         if num_beam_groups > 1:
             generation_parameters["num_beam_groups"] = num_beam_groups
             generation_parameters["diversity_penalty"] = diversity_penalty
+            meta_vars["num_beam_groups"] = num_beam_groups
+            meta_vars["diversity_penalty"] = diversity_penalty
     try:
         original_generation_config = GenerationConfig.from_pretrained(parameters["model_name"])
         if hasattr(original_generation_config, "pad_token_id") and original_generation_config.pad_token_id is not None:
@@ -111,6 +119,8 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
                  parameters)
         generation_parameters["pad_token_id"] = tokenizer.eos_token_id
     start_idx = data_df[data_df[parameters["generation_complete_column"]] == False].index.min()
+    checkpointed = start_idx != 0
+    save_meta_file(meta_vars, output_filepath, parameters, consider_checkpoint=checkpointed)
     save_every = int(checkpoint_every * ((len(data_df) - start_idx) / batch_size))+1
     log_warn(f"Saving every {save_every} batches", parameters)
     prompt_cache = None

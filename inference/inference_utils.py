@@ -1,6 +1,8 @@
 import os
 import pandas as pd
+import json
 from utils import log_warn, log_error, log_info, file_makedir
+from datetime import datetime, timezone
 
 
 def load_file(file_path, extension, parameters):
@@ -139,3 +141,34 @@ def discover_prefix_prompt(input_df, input_column, parameters, n_samples=10):
         return None
 
     return input_texts[0][:prefix_end_index] # TODO: Check if this should have a +1
+
+def save_meta_file(meta_vars, output_filepath, parameters, consider_checkpoint=False):
+    """
+    Save meta information to a file.
+    """
+    meta_filepath = output_filepath.replace(".jsonl", ".meta.yaml")
+    utc_datetime = datetime.now(timezone.utc)
+    update_dict = {
+        "model_name": parameters["model_name"],
+        "num_return_sequences": parameters["num_return_sequences"],
+    }
+    meta_vars.update(update_dict)
+    if consider_checkpoint and os.path.exists(meta_filepath):
+        with open(meta_filepath, "r") as f:
+            existing_meta = json.load(f)
+        conflicts = []
+        for key, value in meta_vars.items():
+            if key not in existing_meta or existing_meta[key] != value:
+                conflicts.append(f"{key}: {existing_meta[key]} -> {value}")
+        if len(conflicts) > 0:
+            conflict_str = ", ".join(conflicts)
+            log_error(f"There was already a meta file for this output file at {meta_filepath}. "
+                      f"This has conflicting parameters (old -> new): {conflict_str}."
+                      f"\nThis will lead in the weird case where outputs are not consistently generated. "
+                      f"Sort this out bro idk", parameters)
+
+    meta_vars["timestamp_utc"] = utc_datetime.strftime("%Y-%m-%d %H:%M:%S %Z")
+    with open(meta_filepath, "w") as f:
+        json.dump(meta_vars, f)
+    log_info(f"Wrote meta file to {meta_filepath}", parameters)
+    return meta_filepath
