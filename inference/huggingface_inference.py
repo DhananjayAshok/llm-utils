@@ -81,11 +81,12 @@ def get_vlm(parameters, quantization, model_kind):
     """
     dtype = parameters["dtype"]
     model_name = parameters["model_name"]
+    padding_side = parameters["padding_side"]
     vlm_kind = infer_vlm_kind(model_name)
     if vlm_kind == "internvl":
         pass
     elif vlm_kind == "llava":
-        processor = LlavaNextProcessor.from_pretrained(model_name)
+        processor = LlavaNextProcessor.from_pretrained(model_name, padding_side=padding_side)
         model = LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
                                                                   device_map="auto", trust_remote_code=True)
         parameters["tokenizer"] = processor # idk for now doing this.
