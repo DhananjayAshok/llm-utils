@@ -114,7 +114,7 @@ def get_inputs(data_df, start, end, model, parameters):
         for url in input_image_urls:
             image = Image.open(url) if os.path.isfile(url) else Image.fromarray(io.imread(url))
             images.append(image)
-        inputs = parameters["tokenizer"](input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
+        inputs = parameters["tokenizer"](text=input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
         return inputs
     else:
         raise ValueError(f"Bro what did you do.")
