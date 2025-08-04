@@ -10,6 +10,8 @@ from inference.inference_utils import discover_prefix_prompt, save_meta_file
 
 from tqdm import tqdm
 import numpy as np
+from PIL import Image
+import requests
 import os
 
 
@@ -103,9 +105,19 @@ def get_inputs(data_df, start, end, model, parameters):
         inputs = parameters["tokenizer"](inputs, padding=True, truncation=True, return_tensors="pt").to(model.device)
         return inputs
     elif parameters["modality"] == "vlm":
-        input_texts = data_df.loc[start:end, parameters["input_column"]].tolist()
+        input_texts = data_df.loc[start:end, parameters["input_column"]]
+        input_texts = "USER: <image>\n" + input_texts + "\nASSISTANT: "
+        input_texts = input_texts.tolist()
         input_image_urls = data_df.loc[start:end, parameters["image_input_column"]].tolist()
-        
+        images = []
+        for url in input_image_urls:
+            if os.path.exists(url):
+                image = Image.open(url)
+            else:
+                image = Image.open(requests.get(url, stream=True).raw)
+            images.append(image)
+        inputs = parameters["tokenizer"](input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
+        return inputs
     else:
         raise ValueError(f"Bro what did you do.")
 
