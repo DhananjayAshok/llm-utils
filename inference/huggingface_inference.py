@@ -1,7 +1,8 @@
 from utils import log_error, log_warn, log_info, log_dict
 import click
-from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSequenceClassification,
+from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSequenceClassification, AutoConfig,
                           DynamicCache, StaticCache, OffloadedCache, OffloadedStaticCache,
+                          LlavaNextProcessor, LlavaNextForConditionalGeneration,
                           QuantizedCache, QuantizedCacheConfig, GenerationConfig, set_seed)
 import torch
 import copy
@@ -29,7 +30,14 @@ def get_cache(cache_implementation, model, batch_size, num_beams=1):
 
 
 def get_model(parameters, quantization, model_kind):
+    if parameters["modality"] == "vlm":
+        return get_vlm(parameters, quantization, model_kind)
     model_name = parameters["model_name"]
+    tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side=parameters["padding_side"])
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    parameters["tokenizer"] = tokenizer
+    parameters["pad_token_id"] = tokenizer.pad_token_id
     dtype = parameters["dtype"]
     if model_kind == "gen":
         load_class = AutoModelForCausalLM
@@ -44,6 +52,62 @@ def get_model(parameters, quantization, model_kind):
         quantization_config = BitsAndBytesConfig(load_in_4bit=quantization == "4b", load_in_8bit=quantization == "8b")
         model = load_class.from_pretrained(model_name, device_map="auto", torch_dtype=dtype, quantization_config=quantization_config)
     return model.eval()
+
+
+def infer_vlm_kind(model_name):
+    """
+    Infer the kind of VLM based on the model name.
+    """
+    if "internvl" in model_name.lower():
+        return "internvl"
+    elif "llava" in model_name.lower():
+        return "llava"
+    elif "ovis" in model_name.lower():
+        return "ovis"
+    elif "qwen" in model_name.lower():
+        return "qwen"
+    else:
+        log_error(f"Unrecognized Model Kind: {model_name}")
+
+
+
+def get_vlm(parameters, quantization, model_kind):
+    """
+    This function is a placeholder for loading Vision Language Models (VLMs).
+    Currently, it only supports text generation models.
+    """
+    dtype = parameters["dtype"]
+    model_name = parameters["model_name"]
+    vlm_kind = infer_vlm_kind(model_name)
+    if vlm_kind == "internvl":
+        pass
+    elif vlm_kind == "llava":
+        processor = LlavaNextProcessor.from_pretrained(model_name)
+        model = LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
+                                                                  device_map="auto", trust_remote_code=True)
+        parameters["tokenizer"] = processor # idk for now doing this.
+        parameters["pad_token_id"] = processor.tokenizer.pad_token_id
+        return model.eval()
+    elif vlm_kind == "ovis":
+        pass
+    elif vlm_kind == "qwen":
+        pass
+    else:
+        log_error(f"Bruh how")
+
+
+
+def get_inputs(data_df, start, end, model, parameters):
+    if parameters["modality"] == "lm":
+        inputs = data_df.loc[start:end, parameters["input_column"]].tolist()
+        inputs = parameters["tokenizer"](inputs, padding=True, truncation=True, return_tensors="pt").to(model.device)
+        return inputs
+    elif parameters["modality"] == "vlm":
+        input_texts = data_df.loc[start:end, parameters["input_column"]].tolist()
+        input_image_urls = data_df.loc[start:end, parameters["image_input_column"]].tolist()
+        
+    else:
+        raise ValueError(f"Bro what did you do.")
 
 
 def log_discrepancies(generation_parameters, original_generation_config, parameters):
@@ -82,18 +146,21 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
 def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, num_beams, num_beam_groups, diversity_penalty, cache_implementation, cache_prefix, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, debug):
     torch.set_grad_enabled(False)
     set_seed(parameters["random_seed"])
+    parameters["padding_side"] = padding_side
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
     meta_vars = {
                  "quantization": quantization,
                  "cache_prefix": cache_prefix,
                  "cache_implementation": cache_implementation}
-    tokenizer = AutoTokenizer.from_pretrained(parameters["model_name"], padding_side=padding_side)
-    tokenizer.pad_token = tokenizer.eos_token
     model = get_model(parameters, quantization, model_kind)
     track_scores = track_input_perplexity or track_output_perplexity
     generation_parameter_keys = ["max_new_tokens", "temperature", "do_sample", "top_p", "top_k", "num_return_sequences"]
     generation_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}
     meta_vars.update(generation_parameters)
+    if parameters["modality"] == "vlm":
+        if cache_prefix:
+            log_warn("Prefix caching is not supported for VLMs. Deactivating ...", parameters)
+            cache_prefix = False
     if parameters["num_return_sequences"] > 1 or batch_size > 1:
         if cache_prefix:
             log_warn("Prefix caching does not seem to work with num_return_sequences > 1 or batch_size > 1. Deactivating ...")
@@ -112,12 +179,12 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         if hasattr(original_generation_config, "pad_token_id") and original_generation_config.pad_token_id is not None:
             generation_parameters['pad_token_id'] = original_generation_config.pad_token_id
         else:
-            generation_parameters['pad_token_id'] = tokenizer.eos_token_id
+            generation_parameters['pad_token_id'] = parameters["pad_token_id"]
         log_discrepancies(generation_parameters, original_generation_config, parameters)
     except Exception as e:
         log_warn(f"Could not load generation config from {parameters['model_name']}. Will fall back to default...",
                  parameters)
-        generation_parameters["pad_token_id"] = tokenizer.eos_token_id
+        generation_parameters["pad_token_id"] = parameters["pad_token_id"]
     start_idx = data_df[data_df[parameters["generation_complete_column"]] == False].index.min()
     checkpointed = start_idx != 0
     save_meta_file(meta_vars, output_filepath, parameters, consider_checkpoint=checkpointed)
@@ -131,21 +198,20 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
                      f"Running inference without prefix caching...", parameters)
         else:
             #prompt_cache = get_cache(cache_implementation=cache_implementation, model=model, batch_size=batch_size)
-            prefix_inputs = tokenizer([prefix_text], padding=True, truncation=True, return_tensors="pt").to(model.device)
+            prefix_inputs = parameters["tokenizer"]([prefix_text], padding=True, truncation=True, return_tensors="pt").to(model.device)
             prompt_cache = model(**prefix_inputs, cache_implementation=cache_implementation).past_key_values # had past_key_values=prompt_cache
             del prefix_inputs
             log_info(f"Prefix prompt discovered and KV cache precomputed.\nPrefix: {prefix_text}", parameters)
 
     for i in tqdm(range(start_idx, len(data_df), batch_size)):
-        prompts = data_df.loc[i:i+batch_size-1, parameters["input_column"]].tolist()
-        inputs = tokenizer(prompts, padding=True, truncation=True, return_tensors="pt").to(model.device)
+        inputs = get_inputs(data_df, i, i + batch_size - 1, model, parameters)
         input_length = inputs["input_ids"].shape[1]
         if prompt_cache is not None:
             past_key_values = copy.deepcopy(prompt_cache)
             inputs["past_key_values"] = past_key_values
         else:
             inputs["cache_implementation"] = cache_implementation
-        output = model.generate(**inputs, tokenizer=tokenizer, output_scores=track_scores,
+        output = model.generate(**inputs, tokenizer=parameters["tokenizer"], output_scores=True,
                                 return_dict_in_generate=True, trust_remote_code=True,
                                 **generation_parameters)
         output_sequences = output.sequences
@@ -156,7 +222,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         if track_input_perplexity:
             raise NotImplementedError
         output_only = output_sequences[:, input_length:]
-        out = tokenizer.batch_decode(output_only, skip_special_tokens=True)
+        out = parameters["tokenizer"].batch_decode(output_only, skip_special_tokens=True)
         for out_i in range(len(out)):
             for stop_string in parameters["stop_strings"]:
                 out[out_i] = out[out_i].replace(stop_string, "")

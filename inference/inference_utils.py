@@ -49,6 +49,9 @@ def get_input_file(input_file, input_column, generation_complete_column, paramet
     else:
         if input_column not in df.columns:
             log_error(f"Input file must have a column named '{input_column}'. Available columns: {df.columns.tolist()}", parameters)
+        if parameters["modality"] == "vlm":
+            if parameters["image_input_column"] not in df.columns:
+                log_error(f"Input file must have a column named '{parameters['image_input_column']}' for image input. Available columns: {df.columns.tolist()}", parameters)
         if generation_complete_column in df.columns:
             log_error(f"Input file already has a column named '{generation_complete_column}'. This is used to track inference completion, reset it with --generation_complete_column or rename the column in your df", parameters)
         if len(df) == 0:
@@ -62,6 +65,8 @@ def get_output_file_path(output_file, input_file, input_df, output_column, param
         output_file = input_file.rsplit('.', 1)[0] + "_output." + "jsonl"
         if output_column in input_df.columns:
             log_error(f"Output file already has a column named '{output_column}'. This is used to store the model's output, reset it with --output_column or rename the column in your df", parameters)
+        if parameters["modality"] == "vlm" and parameters["image_input_column"] in input_df.columns:
+            log_error(f"Output file already has a column named '{parameters['image_input_column']}'. This is used to store the image input, reset it with --image_input_column or rename the column in your df", parameters)
 
     for possible_extension in ["csv", "tsv", "json", "txt", "parquet"]:
         if output_file.endswith(possible_extension):
