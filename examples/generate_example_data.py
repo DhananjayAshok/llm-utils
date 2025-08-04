@@ -69,6 +69,8 @@ def setup_pubmedqa(parameters):
     pretraining_df.to_csv(save_dir + "pretraining.csv", index=False)
     qa_gen_val_df.to_csv(save_dir + "qa_gen_val.csv", index=False)
     qa_gen_train_df.to_csv(save_dir + "qa_gen_train.csv", index=False)
+    qa_gen_train_df = qa_gen_val_df.sample(n=20).reset_index(drop=True)  # For testing purposes, we take a small sample
+    qa_gen_train_df.to_csv("tmp.csv", index=False)
     qa_gen_background_val_df.to_csv(save_dir + "qa_gen_background_val.csv", index=False)
     qa_gen_background_train_df.to_csv(save_dir + "qa_gen_background_train.csv", index=False)
 
@@ -114,19 +116,17 @@ def setup_manymodalqa(parameters):
     for file in files:
         df = pd.read_json(os.path.join(qa_path, file))
         df = df[df.q_type == "image"].reset_index(drop=True)
-        df["image_path"] = df["image"].apply(lambda x: x['url'])
-        df["image_path_local"] =  False
+        df["image"] = df["image"].apply(lambda x: x['url'])
         df["image_caption"] = df["image"].apply(lambda x: x['caption'])
-        df = df[["image_path", "image_path_local", "image_caption", "question", "answer"]]
+        df = df[["image", "image_caption", "question", "answer"]]
         dfs.append(df)
     df = pd.concat(dfs, ignore_index=True)
-    prompt_df = df[["image_path", "image_path_local"]]
+    prompt_df = df[["image"]]
     color_df = prompt_df.copy()
     color_df["input"] = (ManyModalQAExample.colour_instruction + "\nImage: <image>\nCaption: " + df["image_caption"]
                          + "\nQuestion: ")
     shape_df = prompt_df.copy()
     shape_df["input"] = ManyModalQAExample.shape_instruction + df["image_caption"] + "\nQuestion: "
-
     train_index = color_df.sample(frac=0.8, random_state=parameters["random_seed"]).index
     color_train_df = color_df.loc[train_index].reset_index(drop=True)
     color_val_df = color_df.drop(train_index).reset_index(drop=True)
