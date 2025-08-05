@@ -54,8 +54,8 @@ def setup_pubmedqa(parameters):
     qa_gen_background_prompt = PubMedQAExample.qa_gen_background_instruction
     for i, context in enumerate(contexts):
         pretraining_data.append(context)
-        qa_gen_val.append([i, qa_gen_val_prompt + context + "\nQuestion: "])
-        qa_gen_background.append([i, qa_gen_background_prompt + context + "\nQuestion: "])
+        qa_gen_val.append([i, qa_gen_val_prompt + context + "\nResults: "])
+        qa_gen_background.append([i, qa_gen_background_prompt + context + "\nBackground: "])
     pretraining_df = pd.DataFrame(pretraining_data, columns=pretraining_columns)
     qa_gen_val_df = pd.DataFrame(qa_gen_val, columns=columns)
     qa_gen_background_df = pd.DataFrame(qa_gen_background, columns=columns)
