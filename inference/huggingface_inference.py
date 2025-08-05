@@ -58,6 +58,17 @@ def get_model(parameters, quantization, model_kind):
         model = load_class.from_pretrained(model_name, device_map="auto", torch_dtype=dtype, quantization_config=quantization_config)
     return model.eval()
 
+def handle_replace_stop_strings(data_df, parameters):
+    tokenizer = parameters["tokenizer"]
+    eos_token = tokenizer.eos_token
+    if eos_token is None:
+        log_warn("Tokenizer does not have an eos token. Cannot replace stop strings.", parameters)
+        return
+    stop_strings = parameters["stop_strings"]
+    for stop_string in stop_strings:
+        replace_func = lambda x: x.replace(stop_string, eos_token)
+        data_df[parameters["input_column"]] = data_df[parameters["input_column"]].apply(replace_func)
+    return
 
 def infer_vlm_kind(model_name):
     """
@@ -176,13 +187,14 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
 @click.option("--cache_implementation", default="dynamic", type=click.Choice(["dynamic", "static", "offloaded", "offloaded_static", "quantized"]), help="The implementation to use for cache.")
 @click.option("--cache_prefix", type=bool, default=False, help="If true, will search for a prefix prompt in the input column and precompute its KV cache.")
 @click.option("--checkpoint_every", type=float, default=0.2)
+@click.option("--replace_stop_strings", type=bool, default=True, help="If set, will replace stop strings in the input text with the models eos token.")
 @click.option("--track_output_perplexity", type=bool, default=False)
 @click.option("--output_perplexity_column", type=str, default="output_perplexity")
 @click.option("--track_input_perplexity", type=bool, default=False)
 @click.option("--input_perplexity_column", type=str, default="input_perplexity")
 @click.option("--debug", type=bool, default=True, help="If set, will print the first generated output for a sanity check")
 @click.pass_obj
-def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, num_beams, num_beam_groups, diversity_penalty, cache_implementation, cache_prefix, checkpoint_every, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, debug):
+def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, num_beams, num_beam_groups, diversity_penalty, cache_implementation, cache_prefix, checkpoint_every, replace_stop_strings, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, debug):
     torch.set_grad_enabled(False)
     set_seed(parameters["random_seed"])
     parameters["padding_side"] = padding_side
@@ -192,6 +204,8 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
                  "cache_prefix": cache_prefix,
                  "cache_implementation": cache_implementation}
     model = get_model(parameters, quantization, model_kind)
+    if replace_stop_strings:
+        handle_replace_stop_strings(data_df, parameters)
     track_scores = track_input_perplexity or track_output_perplexity
     generation_parameter_keys = ["max_new_tokens", "temperature", "do_sample", "top_p", "top_k", "num_return_sequences"]
     generation_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}

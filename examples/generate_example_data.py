@@ -79,6 +79,27 @@ def setup_pubmedqa(parameters):
     log_info("PubMedQA dataset setup complete. Files saved in: " + save_dir)
 
 
+def process_pubmedqa_inference(parameters):
+    """
+    Processes the PubmedQA inference results. Assumes that inference has been run for all the necessary files.
+    """
+    save_dir = parameters["data_dir"] + "/pubmedqa/"
+    required_files = [
+        "qa_gen_val_output.jsonl",
+        "qa_gen_train_output.jsonl",
+        "qa_gen_background_val_output.jsonl",
+        "qa_gen_background_train_output.jsonl",]
+    missing_files = []
+    for file in required_files:
+        if not os.path.exists(os.path.join(save_dir, file)):
+            missing_files.append(file)
+    if missing_files:
+        log_error(f"Missing required files for PubmedQA inference: {', '.join(missing_files)}"
+                  f"\n Make sure to run the inference scripts to generate these", parameters)
+        return
+
+    return
+
 class ManyModalQAExample:
     colour_question_1 = "What are the primary colours of the Starry Night?"
     colour_answer_1 = "Blue and yellow"
