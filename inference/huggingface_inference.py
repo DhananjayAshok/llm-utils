@@ -3,6 +3,7 @@ import click
 from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSequenceClassification, AutoConfig,
                           DynamicCache, StaticCache, OffloadedCache, OffloadedStaticCache,
                           LlavaNextProcessor, LlavaNextForConditionalGeneration,
+                          Qwen2_5_VLForConditionalGeneration, AutoProcessor,
                           QuantizedCache, QuantizedCacheConfig, GenerationConfig, set_seed)
 import torch
 import copy
@@ -93,9 +94,20 @@ def get_vlm(parameters, quantization, model_kind):
         parameters["pad_token_id"] = processor.tokenizer.pad_token_id
         return model.eval()
     elif vlm_kind == "ovis":
-        pass
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype,
+                                                     multimodal_max_length=32768, # for now hard code this
+                                                     trust_remote_code=True, device_map="auto")
+        text_tokenizer = model.get_text_tokenizer()
+        visual_tokenizer = model.get_visual_tokenizer()
+        parameters["tokenizer"] = text_tokenizer
+        parameters["visual_tokenizer"] = visual_tokenizer
+        if text_tokenizer.pad_token is None:
+            text_tokenizer.pad_token = text_tokenizer.eos_token
+        parameters["pad_token_id"] = text_tokenizer.pad_token_id
     elif vlm_kind == "qwen":
-        pass
+        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
+                                                                    device_map="auto")
+        processor = AutoProcessor.from_pretrained(model_name, padding_side=padding_side)
     else:
         log_error(f"Bruh how")
 
