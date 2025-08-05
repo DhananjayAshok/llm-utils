@@ -1,5 +1,5 @@
 from utils import log_error, log_info, log_warn, log_dict
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 import click
 import zipfile
 import pandas as pd
@@ -9,25 +9,25 @@ import os
 
 class PubMedQAExample:
     context_1 = "Group 2 innate lymphoid cells (ILC2s) represent a recently discovered cell population which has been implicated in driving Th2 inflammation in CRS; however, their relationship with clinical disease characteristics has yet to be investigated. In the CRS with nasal polyps (CRSwNP) population, ILC2s were increased in patients with co-existing asthma (P = 0.03)."
-    question_1 = "Are group 2 innate lymphoid cells ( ILC2s ) increased in chronic rhinosinusitis with nasal polyps or eosinophilia?"
+    question_1 = "The studies results say that increased in the nasal polyp population, ILC2s are increased, suggesting a relationship.\nQuestion: Are group 2 innate lymphoid cells ( ILC2s ) increased in chronic rhinosinusitis with nasal polyps or eosinophilia?"
     answer_1 = "As ILC2s are elevated in patients with CRSwNP, they may drive nasal polyp formation in CRS.\nConclusion: Yes"
-    background_question_1 = "Are ILC2s involved in any kind of inflammation?"
-    background_answer_1 = "Group 2 innate lymphoid cells (ILC2s) are a recently discovered cell population implicated in driving Th2 inflammation in chronic rhinosinusitis (CRS).\nConclusion: Yes"
+    background_question_1 = "Recently discovered ILC2s are said to have been implicated in driving Th2 inflammation, which is key background context. \nQuestion: Are ILC2s involved in any kind of inflammation?"
+    background_answer_1 = "\nLong Answer: Group 2 innate lymphoid cells (ILC2s) are a recently discovered cell population implicated in driving Th2 inflammation in chronic rhinosinusitis (CRS).\nConclusion: Yes"
 
     context_2 = "Many assume that most patients hospitalized with heart failure (HF) are short of breath at rest (SOBAR). The National HF Audit for England and Wales suggests that this assumption is false, which has profound implications for management. Vital signs were tracked and those who were SOBAR had higher median heart rate (HR), systolic blood pressure (SBP), and respiratory rate (RR) compared with those who were CARBOSE"
-    question_2 = "Is breathlessness at rest the dominant presentation of patients admitted with heart failure?"
+    question_2 = "The study tracks the vital sighs of patients with shortness of breath, and finds their metrics better than those who are CARBOSE. \nQuestion: Is breathlessness at rest the dominant presentation of patients admitted with heart failure?"
     answer_2 = "Many patients admitted with HF are CARBOSE. Shortness of breath at rest may be more alarming, but those who are CARBOSE have a worse prognosis. \nConclusion: No"
-    background_question_2 = "Is there a nuanced understanding of patients hospitalized with heart failure?"
+    background_question_2 = "The text states a pre-existing bias towards thinking that patients who are short of breath are the ones who should be hospitalized. This is a premise of the study.\nQuestion: Is there a nuanced understanding of patients hospitalized with heart failure?"
     background_answer_2 = "Many assume that most patients hospitalized with heart failure are short of breath at rest.\nConclusion: No"
 
     qa_gen_val_instruction = f"Generate a true or false question and answer pair from the context. Make the question pertaining to the results and findings of the study"
-    qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_1 + "\nQuestion: " + question_1 + "\nAnswer: " + answer_1 + " [STOP]"
-    qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_2 + "\nQuestion: " + question_2 + "\nAnswer: " + answer_2 + " [STOP]"
+    qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_1 + "\nJustification: " + question_1 + "\nLong Answer: " + answer_1 + " [STOP]"
+    qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_2 + "\nJustification: " + question_2 + "\nLong Answer: " + answer_2 + " [STOP]"
     qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: "
 
     qa_gen_background_instruction = f"Generate a true or false QA pair from the context. Make the question pertaining to the background or premise of the study, not the results."
-    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_1 + "\nQuestion: " + background_question_1 + "\nAnswer: " + background_answer_1 + " [STOP]"
-    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_2 + "\nQuestion: " + background_question_2 + "\nAnswer: " + background_answer_2 + " [STOP]"
+    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_1 + "\nJustification: " + background_question_1 + "\nLong Answer: " + background_answer_1 + " [STOP]"
+    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_2 + "\nJustification: " + background_question_2 + "\nLong Answer: " + background_answer_2 + " [STOP]"
     qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: "
 
 
@@ -78,11 +78,21 @@ def setup_pubmedqa(parameters):
     test_df.to_csv(save_dir + "test_qa.csv", index=False)
     log_info("PubMedQA dataset setup complete. Files saved in: " + save_dir)
 
+def parse_pubmedqa_inference_output(output):
+    lines = output.split("\n") # we only want the first 3
+    if len(lines) < 3:
+        return {"question": None, "answer": None, "conclusion": None}
+    lines = lines[:3]
+    question = lines[0].strip().replace("Question: ", "")
+    answer = lines[1].strip().replace("Answer: ", "") + "\n" + lines[2].strip()
+    return {
+        "question": question, "answer": answer}
 
-def process_pubmedqa_inference(parameters):
+def make_pubmedqa_inference_datasets(parameters):
     """
     Processes the PubmedQA inference results. Assumes that inference has been run for all the necessary files.
     """
+    parameters["random_seed"] = parameters.get("random_seed", 42)  # Ensure random seed is set
     save_dir = parameters["data_dir"] + "/pubmedqa/"
     required_files = [
         "qa_gen_val_output.jsonl",
@@ -97,7 +107,23 @@ def process_pubmedqa_inference(parameters):
         log_error(f"Missing required files for PubmedQA inference: {', '.join(missing_files)}"
                   f"\n Make sure to run the inference scripts to generate these", parameters)
         return
-
+    for file_name in required_files:
+        file_path = os.path.join(save_dir, file_name)
+        df = pd.read_json(file_path, lines=True)
+        columns = ["input", "label"]
+        data = []
+        for i, row in df.iterrows():
+            outputs = row["output"]
+            for output in outputs:
+                parsed_output = parse_pubmedqa_inference_output(output)
+                if parsed_output["question"] is not None:
+                    question, answer = parsed_output["question"], parsed_output["answer"]
+                    data.append([question, answer])
+        df = pd.DataFrame(data, columns=columns)
+        dataset = Dataset.from_pandas(df)
+        split = "train" if "train" in file_name else "val"
+        config = "background" if "background" in file_name else "default"
+        dataset.push_to_hub(f"pubmed_inference", config=config, split=split)
     return
 
 class ManyModalQAExample:
