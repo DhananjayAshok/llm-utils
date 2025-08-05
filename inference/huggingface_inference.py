@@ -223,6 +223,14 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         meta_vars["num_beams"] = num_beams
     if num_beam_groups is not None:
         if num_beam_groups > 1:
+            if track_input_perplexity or track_output_perplexity:
+                second_string = "You may encounter an error."
+                if parameters["dtype"] != "float32":
+                    second_string = ("It seems to only work with float32 dtype. "
+                                     "Change the dtype and try again if you really want perplexity tracking, "
+                                     "but that might fail too. For now, switching off tracking....")
+                    track_scores = False
+                log_warn(f"The output_score argument required for perplexity tracking is weird with grouped beam search." + second_string, parameters)
             generation_parameters["num_beam_groups"] = num_beam_groups
             generation_parameters["diversity_penalty"] = diversity_penalty
             meta_vars["num_beam_groups"] = num_beam_groups
@@ -264,7 +272,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             inputs["past_key_values"] = past_key_values
         else:
             inputs["cache_implementation"] = cache_implementation
-        output = model.generate(**inputs, tokenizer=parameters["tokenizer"], output_scores=True,
+        output = model.generate(**inputs, tokenizer=parameters["tokenizer"], output_scores=track_scores,
                                 return_dict_in_generate=True, trust_remote_code=True,
                                 **generation_parameters)
         output_sequences = output.sequences
