@@ -85,7 +85,9 @@ def get_vlm(parameters, quantization, model_kind):
     model_name = parameters["model_name"]
     padding_side = parameters["padding_side"]
     vlm_kind = infer_vlm_kind(model_name)
+    parameters["vlm_kind"] = vlm_kind
     if vlm_kind == "internvl":
+        raise NotImplementedError("I don't need this yet. If you do, please implement it.")
         model = AutoModel.from_pretrained(model_name, torch_dtype=dtype, device_map="auto", trust_remote_code=True)
     elif vlm_kind == "llava":
         processor = LlavaNextProcessor.from_pretrained(model_name, padding_side=padding_side)
@@ -128,15 +130,20 @@ def get_inputs(data_df, start, end, model, parameters):
         return inputs
     elif parameters["modality"] == "vlm":
         input_texts = data_df.loc[start:end, parameters["input_column"]]
-        input_texts = "USER: <image>\n" + input_texts + "\nASSISTANT: "
-        input_texts = input_texts.tolist()
         input_image_urls = data_df.loc[start:end, parameters["image_input_column"]].tolist()
         images = []
         for url in input_image_urls:
             image = Image.open(url) if os.path.isfile(url) else Image.fromarray(io.imread(url))
             images.append(image)
-        inputs = parameters["tokenizer"](text=input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
-        return inputs
+        if parameters["vlm_kind"] in ["llava"]:
+            input_texts = "USER: <image>\n" + input_texts + "\nASSISTANT: "
+            input_texts = input_texts.tolist()
+            inputs = parameters["tokenizer"](text=input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
+            return inputs
+        elif parameters["vlm_kind"] in ["qwen"]:
+            input_texts = "<|im_start|>user\n<vision_start|><|image_pad|><|vision_end|>\n" + input_texts + "\n<|im_end|><|im_start|>assistant\n"
+            input_texts = input_texts.tolist()
+            inputs = parameters["tokenizer"](text=input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
     else:
         raise ValueError(f"Bro what did you do.")
 
