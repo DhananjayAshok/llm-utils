@@ -1,6 +1,7 @@
 from utils import log_error, log_warn, log_info, log_dict
 import click
-from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSequenceClassification, AutoConfig,
+from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSequenceClassification,
+                          AutoConfig, AutoModel,
                           DynamicCache, StaticCache, OffloadedCache, OffloadedStaticCache,
                           LlavaNextProcessor, LlavaNextForConditionalGeneration,
                           Qwen2_5_VLForConditionalGeneration, AutoProcessor,
@@ -85,7 +86,7 @@ def get_vlm(parameters, quantization, model_kind):
     padding_side = parameters["padding_side"]
     vlm_kind = infer_vlm_kind(model_name)
     if vlm_kind == "internvl":
-        pass
+        model = AutoModel.from_pretrained(model_name, torch_dtype=dtype, device_map="auto", trust_remote_code=True)
     elif vlm_kind == "llava":
         processor = LlavaNextProcessor.from_pretrained(model_name, padding_side=padding_side)
         model = LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
@@ -94,6 +95,7 @@ def get_vlm(parameters, quantization, model_kind):
         parameters["pad_token_id"] = processor.tokenizer.pad_token_id
         return model.eval()
     elif vlm_kind == "ovis":
+        raise NotImplementedError(f"This fails for some reason, need to investigate further...")
         model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype,
                                                      multimodal_max_length=32768, # for now hard code this
                                                      trust_remote_code=True, device_map="auto")
@@ -104,10 +106,16 @@ def get_vlm(parameters, quantization, model_kind):
         if text_tokenizer.pad_token is None:
             text_tokenizer.pad_token = text_tokenizer.eos_token
         parameters["pad_token_id"] = text_tokenizer.pad_token_id
+        return model.eval()
     elif vlm_kind == "qwen":
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
                                                                     device_map="auto")
         processor = AutoProcessor.from_pretrained(model_name, padding_side=padding_side)
+        parameters["tokenizer"] = processor
+        if processor.tokenizer.pad_token is None:
+            processor.tokenizer.pad_token = processor.tokenizer.eos_token
+        parameters["pad_token_id"] = processor.tokenizer.pad_token_id
+        return model.eval()
     else:
         log_error(f"Bruh how")
 
