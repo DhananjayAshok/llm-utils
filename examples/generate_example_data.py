@@ -20,14 +20,14 @@ class PubMedQAExample:
     background_question_2 = "The text states a pre-existing bias towards thinking that patients who are short of breath are the ones who should be hospitalized. This is a premise of the study.\nQuestion: Is there a nuanced understanding of patients hospitalized with heart failure?"
     background_answer_2 = "Many assume that most patients hospitalized with heart failure are short of breath at rest.\nConclusion: No"
 
-    qa_gen_val_instruction = f"Generate a true or false question and answer pair from the context. Make the question pertaining to the results and findings of the study"
-    qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_1 + "\nJustification: " + question_1 + "\nLong Answer: " + answer_1 + " [STOP]"
-    qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_2 + "\nJustification: " + question_2 + "\nLong Answer: " + answer_2 + " [STOP]"
+    qa_gen_val_instruction = f"Generate a true or false question and answer pair from the context. First explain the key result of the context and then make a question pertaining to the results and findings of the study"
+    qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_1 + "\nResults: " + question_1 + "\nLong Answer: " + answer_1 + " [STOP]"
+    qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_2 + "\nResults: " + question_2 + "\nLong Answer: " + answer_2 + " [STOP]"
     qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: "
 
-    qa_gen_background_instruction = f"Generate a true or false QA pair from the context. Make the question pertaining to the background or premise of the study, not the results."
-    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_1 + "\nJustification: " + background_question_1 + "\nLong Answer: " + background_answer_1 + " [STOP]"
-    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_2 + "\nJustification: " + background_question_2 + "\nLong Answer: " + background_answer_2 + " [STOP]"
+    qa_gen_background_instruction = f"Generate a true or false QA pair from the context. First identify a background information or premise from the context, then make a question pertaining to the background or premise of the study, not the results."
+    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_1 + "\nBackground: " + background_question_1 + "\nLong Answer: " + background_answer_1 + " [STOP]"
+    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_2 + "\nBackground: " + background_question_2 + "\nLong Answer: " + background_answer_2 + " [STOP]"
     qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: "
 
 
