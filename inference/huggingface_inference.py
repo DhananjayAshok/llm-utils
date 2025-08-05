@@ -144,6 +144,7 @@ def get_inputs(data_df, start, end, model, parameters):
             input_texts = "<|im_start|>user\n<vision_start|><|image_pad|><|vision_end|>\n" + input_texts + "\n<|im_end|><|im_start|>assistant\n"
             input_texts = input_texts.tolist()
             inputs = parameters["tokenizer"](text=input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
+            return inputs
     else:
         raise ValueError(f"Bro what did you do.")
 
