@@ -66,7 +66,7 @@ def handle_replace_stop_strings(data_df, parameters):
         return
     stop_strings = parameters["stop_strings"]
     for stop_string in stop_strings:
-        replace_func = lambda x: x.replace(stop_string, eos_token)
+        replace_func = lambda x: x.replace(stop_string, " " + eos_token + " ")
         data_df[parameters["input_column"]] = data_df[parameters["input_column"]].apply(replace_func)
     return
 
