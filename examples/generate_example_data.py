@@ -5,7 +5,7 @@ import zipfile
 import pandas as pd
 import os
 
-
+hf_hub="Dhananjay99" # If you want to push and set up from your own hub, change this to your username. 
 
 class PubMedQAExample:
     context_1 = "Group 2 innate lymphoid cells (ILC2s) represent a recently discovered cell population which has been implicated in driving Th2 inflammation in CRS; however, their relationship with clinical disease characteristics has yet to be investigated. In the CRS with nasal polyps (CRSwNP) population, ILC2s were increased in patients with co-existing asthma (P = 0.03)."
@@ -83,10 +83,10 @@ def parse_pubmedqa_inference_output(output):
     if len(lines) < 4:
         return {"question": None, "answer": None, "conclusion": None}
     justification = lines[0].strip().replace("Justification: ", "")
-    if "Question: " not in lines[1] or "Answer: " not in lines[2]:
+    if "Question: " not in lines[1] or "Long Answer: " not in lines[2]:
         return {"question": None, "answer": None, "justification": justification}
     question = lines[1].strip().replace("Question: ", "")
-    answer = lines[2].strip().replace("Answer: ", "") + "\n".join(lines[3:])
+    answer = lines[2].strip().replace("Long Answer: ", "") + "\n".join(lines[3:])
     return {
         "question": question, "answer": answer, "justification": justification}
 
@@ -109,10 +109,12 @@ def make_pubmedqa_inference_datasets(parameters):
         log_error(f"Missing required files for PubmedQA inference: {', '.join(missing_files)}"
                   f"\n Make sure to run the inference scripts to generate these", parameters)
         return
+    clf_train_dfs = []
+    clf_val_dfs = []
     for file_name in required_files:
         file_path = os.path.join(save_dir, file_name)
         df = pd.read_json(file_path, lines=True)
-        columns = ["input", "label"]
+        columns = ["input", "output"]
         data = []
         for i, row in df.iterrows():
             outputs = row["output"]
@@ -123,10 +125,35 @@ def make_pubmedqa_inference_datasets(parameters):
                     data.append([question, answer])
         df = pd.DataFrame(data, columns=columns)
         dataset = Dataset.from_pandas(df)
-        split = "train" if "train" in file_name else "val"
         config = "background" if "background" in file_name else "default"
         dataset.push_to_hub(f"pubmed_inference", config=config, split=split)
+        df["label"] = 0 if "background" in file_name else 1  # 0 for background, 1 for results QA
+        df = df[["input", "label"]]
+        split = "train" if "train" in file_name else "val"
+        if split == "train":
+            clf_train_dfs.append(df)
+        else:
+            clf_val_dfs.append(df)
+    train_df = pd.concat(clf_train_dfs, ignore_index=True)
+    val_df = pd.concat(clf_val_dfs, ignore_index=True)
+    train_dataset = Dataset.from_pandas(train_df)
+    val_dataset = Dataset.from_pandas(val_df)
+    train_dataset.push_to_hub("pubmed_inference", config="clf", split="train")
+    val_dataset.push_to_hub("pubmed_inference", config="clf", split="val")
     return
+
+def setup_pubmedqa_finetune_datasets(parameters):
+    store_dir = parameters["data_dir"] + "/pubmedqa/"
+    if not os.path.exists(store_dir):
+        os.makedirs(store_dir)
+    log_info("Setting up PubmedQA finetune datasets...", parameters)
+    configs = ["background", "default", "clf"]
+    splits = ["train", "val"]
+    for config in configs:
+        for split in splits:
+            dataset = load_dataset(f"{hf_hub}/pubmed_inference", config=config, split=split)
+            df = dataset.to_pandas()
+            df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
 
 class ManyModalQAExample:
     colour_question_1 = "What are the primary colours of the Starry Night?"
@@ -210,6 +237,8 @@ def pubmed_process(parameters, step):
     """
     if step == 1:
         make_pubmedqa_inference_datasets(parameters)
+    if step == 2:
+        setup_pubmedqa_finetune_datasets(parameters)
     
 
 if __name__ == "__main__":
