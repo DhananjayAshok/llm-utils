@@ -1,4 +1,4 @@
-from examples.generate_example_data import setup_data
+from examples.generate_example_data import setup_data, pubmed_process
 from utils import load_parameters
 import click
 
@@ -12,6 +12,7 @@ def main(ctx):
     pass
 
 main.add_command(setup_data, name="setup")
+main.add_command(pubmed_process, name="pubmed_process")
 
 if __name__ == "__main__":
     main()
