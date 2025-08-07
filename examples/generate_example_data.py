@@ -147,14 +147,18 @@ def setup_pubmedqa_finetune_datasets(parameters):
     if not os.path.exists(store_dir):
         os.makedirs(store_dir)
     log_info("Setting up PubmedQA finetune datasets...", parameters)
-    configs = ["background", "default", "clf"]
+    configs = ["clf", "background", "default"]
     splits = ["train", "val"]
     for config in configs:
         for split in splits:
             dataset = load_dataset(f"{hf_hub}/pubmed_inference", config, split=split)
             df = dataset.to_pandas()
             df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
-            log_info(f"Saved {config} {split} dataset to {store_dir}hf_{config}_{split}.csv", parameters)
+            log_info(f"Saved {config} {split} dataset to {store_dir}/hf_{config}_{split}.csv", parameters)
+            if split == "train":
+                df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
+                df.to_csv("tmp_ft.csv", index=False)
+                log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_ft.csv", parameters)
 
 class ManyModalQAExample:
     colour_question_1 = "What are the primary colours of the Starry Night?"
