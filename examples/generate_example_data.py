@@ -79,14 +79,16 @@ def setup_pubmedqa(parameters):
     log_info("PubMedQA dataset setup complete. Files saved in: " + save_dir)
 
 def parse_pubmedqa_inference_output(output):
-    lines = output.split("\n") # we only want the first 3
-    if len(lines) < 3:
+    lines = output.split("\n") # we only want the first 4
+    if len(lines) < 4:
         return {"question": None, "answer": None, "conclusion": None}
-    lines = lines[:3]
-    question = lines[0].strip().replace("Question: ", "")
-    answer = lines[1].strip().replace("Answer: ", "") + "\n" + lines[2].strip()
+    justification = lines[0].strip().replace("Justification: ", "")
+    if "Question: " not in lines[1] or "Answer: " not in lines[2]:
+        return {"question": None, "answer": None, "justification": justification}
+    question = lines[1].strip().replace("Question: ", "")
+    answer = lines[2].strip().replace("Answer: ", "") + "\n".join(lines[3:])
     return {
-        "question": question, "answer": answer}
+        "question": question, "answer": answer, "justification": justification}
 
 def make_pubmedqa_inference_datasets(parameters):
     """
