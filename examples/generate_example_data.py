@@ -154,6 +154,7 @@ def setup_pubmedqa_finetune_datasets(parameters):
             dataset = load_dataset(f"{hf_hub}/pubmed_inference", config, split=split)
             df = dataset.to_pandas()
             df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
+            log_info(f"Saved {config} {split} dataset to {store_dir}hf_{config}_{split}.csv", parameters)
 
 class ManyModalQAExample:
     colour_question_1 = "What are the primary colours of the Starry Night?"
@@ -235,9 +236,9 @@ def pubmed_process(parameters, step):
     Processes the inference results for PubmedQA dataset.
     Assumes that inference has been run for all the necessary files.
     """
-    if step == 1:
+    if step == 0:
         make_pubmedqa_inference_datasets(parameters)
-    if step == 2:
+    if step == 1:
         setup_pubmedqa_finetune_datasets(parameters)
     
 
