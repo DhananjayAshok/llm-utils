@@ -176,3 +176,4 @@ cython_debug/
 slurm_scripts/
 llm-env/
 .idea
+examples/scripts/env.sh # It won't change from now on. 
