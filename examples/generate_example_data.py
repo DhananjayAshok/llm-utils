@@ -198,7 +198,17 @@ def setup_data(parameters, dataset_names):
     if "manymodalqa" in dataset_names:
         setup_manymodalqa(parameters)
 
-
+@click.command()
+@click.option("--step", type=int, default=1, help="Step number for the PubmedQA dataset setup.")
+@click.pass_obj
+def pubmed_process(parameters, step):
+    """
+    Processes the inference results for PubmedQA dataset.
+    Assumes that inference has been run for all the necessary files.
+    """
+    if step == 1:
+        make_pubmedqa_inference_datasets(parameters)
+    
 
 if __name__ == "__main__":
     raise ValueError("This script is not meant to be run directly. Please use the create_examples.py script to set up the data.")
