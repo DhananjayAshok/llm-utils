@@ -1,9 +1,13 @@
+from utils.log_handling import log_warn
 from vllm import LLM, SamplingParams
-from utils import log_info
+from utils import log_info, log_warn
 from inference.inference_utils import save_meta_file
 import click
 import torch
 
+
+def quick_token_count(text):
+    return len(text.split())
 
 @click.command()
 @click.option("--enable_prefix_caching", type=bool, default=True, help="Enable prefix caching for vLLM inference.")
@@ -11,6 +15,9 @@ import torch
 @click.pass_obj
 def vllm_inference(parameters, enable_prefix_caching, max_model_len):
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
+    quick_token_count_max = data_df[parameters["input_column"]].apply(quick_token_count).max()
+    if quick_token_count_max > max_model_len:
+        log_warn(f"Input text length exceeds max model length ({quick_token_count_max} > {max_model_len}). This run may fail, consider increasing --max_model_len value after vllm command.", parameters)
     meta_vars = {}
     temperature = 1.0
     if parameters["temperature"] is not None:
