@@ -125,11 +125,11 @@ def make_pubmedqa_inference_datasets(parameters):
                     data.append([question, answer])
         df = pd.DataFrame(data, columns=columns)
         dataset = Dataset.from_pandas(df)
+        split = "train" if "train" in file_name else "val"
         config = "background" if "background" in file_name else "default"
         dataset.push_to_hub(f"pubmed_inference", config=config, split=split)
         df["label"] = 0 if "background" in file_name else 1  # 0 for background, 1 for results QA
         df = df[["input", "label"]]
-        split = "train" if "train" in file_name else "val"
         if split == "train":
             clf_train_dfs.append(df)
         else:
