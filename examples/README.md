@@ -54,7 +54,7 @@ This will trigger the huggingface inference pipeline, which has the following ar
 
 There are other options for tracking perplexity, see [the click options](inference/huggingface_inference.py) for more. 
 
-### Inferring Batch Size
+#### Inferring Batch Size
 But before running inference, let's  identify the largest batch size we can use. To do that, we will fix some generation configurations, so our code knows how we plan on running the model:
 - `max_new_tokens`: 200
 - `num_return_sequences`: 5
@@ -72,10 +72,25 @@ This gives me the recommended maximum batch size of 6. If you get 0 (i.e. nothin
 
 We'll pick a batch_size slightly smaller than the maximum: 4. 
 
-To run inference on all of the generation files, you can use the following command (make sure to set your desired batch_size first):
+To run inference on all of the generation files, you can use the following command (make sure to set your desired batch_size first): 
 ```bash
 bash examples/scripts/pubmedqa_gen_queries.sh
 ```
+
+Note, you do *not* need to run the above line in order to proceed with the tutorial. I have precomputed the output and make them available from my HuggingFace repo. To set them up on your system, run the command:
+```bash
+python create_examples.py pubmed_process
+```
+This will set up the fine-tuning csv's with columns `input` (the question text) and `output` (the long answer + conclusion text). it also set's up a fine-tuning csv pair with columns `input` (the question text) and `label` (1 if query is results based, 0 if it is background based)
+
+### Classification Finetuning
+
+### Pretraining
+
+### Supervised Finetuning
+
+### Preference Optimization
+
 
 
 ## Question Generation with Vision Language Models
