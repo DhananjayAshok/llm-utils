@@ -127,7 +127,7 @@ def make_pubmedqa_inference_datasets(parameters):
         dataset = Dataset.from_pandas(df)
         split = "train" if "train" in file_name else "val"
         config = "background" if "background" in file_name else "default"
-        dataset.push_to_hub(f"pubmed_inference", config=config, split=split)
+        dataset.push_to_hub(f"pubmed_inference", config_name=config, split=split)
         df["label"] = 0 if "background" in file_name else 1  # 0 for background, 1 for results QA
         df = df[["input", "label"]]
         if split == "train":
@@ -138,8 +138,8 @@ def make_pubmedqa_inference_datasets(parameters):
     val_df = pd.concat(clf_val_dfs, ignore_index=True)
     train_dataset = Dataset.from_pandas(train_df)
     val_dataset = Dataset.from_pandas(val_df)
-    train_dataset.push_to_hub("pubmed_inference", config="clf", split="train")
-    val_dataset.push_to_hub("pubmed_inference", config="clf", split="val")
+    train_dataset.push_to_hub("pubmed_inference", config_name="clf", split="train")
+    val_dataset.push_to_hub("pubmed_inference", config_name="clf", split="val")
     return
 
 def setup_pubmedqa_finetune_datasets(parameters):
@@ -151,7 +151,7 @@ def setup_pubmedqa_finetune_datasets(parameters):
     splits = ["train", "val"]
     for config in configs:
         for split in splits:
-            dataset = load_dataset(f"{hf_hub}/pubmed_inference", config=config, split=split)
+            dataset = load_dataset(f"{hf_hub}/pubmed_inference", config, split=split)
             df = dataset.to_pandas()
             df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
 
