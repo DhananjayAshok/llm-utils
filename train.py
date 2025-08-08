@@ -139,7 +139,6 @@ if __name__ == "__main__":
     if script_args.log_verbose:
         log_token_statistics(script_args, dataset, tokenizer, default_parameters["logger"])
 
-
     trainer, dataset = get_trainer(script_args, training_args, dataset, model, tokenizer)
 
     if script_args.training_kind == "clf" and script_args.evaluate_before_training and "test" in dataset:
@@ -149,9 +148,9 @@ if __name__ == "__main__":
 
     output_dir = os.path.join(training_args.output_dir, "final_checkpoint")
     if script_args.use_peft:
-        trainer.model = trainer.model.merge_and_unload() # I haven't tested this with FSDP etc.
+        trainer.model = trainer.model.merge_and_unload()
 
-    trainer.processing_class.save_pretrained(output_dir) # tokenizer basically
+    trainer.processing_class.save_pretrained(output_dir)
     is_main_process = accelerator.is_main_process
     save_function = accelerator.save
     state_dict = accelerator.get_state_dict(trainer.model)
@@ -160,4 +159,4 @@ if __name__ == "__main__":
     if "test" in dataset:
         trainer.evaluate(dataset["test"])
 
-accelerator.end_training()
+    accelerator.end_training()
