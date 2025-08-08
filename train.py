@@ -90,9 +90,11 @@ if __name__ == "__main__":
     # Parse arguments. The arguments we expect will depend on the training kind, so we have to parse the args twice. 
     parser = HfArgumentParser((ScriptArguments, TrainingArguments))
     script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0] # return_remaining_strings stops error out on unknown args
+    accelerator = Accelerator()    
     if script_args.training_kind in ["pre", "sft"]:
-        if script_args.training_kind == "sft":
-            default_parameters["logger"].warn("SFT is supported, but it works pretty badly. I think this has to do with the data collater class and is hence a bit more involved to fix.") # TODO: Fix SFT
+        if accelerator.is_main_process:
+            if script_args.training_kind == "sft":
+                log_warn("SFT is supported, but it works pretty badly. I think this has to do with the data collater class and is hence a bit more involved to fix.", default_parameters) # TODO: Fix SFT
         parser = HfArgumentParser((ScriptArguments, SFTConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
     elif script_args.training_kind == "dpo":
@@ -105,7 +107,8 @@ if __name__ == "__main__":
         parser = HfArgumentParser((ScriptArguments, TrainingArguments))
         script_args, training_args = parser.parse_args_into_dataclasses()
     else:
-        log_error(default_parameters["logger"], f"Training kind {script_args.training_kind} not supported. Please use one of sft, dpo, clf, pre.")
+        if accelerator.is_main_process:
+            log_error(f"Training kind {script_args.training_kind} not supported. Please use one of sft, dpo, clf, pre.", default_parameters)
 
     script_args.seed = training_args.seed
     script_args.data_seed = training_args.data_seed
@@ -127,8 +130,7 @@ if __name__ == "__main__":
     dataset = load_data(script_args, default_parameters)
 
 
-    accelerator = Accelerator()
-    script_args.accelerator = accelerator  # I don't know if this is the right way to do this. 
+    script_args.accelerator = accelerator 
     model, tokenizer = None, None
     if script_args.training_kind == "clf" and script_args.use_peft:     
         # TRL takes in peft_config instead of model, so we load the peft model only for classification which uses Trainer directly
@@ -141,10 +143,13 @@ if __name__ == "__main__":
 
     trainer, dataset = get_trainer(script_args, training_args, dataset, model, tokenizer)
 
-    if script_args.training_kind == "clf" and script_args.evaluate_before_training and "test" in dataset:
+    if script_args.evaluate_before_training and "test" in dataset:
         trainer.evaluate(dataset["test"])
 
     trainer.train()
+
+    if "test" in dataset:
+        trainer.evaluate(dataset["test"])
 
     output_dir = os.path.join(training_args.output_dir, "final_checkpoint")
     if script_args.use_peft:
@@ -155,8 +160,5 @@ if __name__ == "__main__":
     save_function = accelerator.save
     state_dict = accelerator.get_state_dict(trainer.model)
     trainer.model.save_pretrained(output_dir, is_main_process=is_main_process, state_dict=state_dict, save_function=save_function)
-
-    if "test" in dataset:
-        trainer.evaluate(dataset["test"])
 
     accelerator.end_training()
