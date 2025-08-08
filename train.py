@@ -9,6 +9,7 @@ from utils import load_parameters, log_error, log_info, log_warn
 from training.data import load_data, log_token_statistics
 from training.model import get_model_tokenizer, get_peft_model_tokenizer
 from training.trainers import get_trainer
+from accelerate import Accelerator
 
 
 import os
@@ -126,6 +127,8 @@ if __name__ == "__main__":
     dataset = load_data(script_args, default_parameters)
 
 
+    accelerator = Accelerator()
+    script_args.accelerator = accelerator  # I don't know if this is the right way to do this. 
     model, tokenizer = None, None
     if script_args.training_kind == "clf" and script_args.use_peft:     
         # TRL takes in peft_config instead of model, so we load the peft model only for classification which uses Trainer directly
@@ -145,12 +148,16 @@ if __name__ == "__main__":
     trainer.train()
 
     output_dir = os.path.join(training_args.output_dir, "final_checkpoint")
-    #trainer.model.to('cpu')
     if script_args.use_peft:
-        trainer.model = trainer.model.merge_and_unload()
-    trainer.model.save_pretrained(output_dir)
+        trainer.model = trainer.model.merge_and_unload() # I haven't tested this with FSDP etc.
+
     trainer.processing_class.save_pretrained(output_dir) # tokenizer basically
+    is_main_process = accelerator.is_main_process
+    save_function = accelerator.save
+    state_dict = accelerator.get_state_dict(trainer.model)
+    trainer.model.save_pretrained(output_dir, is_main_process=is_main_process, state_dict=state_dict, save_function=save_function)
 
     if "test" in dataset:
-        trainer.model.to("cuda")
         trainer.evaluate(dataset["test"])
+
+accelerator.end_training()

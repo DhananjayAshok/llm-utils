@@ -1,7 +1,6 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoConfig, AutoTokenizer, BitsAndBytesConfig, AutoModelForSequenceClassification
 from peft import LoraConfig, TaskType, get_peft_model
-from accelerate import Accelerator
 from training.data import infer_label_list
 
 
@@ -30,10 +29,11 @@ def get_model_tokenizer(script_args, dataset):
                 trust_remote_code=True,
                 )
         else:
+            #TODO: This doesn't seem to work with older versions + deepspeed
             base_model = AutoModelForCausalLM.from_pretrained(
                 script_args.model_name,
                 quantization_config=bnb_config,
-                device_map={"": Accelerator().local_process_index}, #TODO: This doesn't seem to work with older versions + deepspeed
+                device_map={"": script_args.accelerator.local_process_index},
                 trust_remote_code=True,
             )
     else:
