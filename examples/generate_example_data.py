@@ -155,6 +155,10 @@ def setup_pubmedqa_finetune_datasets(parameters):
             df = dataset.to_pandas()
             df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
             log_info(f"Saved {config} {split} dataset to {store_dir}/hf_{config}_{split}.csv", parameters)
+            if split == "train" and config == "clf":
+                df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
+                df.to_csv("tmp_clf.csv", index=False)
+                log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_clf.csv", parameters)
             if split == "train" and config == "default":
                 df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
                 df.to_csv("tmp_ft.csv", index=False)

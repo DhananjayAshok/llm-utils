@@ -151,8 +151,11 @@ def get_inputs(data_df, start, end, model, parameters):
             image = Image.open(url) if os.path.isfile(url) else Image.fromarray(io.imread(url))
             images.append(image)
         if parameters["vlm_kind"] in ["llava"]:
+            if input_texts.apply(lambda x: "<image>" in x).any(): # do not use <image> tag, let the next line handle it
+                input_texts = input_texts.apply(lambda x: x.replace("<image>", ""))
             input_texts = "USER: <image>\n" + input_texts + "\nASSISTANT: "
             input_texts = input_texts.tolist()
+            raise NotImplementedError("This fails and I dont yet know why")
             inputs = parameters["tokenizer"](text=input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
             return inputs
         elif parameters["vlm_kind"] in ["qwen"]:
