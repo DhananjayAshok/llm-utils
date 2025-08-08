@@ -314,7 +314,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             out = output.logits.argmax(dim=-1).detach().cpu().numpy() # might want to save logits instead
             out = out.reshape(-1, 1).tolist()
             for counter, j in enumerate(range(i, i+n_items_in_batch)):
-                data_df.at[j, parameters["output_column"]] = out[counter]
+                data_df.at[j, parameters["output_column"]] = out[counter][0]
         data_df.loc[i:i+batch_size-1, parameters["generation_complete_column"]] = True
         del inputs
         del output
