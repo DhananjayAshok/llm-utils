@@ -104,6 +104,7 @@ def get_vlm(parameters, quantization, model_kind):
         raise NotImplementedError("I don't need this yet. If you do, please implement it.")
         model = AutoModel.from_pretrained(model_name, torch_dtype=dtype, device_map="auto", trust_remote_code=True)
     elif vlm_kind == "llava":
+        # NOTE: THIS WILL FAIL FOR LLAVA1.5 AND BELOW, AS THEY DO NOT SUPPORT LLAVA NEXT PROCESSOR
         processor = LlavaNextProcessor.from_pretrained(model_name, padding_side=padding_side)
         model = LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
                                                                   device_map="auto", trust_remote_code=True)

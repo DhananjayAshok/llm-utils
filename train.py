@@ -5,8 +5,7 @@
 	4. Handle classification separately
 	5. Implement SFT, DPO and Pre (packing diff is all)
 """
-from utils.parameter_handling import load_parameters
-from utils.log_handling import log_error
+from utils import load_parameters, log_error, log_info, log_warn
 from training.data import load_data, log_token_statistics
 from training.model import get_model_tokenizer, get_peft_model_tokenizer
 from training.trainers import get_trainer
