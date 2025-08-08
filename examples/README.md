@@ -1,6 +1,6 @@
 # Examples
 
-Once you've followed the environment [setup instructions](README.md), add the `storage_dir` variable to the example [environment file](examples/scripts/env.sh). 
+Once you've followed the environment [setup instructions](README.md) (especially the accelerate config setup steps for training), add the `storage_dir` variable to the example [environment file](examples/scripts/env.sh). 
 
 You can now start running these example experiments to get a hang of this repo and its functionalities. 
 
@@ -81,9 +81,30 @@ Note, you do *not* need to run the above line in order to proceed with the tutor
 ```bash
 python create_examples.py pubmed_process
 ```
-This will set up the fine-tuning csv's with columns `input` (the question text) and `output` (the long answer + conclusion text). it also set's up a fine-tuning csv pair with columns `input` (the question text) and `label` (1 if query is results based, 0 if it is background based)
+This will set up the fine-tuning csv's with columns `input` (the question text) and `output` (the long answer + conclusion text). it also set's up a classification csv pair with columns `input` (the question text) and `label` (1 if query is results based, 0 if it is background based)
 
 ### Classification Finetuning
+We'll use the files from above and train a classifier that tells us whether a generated question is a results based (1) or background based (0) question. First, make sure you have CUDA_HOME accessible in the environment where the script will execute. Then, run:
+
+```bash
+bash examples/scripts/pubmed_clf.sh
+```
+
+This command triggers classification fine-tuning of a small LLama3 model with:
+```bash
+accelerate launch train.py --training_kind clf --model_name meta-llama/Llama-3.2-1B-Instruct \
+--output_dir $storage_dir/models/clf_model --num_train_epochs 10 \
+--train_file $storage_dir/data/pubmedqa/hf_clf_train.csv --train_validation_split 0.85 --test_file $storage_dir/data/pubmedqa/hf_clf_val.csv --output_column label  \
+--logging_strategy epoch --eval_strategy epoch \
+--run_name pubmed-classification
+```
+
+Then, it uses that saved model (saves to output_dir/final_checkpoint) to conduct inference on the test file:
+```bash
+python infer.py --model_name $storage_dir/models/clf_model/final_checkpoint --input_file $storage_dir/data/pubmedqa/hf_clf_val.csv hf --model_kind clf --batch_size 20
+```
+
+As you can see, we achieve significantly higher than random accuracy on the test set. 
 
 ### Pretraining
 

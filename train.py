@@ -144,12 +144,12 @@ if __name__ == "__main__":
     trainer, dataset = get_trainer(script_args, training_args, dataset, model, tokenizer)
 
     if script_args.evaluate_before_training and "test" in dataset:
-        trainer.evaluate(dataset["test"])
+        trainer.evaluate(dataset["test"], metric_key_prefix="test") # This will fail if run in FSDP: https://github.com/huggingface/transformers/issues/39961
 
     trainer.train()
 
     if "test" in dataset:
-        trainer.evaluate(dataset["test"])
+        trainer.evaluate(dataset["test"], metric_key_prefix="test")
 
     output_dir = os.path.join(training_args.output_dir, "final_checkpoint")
     if script_args.use_peft:
