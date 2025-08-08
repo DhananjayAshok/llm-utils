@@ -282,33 +282,40 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             inputs["past_key_values"] = past_key_values
         else:
             inputs["cache_implementation"] = cache_implementation
-        output = model.generate(**inputs, tokenizer=parameters["tokenizer"], output_scores=track_scores,
-                                return_dict_in_generate=True, trust_remote_code=True,
-                                **generation_parameters)
-        output_sequences = output.sequences
-        output_normed_perplexity = None
-        input_normed_perplexity = None
-        if track_output_perplexity:
-            output_normed_perplexity = model.compute_transition_scores(output.sequences, output.scores, normalize_logits=True).mean().detach().cpu().numpy().item()
-        if track_input_perplexity:
-            raise NotImplementedError
-        output_only = output_sequences[:, input_length:]
-        out = parameters["tokenizer"].batch_decode(output_only, skip_special_tokens=True)
-        for out_i in range(len(out)):
-            for stop_string in parameters["stop_strings"]:
-                out[out_i] = out[out_i].replace(stop_string, "")
-        out = np.array(out)
-        n_items_in_batch = inputs['input_ids'].shape[0]
-        out_reshaped = out.reshape(n_items_in_batch, parameters["num_return_sequences"]).tolist()
+        if model_kind == "gen":
+            output = model.generate(**inputs, tokenizer=parameters["tokenizer"], output_scores=track_scores,
+                                    return_dict_in_generate=True, trust_remote_code=True,
+                                    **generation_parameters)
+            output_sequences = output.sequences
+            output_normed_perplexity = None
+            input_normed_perplexity = None
+            if track_output_perplexity:
+                output_normed_perplexity = model.compute_transition_scores(output.sequences, output.scores, normalize_logits=True).mean().detach().cpu().numpy().item()
+            if track_input_perplexity:
+                raise NotImplementedError
+            output_only = output_sequences[:, input_length:]
+            out = parameters["tokenizer"].batch_decode(output_only, skip_special_tokens=True)
+            for out_i in range(len(out)):
+                for stop_string in parameters["stop_strings"]:
+                    out[out_i] = out[out_i].replace(stop_string, "")
+            out = np.array(out)
+            n_items_in_batch = inputs['input_ids'].shape[0]
+            out_reshaped = out.reshape(n_items_in_batch, parameters["num_return_sequences"]).tolist()
+            for counter, j in enumerate(range(i, i+n_items_in_batch)):
+                data_df.at[j, parameters["output_column"]] = out_reshaped[counter]
+            if i == start_idx and debug:
+                output_str = "\n[Output]: ".join(out_reshaped[0])
+                input_str = data_df.loc[i, parameters["input_column"]]
+                if prefix_text is not None:
+                    input_str = "(Common prefix removed...) + " + input_str[len(prefix_text):]  # remove prefix from input
+                log_info(f"First generated output for sanity check: \nInput: {input_str} \nOutput(s): {output_str}", parameters)
+        elif model_kind == "clf":
+            output = model(**inputs)
+            out = output.logits.argmax(dim=-1).detach().cpu().numpy()
+            out = out.reshape(-1, 1).tolist()
+            for counter, j in enumerate(range(i, i+n_items_in_batch)):
+                data_df.at[j, parameters["output_column"]] = out[counter]
         data_df.loc[i:i+batch_size-1, parameters["generation_complete_column"]] = True
-        for counter, j in enumerate(range(i, i+n_items_in_batch)):
-            data_df.at[j, parameters["output_column"]] = out_reshaped[counter]
-        if i == start_idx and debug:
-            output_str = "\n[Output]: ".join(out_reshaped[0])
-            input_str = data_df.loc[i, parameters["input_column"]]
-            if prefix_text is not None:
-                input_str = "(Common prefix removed...) + " + input_str[len(prefix_text):]  # remove prefix from input
-            log_info(f"First generated output for sanity check: \nInput: {input_str} \nOutput(s): {output_str}", parameters)
         del inputs
         del output
         if track_output_perplexity:
