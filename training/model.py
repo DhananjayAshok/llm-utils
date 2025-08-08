@@ -37,7 +37,7 @@ def get_model_tokenizer(script_args, dataset):
                 trust_remote_code=True,
             )
     else:
-        label_list = infer_label_list(dataset, script_args.logger)
+        label_list = infer_label_list(dataset, script_args.parameters)
         num_labels = len(label_list)
         config = AutoConfig.from_pretrained(
             script_args.model_name,

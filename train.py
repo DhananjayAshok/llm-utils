@@ -89,8 +89,8 @@ def override_defaults(training_args):
 if __name__ == "__main__":
     # Parse arguments. The arguments we expect will depend on the training kind, so we have to parse the args twice. 
     parser = HfArgumentParser((ScriptArguments, TrainingArguments))
-    script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0] # return_remaining_strings stops error out on unknown args
-    accelerator = Accelerator()    
+    script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0]  # return_remaining_strings stops error out on unknown args
+    accelerator = Accelerator()
     if script_args.training_kind in ["pre", "sft"]:
         if accelerator.is_main_process:
             if script_args.training_kind == "sft":
@@ -124,10 +124,10 @@ if __name__ == "__main__":
     set_seed(training_args.seed)
     if script_args.log_verbose:
         default_parameters["logger"].setLevel(logging.DEBUG)
-    script_args.logger = default_parameters["logger"]
+    script_args.parameters = default_parameters
 
 
-    dataset = load_data(script_args, default_parameters)
+    dataset = load_data(script_args)
 
 
     script_args.accelerator = accelerator 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
         model, tokenizer = get_model_tokenizer(script_args, dataset)
 
     if script_args.log_verbose:
-        log_token_statistics(script_args, dataset, tokenizer, default_parameters["logger"])
+        log_token_statistics(script_args, dataset, tokenizer, script_args.parameters)
 
     trainer, dataset = get_trainer(script_args, training_args, dataset, model, tokenizer)
 

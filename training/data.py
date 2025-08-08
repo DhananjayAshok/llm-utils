@@ -1,4 +1,4 @@
-from utils.log_handling import log_error
+from utils import log_error, log_warn, log_info
 
 import datasets
 from datasets import load_dataset, disable_caching
@@ -8,7 +8,7 @@ from trl.trainer import ConstantLengthDataset
 disable_caching()
 
 
-def validate_data(dataset, training_kind, pretrain_with_output, logger):
+def validate_data(dataset, training_kind, pretrain_with_output, parameters):
     """
     Check that the dataset has the right columns and data types for the training kind
     """
@@ -24,9 +24,9 @@ def validate_data(dataset, training_kind, pretrain_with_output, logger):
                 err_string = f"Column {column} not found in {split} split of the dataset with columns {dataset[split].column_names}. Pass --input_column,  --output_column, --chosen_column or --rejected_column to rename the columns in the dataset."
                 if training_kind == "pre" and column == "output":
                     err_string = err_string + " For pretraining with argument pretrain_with_output=True. Either set pretrain_with_output=False or provide an output column."
-                log_error(logger, err_string)
+                log_error(err_string, parameters)
 
-    dataset = handle_nans(dataset, mandatory_columns, logger)
+    dataset = handle_nans(dataset, mandatory_columns, parameters)
     return dataset # Right now the dtype doesn't seem to update after dropping nans, so just trust the user. 
     string_columns = ["input", "chosen", "rejected"]
     string_or_int_or_bool_columns = []
@@ -46,7 +46,7 @@ def validate_data(dataset, training_kind, pretrain_with_output, logger):
     return dataset
 
 
-def handle_nans(dataset, check_cols, logger):
+def handle_nans(dataset, check_cols, parameters):
     lengths = {}
     for split in dataset:
         lengths[split] = len(dataset[split])
@@ -59,7 +59,7 @@ def handle_nans(dataset, check_cols, logger):
     for split in dataset:
         newlength = len(dataset[split])
         if newlength != lengths[split]:
-            logger.warning(f"Removed {lengths[split] - newlength} rows with NaN values from {split} split")
+            log_warn(f"Removed {lengths[split] - newlength} rows with NaN values from {split} split", parameters)
     return dataset
 
 
@@ -94,7 +94,7 @@ def drop_column_if_needed(dataset, column_name):
             return dataset
     return dataset
 
-def load_data_splits(extension, script_args, parameters):
+def load_data_splits(extension, script_args):
     """
     Check that the file extension is valid and return Dataset
     Args:
@@ -107,7 +107,7 @@ def load_data_splits(extension, script_args, parameters):
                     columns (input), (input, output) or (input, chosen, rejected) depending on the training kind
                     It has been shuffled and cut to the length (dataset length not token) specified in args
     """
-    logger = parameters["logger"]
+    parameters = script_args.parameters
     train_file = script_args.train_file
     validation_file = script_args.validation_file
     test_file = script_args.test_file
@@ -135,21 +135,32 @@ def load_data_splits(extension, script_args, parameters):
     if script_args.rejected_column is not None:
         dataset = drop_column_if_needed(dataset, "rejected")
         dataset = dataset.rename_column(script_args.rejected_column, "rejected")
-    dataset = validate_data(dataset, script_args.training_kind, script_args.pretrain_with_output, logger)
+    dataset = validate_data(dataset, script_args.training_kind, script_args.pretrain_with_output, parameters)
     if validation_file is None and train_split is not None:
-        train_val = dataset["train"].train_test_split(test_size=train_split, seed=random_seed)
-        dataset["train"] = train_val["train"]
-        dataset["validation"] = train_val["test"]
+        if 0 < train_split < 1:
+            train_val = dataset["train"].train_test_split(test_size=train_split, seed=random_seed)
+            dataset["train"] = train_val["train"]
+            dataset["validation"] = train_val["test"]
+        else:
+            log_error("train_validation_split cannot be outside 0 and 1, please provide a valid split.", parameters)
     if test_file is None and validation_split is not None:
-        val_test = dataset["validation"].train_test_split(test_size=validation_split, seed=random_seed)
-        dataset["validation"] = val_test["train"]
-        dataset["test"] = val_test["test"]
+        if 0 < validation_split < 1:
+            val_test = dataset["validation"].train_test_split(test_size=validation_split, seed=random_seed)
+            dataset["validation"] = val_test["train"]
+            dataset["test"] = val_test["test"]
+        else:
+            if validation_split == 0: # remove validation split and add test split
+                dataset["test"] = dataset.pop("validation")
+
+
+
+
     dataset = shuffle_and_handle_data_sizes(script_args, dataset, random_seed)
     return dataset
 
 
 
-def load_data(script_args, parameters):
+def load_data(script_args):
     """
     Load the data from the file arguments and return the dataset
 
@@ -162,16 +173,16 @@ def load_data(script_args, parameters):
                  columns (input), (input, output) or (input, chosen, rejected) depending on the training kind
 
     """
+    parameters = script_args.parameters
     training_kind = script_args.training_kind
     train_file = script_args.train_file
-    logger = parameters["logger"]
     train_file_extension = train_file.split(".")[-1]
     allowed_extensions = ["csv"]
     if training_kind == "pre":
         allowed_extensions.append("txt")
     if train_file_extension not in allowed_extensions:
-        log_error(logger, f"Unsupported file extension {train_file_extension}, only {allowed_extensions} are supported for training kind {training_kind}.")
-    dataset = load_data_splits(train_file_extension, script_args, parameters)
+        log_error(f"Unsupported file extension {train_file_extension}, only {allowed_extensions} are supported for training kind {training_kind}.", parameters)
+    dataset = load_data_splits(train_file_extension, script_args)
     return dataset
 
 
@@ -186,7 +197,7 @@ def str_nested_dict(d, indent=0):
     return s
 
 
-def log_token_statistics(script_args, dataset, tokenizer, logger):
+def log_token_statistics(script_args, dataset, tokenizer, parameters):
     """
     Compute token statistics for the dataset and print to log
     """
@@ -215,7 +226,7 @@ def log_token_statistics(script_args, dataset, tokenizer, logger):
             statistics[split][column]["total_words"] = total_words
             statistics[split][column]["total_tokens"] = total_tokens
             statistics[split][column]["characters_per_token"] = total_characters / total_tokens
-    logger.debug(str_nested_dict(statistics))
+    parameters["logger"].debug(str_nested_dict(statistics))
     return statistics
 
 
@@ -228,7 +239,7 @@ def get_label_list(raw_dataset, split="train"):
     return label_list
 
 
-def infer_label_list(dataset, logger):
+def infer_label_list(dataset, parameters):
     """
     Infer the label list from the dataset with special handling for differences between train and val/test labels
     """
@@ -239,18 +250,19 @@ def infer_label_list(dataset, logger):
             diff = set(val_or_test_labels).difference(set(label_list))
             if len(diff) > 0:
                 # add the labels that appear in val/test but not in train, throw a warning
-                logger.warning(
-                    f"Labels {diff} in {split} set but not in training set, adding them to the label list"
+                log_warn(
+                    f"Labels {diff} in {split} set but not in training set, adding them to the label list",
+                    parameters
                 )
                 label_list += list(diff)
     # if label is -1, we throw a warning and remove it from the label list
     for label in label_list:
         if label == -1:
-            logger.warning("Label -1 found in label list, removing it.")
+            log_warn("Label -1 found in label list, removing it.", parameters)
             label_list.remove(label)
 
     label_list.sort()
     num_labels = len(label_list)
     if num_labels <= 1:
-        log_error(logger, "You need more than one label to do classification.")
+        log_error("You need more than one label to do classification.", parameters)
     return label_list
