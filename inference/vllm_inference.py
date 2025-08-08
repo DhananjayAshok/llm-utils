@@ -1,6 +1,6 @@
 from utils.log_handling import log_warn
 from vllm import LLM, SamplingParams
-from utils import log_info, log_warn
+from utils import log_info, log_warn, log_error
 from inference.inference_utils import save_meta_file
 import click
 import torch
@@ -14,6 +14,8 @@ def quick_token_count(text):
 @click.option("--max_model_len", type=int, default=1000, help="The maximum sequence length for the model. This is used to set the KV cache size.")
 @click.pass_obj
 def vllm_inference(parameters, enable_prefix_caching, max_model_len):
+    if parameters["max_new_tokens"] is None:
+        log_error("--max_new_tokens is required for vLLM inference", parameters)
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
     quick_token_count_max = data_df[parameters["input_column"]].apply(quick_token_count).max()
     if quick_token_count_max > max_model_len:
