@@ -149,6 +149,7 @@ if __name__ == "__main__":
     if script_args.use_peft:
         trainer.model = trainer.model.merge_and_unload()
     trainer.model.save_pretrained(output_dir)
+    trainer.processing_class.save_pretrained(output_dir) # tokenizer basically
 
     if "test" in dataset:
         trainer.model.to("cuda")
