@@ -111,8 +111,8 @@ def load_data_splits(extension, script_args, parameters):
     train_file = script_args.train_file
     validation_file = script_args.validation_file
     test_file = script_args.test_file
-    train_split = script_args.train_split
-    validation_split = script_args.validation_split
+    train_split = script_args.train_validation_split
+    validation_split = script_args.validation_test_split
     random_seed = script_args.data_seed
     data_files = {"train": train_file}
     if validation_file is not None:

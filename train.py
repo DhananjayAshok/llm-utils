@@ -29,21 +29,20 @@ default_parameters = load_parameters()
 
 @dataclass
 class ScriptArguments:
-    training_kind: str = field(metadata={"help": "the kind of training to do. Options: sft, dpo, clf, pre"})
     model_name: str = field(metadata={"help": "the model name"})    
+    training_kind: str = field(metadata={"help": "the kind of training to do. Options: sft, dpo, clf, pre"})
+
     train_file: str = field(metadata={"help": "the training file"})
+    validation_file: Optional[str] = field(default=None, metadata={"help": "the validation file to use for internal model selection, early stopping etc."})
+    test_file: Optional[str] = field(default=None, metadata={"help": "the test file to measure final fit. If not provided and validation_test split is set, then a random split of the validation file is used."})
+    train_validation_split: Optional[float] = field(default=None, metadata={"help": "the split of the training file to use for training if validation file is not provided"})
+    validation_test_split: Optional[float] = field(default=None, metadata={"help": "the split of the validation file to use for internal model selection, early stopping etc. The rest is used as test split"})
+
     input_column: str = field(default="input", metadata={"help": "the input column name"})
     output_column: str = field(default="output", metadata={"help": "the output column name"})
-    chosen_column: str = field(default=None, metadata={"help": "the chosen column name"})
-    rejected_column: str = field(default=None, metadata={"help": "the rejected column name"})
-    using_deepspeed: bool = field(default=False, metadata={"help": "whether you are using deepspeed"})
+    chosen_column: str = field(default=None, metadata={"help": "the chosen column name for preference training"})
+    rejected_column: str = field(default=None, metadata={"help": "the rejected column name for preference training"})
     pretrain_with_output: bool = field(default=True, metadata={"help": "If true, will look for output column during pretraining and try to pretrain on the whole thing after concatenating with a standard template."})
-    validation_file: Optional[str] = field(default=None, metadata={"help": "the validation file to use for internal model selection, early stopping etc."})
-    test_file: Optional[str] = field(default=None, metadata={"help": "the test file to measure final fit. If not provided, a random split of the validation file is used."})
-    train_split: Optional[float] = field(default=None, metadata={"help": "the split of the training file to use for training if validation file is not provided"})
-    validation_split: Optional[float] = field(default=None, metadata={"help": "the split of the validation file to use for internal model selection, early stopping etc."})
-
-
     max_train_samples: Optional[int] = field(default=None, metadata={"help": "the maximum number of training samples to use"})
     max_valid_samples: Optional[int] = field(default=None, metadata={"help": "the maximum number of validation samples to use"})
     max_test_samples: Optional[int] = field(default=None, metadata={"help": "the maximum number of test samples to use"})
@@ -52,13 +51,7 @@ class ScriptArguments:
     shuffle_buffer: Optional[int] = field(default=5000, metadata={"help": "the shuffle buffer size"})
     max_input_length: Optional[int] = field(default=512, metadata={"help": "the maximum input length to be used only for classification training"})
     evaluate_before_training: Optional[bool] = field(default=False, metadata={"help": "whether to evaluate before training"})
-    num_workers: Optional[int] = field(default=4, metadata={"help": "the number of workers"})
-
-    # BitsAndBytesConfig
-    use_bnb: Optional[bool] = field(default=False, metadata={"help": "whether to use BitsAndBytes"})
-    model_dtype: Optional[str] = field(default="float16", metadata={"help": "the model dtype. Set to bfloat16 if using BitsAndBytes"})
-
-
+    num_workers: Optional[int] = field(default=4, metadata={"help": "the number of workers for huggingface datasets"})
 
     # LoraConfig
     use_peft: Optional[bool] = field(default=True, metadata={"help": "whether to use Lora"})
@@ -67,9 +60,16 @@ class ScriptArguments:
     lora_dropout: Optional[float] = field(default=0.05, metadata={"help": "the lora dropout parameter"})
     lora_r: Optional[int] = field(default=8, metadata={"help": "the lora r parameter"})
 
+    # BitsAndBytesConfig
+    use_bnb: Optional[bool] = field(default=False, metadata={"help": "whether to use BitsAndBytes"})
+    model_dtype: Optional[str] = field(default="float16", metadata={"help": "the model dtype. Set to bfloat16 if using BitsAndBytes"})
+
+
     # Log
     log_verbose: Optional[bool] = field(default=False, metadata={"help": "print summary stats of data and processing information."})
 
+    # Training Setup
+    using_deepspeed: bool = field(default=False, metadata={"help": "whether you are using deepspeed"})
 
 
 
@@ -127,16 +127,14 @@ if __name__ == "__main__":
 
 
     model, tokenizer = None, None
-    if script_args.training_kind == "clf" and script_args.use_peft:
+    if script_args.training_kind == "clf" and script_args.use_peft:     
+        # TRL takes in peft_config instead of model, so we load the peft model only for classification which uses Trainer directly
         model, tokenizer = get_peft_model_tokenizer(script_args, dataset)
     else:
         model, tokenizer = get_model_tokenizer(script_args, dataset)
 
-    # TRL takes in peft_config instead of model, so we load the peft model only for classification which uses Trainer directly
-
     if script_args.log_verbose:
         log_token_statistics(script_args, dataset, tokenizer, default_parameters["logger"])
-
 
 
     trainer, dataset = get_trainer(script_args, training_args, dataset, model, tokenizer)
