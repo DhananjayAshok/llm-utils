@@ -220,6 +220,9 @@ def setup_manymodalqa(parameters):
     shape_train_df.to_csv(save_dir + "shape_train.csv", index=False)
     shape_val_df.to_csv(save_dir + "shape_val.csv", index=False)
     log_info("ManyModalQA dataset setup complete. Files saved in: " + data_dir, parameters)
+    color_df = color_df.sample(n=20).reset_index(drop=True)  # For testing purposes, we take a small sample
+    color_df.to_csv("tmp_color.csv", index=False)
+    log_info("Sampled 20 rows from ManyModalQA color dataset for testing purposes and saved to tmp_color.csv", parameters)
 
 
 
