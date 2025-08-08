@@ -148,7 +148,9 @@ if __name__ == "__main__":
     trainer.save_model(training_args.output_dir)
 
     output_dir = os.path.join(training_args.output_dir, "final_checkpoint")
+    trainer.model.to('cpu')
     trainer.model.save_pretrained(output_dir)
 
     if "test" in dataset:
+        trainer.model.to("cuda")
         trainer.evaluate(dataset["test"])
