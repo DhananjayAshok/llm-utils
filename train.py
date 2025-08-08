@@ -143,10 +143,11 @@ if __name__ == "__main__":
         trainer.evaluate(dataset["test"])
 
     trainer.train()
-    trainer.save_model(training_args.output_dir)
 
     output_dir = os.path.join(training_args.output_dir, "final_checkpoint")
-    trainer.model.to('cpu')
+    #trainer.model.to('cpu')
+    if script_args.use_peft:
+        trainer.model = trainer.model.merge_and_unload()
     trainer.model.save_pretrained(output_dir)
 
     if "test" in dataset:
