@@ -277,6 +277,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     for i in tqdm(range(start_idx, len(data_df), batch_size)):
         inputs = get_inputs(data_df, i, i + batch_size - 1, model, parameters)
         input_length = inputs["input_ids"].shape[1]
+        n_items_in_batch = inputs['input_ids'].shape[0]
         if prompt_cache is not None:
             past_key_values = copy.deepcopy(prompt_cache)
             inputs["past_key_values"] = past_key_values
@@ -299,7 +300,6 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
                 for stop_string in parameters["stop_strings"]:
                     out[out_i] = out[out_i].replace(stop_string, "")
             out = np.array(out)
-            n_items_in_batch = inputs['input_ids'].shape[0]
             out_reshaped = out.reshape(n_items_in_batch, parameters["num_return_sequences"]).tolist()
             for counter, j in enumerate(range(i, i+n_items_in_batch)):
                 data_df.at[j, parameters["output_column"]] = out_reshaped[counter]
@@ -311,7 +311,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
                 log_info(f"First generated output for sanity check: \nInput: {input_str} \nOutput(s): {output_str}", parameters)
         elif model_kind == "clf":
             output = model(**inputs)
-            out = output.logits.argmax(dim=-1).detach().cpu().numpy()
+            out = output.logits.argmax(dim=-1).detach().cpu().numpy() # might want to save logits instead
             out = out.reshape(-1, 1).tolist()
             for counter, j in enumerate(range(i, i+n_items_in_batch)):
                 data_df.at[j, parameters["output_column"]] = out[counter]
