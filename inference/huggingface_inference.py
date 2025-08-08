@@ -60,7 +60,10 @@ def get_model(parameters, quantization, model_kind):
 
 def handle_replace_stop_strings(data_df, parameters):
     tokenizer = parameters["tokenizer"]
-    eos_token = tokenizer.eos_token
+    if parameters["modality"] == "vlm" and not hasattr(tokenizer, "eos_token"):
+        eos_token = parameters["tokenizer"].tokenizer.eos_token
+    else:
+        eos_token = tokenizer.eos_token
     if eos_token is None:
         log_warn("Tokenizer does not have an eos token. Cannot replace stop strings.", parameters)
         return
