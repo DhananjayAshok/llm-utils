@@ -84,7 +84,7 @@ python create_examples.py pubmed_process
 This will set up the fine-tuning csv's with columns `input` (the question text) and `output` (the long answer + conclusion text). it also set's up a classification csv pair with columns `input` (the question text) and `label` (1 if query is results based, 0 if it is background based)
 
 ### Classification Finetuning
-We'll use the files from above and train a classifier that tells us whether a generated question is a results based (1) or background based (0) question. First, make sure you have CUDA_HOME accessible in the environment where the script will execute. Then, run:
+We'll use the files from above and train a classifier that tells us whether a generated question is a results based (1) or background based (0) question. First, make sure you have `CUDA_HOME` accessible in the environment where the script will execute. Then, run:
 
 ```bash
 bash examples/scripts/pubmed_clf.sh

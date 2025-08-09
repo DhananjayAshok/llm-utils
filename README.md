@@ -27,30 +27,61 @@ Log in to WandB with
 wandb login
 ```
 
-Set up the accelerate config file. As a default I use multi-GPU FSDP with Torch Dynamo (inductor) speed up (no quantization).
-
-To set this up you can do
-
+Set up the accelerate config file with
 ```bash
 accelerate config
 ```
+Common Setup:
+- This Machine
+- multi-GPU 
+- 1 node
+- No checking distributed ops
+- No torch Dynamo 
+- Enter number of available GPUs when asked 
+- mixed precision bf16
 
-When going through the options, select the options that correspond to:
+Basic Setup:
+- No DeepSpeed, FSDP, Megatron
+- yes numa efficiency
+
+FSDP:
+- No DeepSpeed
+- Yes FSDP
+- FSDP version 2
+- Choose defaults for `enable resharding` (yes), `offload` (no)
+- Transformer Based Wrap => yes to use the model's _no_split_modules
+- SHARDED_STATE_DICT state dict type
+- Yes to CPU RAM efficient model loading
+- No to activation checkpointing
+- No to parallelism config
+
+The FSDP configuration gives me the accelerate config (at ....huggingface/accelerate/default_config.yaml) yaml:
 
 ```yaml
+compute_environment: LOCAL_MACHINE                                                                                                             
+debug: false                                                                                                                                   
+distributed_type: FSDP
+downcast_bf16: 'no'
+enable_cpu_affinity: false
 fsdp_config:
   fsdp_activation_checkpointing: false
   fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
-  fsdp_backward_prefetch: BACKWARD_PRE
   fsdp_cpu_ram_efficient_loading: true
-  fsdp_forward_prefetch: false
   fsdp_offload_params: false
-  fsdp_reshard_after_forward: FULL_SHARD
-  fsdp_state_dict_type: FULL_STATE_DICT
-  fsdp_sync_module_states: true
-  fsdp_use_orig_params: false # must be set to true if you want to use torch dynamo
-  fsdp_version: 1
+  fsdp_reshard_after_forward: true
+  fsdp_state_dict_type: SHARDED_STATE_DICT
+  fsdp_version: 2
+machine_rank: 0
+main_training_function: main
 mixed_precision: bf16
+num_machines: 1
+num_processes: 8
+rdzv_backend: static
+same_network: true
+tpu_env: []
+tpu_use_cluster: false
+tpu_use_sudo: false
+use_cpu: false
 ```
 
 ## Examples
