@@ -8,16 +8,22 @@ from training.model import get_peft_config
 class WeightedTrainer(Trainer):
     """
     Trainer subclass that allows for weighted loss functions
-    TODO: Integrate this with the args from train.py. Currently needs to be hardcoded in the class
     """
+    def __init__(self, *args, **kwargs):
+        if "class_weights" in kwargs:
+            class_weights = kwargs.pop("class_weights")
+        else:
+            class_weights = [1.0 for i in range(self.model.config.num_labels)]
+        super().__init__(*args, **kwargs)
+        self.class_weights = torch.tensor([class_weights[i] for i in range(self.model.config.num_labels)])
+
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         labels = inputs.get("labels")
-        # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        loss_fct = torch.nn.CrossEntropyLoss()
-        #loss_fct = torch.nn.CrossEntropyLoss(weight=torch.tensor([100, 0.01]).to(model.device))
-        loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
+        
+        loss_fct = torch.nn.CrossEntropyLoss(weight=self.class_weights.to(model.dtype).to(model.device))
+        loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1)) 
         return (loss, outputs) if return_outputs else loss
     
 

@@ -15,7 +15,7 @@ from accelerate import Accelerator
 import os
 import yaml
 from dataclasses import dataclass, field, asdict
-from typing import Optional
+from typing import Optional, List
 import logging
 
 from transformers import (
@@ -72,6 +72,8 @@ class ScriptArguments:
     max_input_length: Optional[int] = field(default=512, metadata={"help": "the maximum input length to be used only for classification training"})
     evaluate_before_training: Optional[bool] = field(default=False, metadata={"help": "whether to evaluate before training"})
     num_workers: Optional[int] = field(default=4, metadata={"help": "the number of workers for huggingface datasets"})
+
+    class_weights: Optional[List[float]] = field(default=None, metadata={"help": "the class weights to use for classification training. If not provided, will be uniform."})
 
     # LoraConfig
     use_peft: Optional[bool] = field(default=True, metadata={"help": "whether to use Lora"})
