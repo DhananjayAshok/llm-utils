@@ -106,9 +106,47 @@ python infer.py --model_name $storage_dir/models/clf_model/final_checkpoint --in
 
 As you can see, we achieve significantly higher than random accuracy on the test set. 
 
-### Pretraining
+
+#### Inferring Batch Size
+
+Unlike with inference, we do not have any script to infer the batch size. Instead, just start running and go to the config file (it should be printed in the log) to see what your current batch size is (by default, `per_device_train_batch_size=8`). While the code is running, go to the WanDB panel and check out the System Report: GPU Memory Allocated (%). You should ideally be around 90% allocation, and if you are lower, scale your batch size appropriately and re-run the script. 
+
+#### Checkpointing
+You can interupt training at any time with `Ctrl+C` or by sending a kill signal to the process, and if you have set reasonable values for `--save_strategy` and `--save_every`, you will have saved checkpoints. 
+
+Let's say you run the above script, and decide to stop it manually at epoch 5. then to restart and go all the way to 10 epochs, you just need to re-run the script with the `--restore_from_checkpoint True` argument. This has a chance of failing if you interupted it in the middle of saving the checkpoint, leading to the latest checkpoint being corrupted and hence not readable. You can check if this has happened by looking into the checkpoint directory. If it does not have the file `trainer_state.json`, then the checkpoint is corrupted. Delete this folder, and the code will fall back to the previous valid checkpoint. 
+
+
+
+If you are using LoRA with FSDP etc, these checkpoints are not ready-to-go HuggingFace models, so while you can restart training with them, you cannot use them outside the training script. To make them usable, you should re-run the training script, except set the `--num_train_epochs` or `--max_steps` value to be something lower than the checkpoint's value. That way, it will just load and save a final model. So, continuing off the example above, you can use the checkpoint at epoch 5 with:
+```bash
+accelerate launch train.py --training_kind clf --model_name meta-llama/Llama-3.2-1B-Instruct \
+--output_dir $storage_dir/models/clf_model --num_train_epochs 5 --restore_from_checkpoint True \
+--train_file $storage_dir/data/pubmedqa/hf_clf_train.csv  --test_file $storage_dir/data/pubmedqa/hf_clf_val.csv --output_column label  \
+``` 
+
+
 
 ### Supervised Finetuning
+To train a Question Answering model with supervised finetuning, run:
+```bash
+bash examples/scripts/pubmed_sft.sh
+```
+
+This calls on:
+```bash
+accelerate launch train.py --training_kind sft --model_name meta-llama/Llama-3.2-1B-Instruct \
+--output_dir $storage_dir/models/ft_model \
+--num_train_epochs 150 --train_file $storage_dir/data/pubmedqa/hf_default_train.csv \
+--per_device_train_batch_size 24 --per_device_eval_batch_size 24 \
+--learning_rate 2e-4 --weight_decay 0.01 \
+--train_validation_split 0.9  --logging_strategy epoch --eval_strategy epoch --save_strategy epoch --load_best_model_at_end True \
+--run_name pubmed-sft
+```
+
+### Pretraining
+
+
 
 ### Preference Optimization
 
