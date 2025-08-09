@@ -19,7 +19,7 @@ All code is based on HuggingFace Transformers and TRL and supports FSDP with mul
 
 Follow the [instructions](setup/README.md) to set up the environment with the right packages and Python version. Then, before running anything you should make sure to populate the essential fields in the [config files](configs/README.md).
 
-That's all the setup you need to do for inference, but for training you will need to set up the accelerate config file.
+That's all the setup you need for inference, but for training, you will need to set up a couple of additional things. 
 
 Log in to WandB with 
 
