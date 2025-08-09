@@ -147,12 +147,13 @@ if __name__ == "__main__":
     if script_args.log_verbose:
         default_parameters["logger"].setLevel(logging.DEBUG)
     script_args.parameters = default_parameters
+    save_args(script_args, training_args)
 
+
+    script_args.accelerator = accelerator
 
     dataset = load_data(script_args)
 
-
-    script_args.accelerator = accelerator 
     model, tokenizer = None, None
     if script_args.training_kind == "clf" and script_args.use_peft:     
         # TRL takes in peft_config instead of model, so we load the peft model only for classification which uses Trainer directly
