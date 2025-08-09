@@ -3,7 +3,6 @@ from utils import log_error, log_warn, log_info
 import datasets
 from datasets import load_dataset, disable_caching
 from tqdm import tqdm
-from trl.trainer import ConstantLengthDataset
 
 disable_caching()
 
