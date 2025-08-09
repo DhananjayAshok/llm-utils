@@ -1,4 +1,4 @@
-accelerate launch train.py --training_kind sft --model_name meta-llama/Llama-3.2-1B-Instruct \ 
+accelerate launch train.py --training_kind sft --model_name meta-llama/Llama-3.2-1B-Instruct \
 --output_dir $storage_dir/models/ft_model \
 --num_train_epochs 150 --train_file $storage_dir/data/pubmedqa/hf_default_train.csv \
 --per_device_train_batch_size 24 --per_device_eval_batch_size 24 \
