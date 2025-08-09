@@ -117,7 +117,7 @@ The essential format to follow for each training paradigm is given below:
 2. Supervised Finetuning: input files must be a csv with input and output columns. Loss is only computed on completions
 3. Direct Preference Optimization: input files must be a csv with input, chosen and rejected columns. 
 
-WanDB is used to log the metrics, and you can always recover the history of a prior run with:
+WandDB is used to log the metrics, and you can always recover the history of a prior run with:
 
 ```python
 from utils import get_history
