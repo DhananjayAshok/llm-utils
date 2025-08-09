@@ -1,6 +1,6 @@
 import torch
 from transformers import Trainer, default_data_collator
-from trl import SFTTrainer, DPOTrainer, DataCollatorForCompletionOnlyLM
+from trl import SFTTrainer, DPOTrainer
 import numpy as np
 from training.model import get_peft_config
 
@@ -135,6 +135,7 @@ def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_
 
 def get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_config):
     response_template = "\nOutput: "
+    raise NotImplementedError
     collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=tokenizer)
     trainer = SFTTrainer(
         model=model,

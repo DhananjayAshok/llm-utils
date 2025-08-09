@@ -9,6 +9,6 @@ peft==0.15.1
 skimage==0.25.2
 torch==2.5.1
 transformers==4.54.0
-trl==0.16.0
+trl==0.20.0
 vllm==0.10.0
 wandb==0.21.0
