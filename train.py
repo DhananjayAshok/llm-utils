@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 
 def save_args(script_args, training_args):
     parameters = script_args.parameters
-    output_dir = script_args.output_dir
+    output_dir = training_args.output_dir
     output_path = os.path.join(output_dir, "run_args.yaml")
     parameters.update(asdict(script_args))
     if "accelerator" in parameters:
