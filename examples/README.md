@@ -1,6 +1,6 @@
 # Examples
 
-Once you've followed the environment [setup instructions](README.md) (especially the accelerate config setup steps for training), add the `storage_dir` variable to the example [environment file](examples/scripts/env.sh). 
+Once you've followed the environment [setup instructions](../README.md) (especially the accelerate config setup steps for training), add the `storage_dir` variable to the example [environment file](scripts/env.sh). 
 
 You can now start running these example experiments to get a hang of this repo and its functionalities. 
 
