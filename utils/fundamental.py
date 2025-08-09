@@ -5,7 +5,7 @@ import logging
 def get_logger(level=logging.INFO, filename=None, add_console=True):
     fmt_str = "%(asctime)s, [%(levelname)s, %(filename)s:%(lineno)d] %(message)s"
     logging.basicConfig(format=fmt_str)
-    logger = logging.getLogger("PROJECT_NAME")
+    logger = logging.getLogger("LLM-Utils")
     if add_console:
         logger.handlers.clear()
         console_handler = logging.StreamHandler()
