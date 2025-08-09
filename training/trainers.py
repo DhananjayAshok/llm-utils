@@ -94,7 +94,7 @@ def get_clf_trainer(script_args, training_args, dataset, model, tokenizer):
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"] if "validation" in dataset else None,
         compute_metrics=compute_clf_metrics,
-        tokenizer=tokenizer, # getting processing_class warning Deprication
+        processing_class=tokenizer, # getting processing_class warning Deprication
         data_collator=default_data_collator,
     )
     return trainer, dataset
