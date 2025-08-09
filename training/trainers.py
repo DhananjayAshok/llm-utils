@@ -153,7 +153,6 @@ def get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         train_dataset=train_dataset,
         eval_dataset=validation_dataset,
         peft_config=peft_config,
-        formatting_func=prepare_sample_text,
         processing_class=tokenizer,
         args=training_args,
     )
