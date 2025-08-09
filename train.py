@@ -91,7 +91,7 @@ class ScriptArguments:
 
 def override_defaults(training_args, parameters=default_parameters):
     if training_args.resume_from_checkpoint is None:
-        training_args.resume_from_checkpoint = True
+        log_warn("resume_from_checkpoint is not set, defaulting to False. This will start training from scratch. To avoid this, set --resume_from_checkpoint arg", parameters)
     if training_args.resume_from_checkpoint is not None and not isinstance(training_args.resume_from_checkpoint, bool):
         if training_args.resume_from_checkpoint.lower() == "true":
             training_args.resume_from_checkpoint = True
