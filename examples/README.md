@@ -52,7 +52,7 @@ This will trigger the huggingface inference pipeline, which has the following ar
 - `--cache_implementation`: see [Cache Options](https://huggingface.co/docs/transformers/en/kv_cache)
 - `--cache_prefix`: should we [prefill the cache with the prefix](https://huggingface.co/docs/transformers/en/kv_cache#prefill-a-cache). Should speed up generation for large models.
 
-There are other options for tracking perplexity, see [the click options](../inference/huggingface_inference.py) for more. 
+There are other options for tracking perplexity, see [the click options](../inference/huggingface_inference.py#204) for more. 
 
 #### Inferring Batch Size
 But before running inference, let's  identify the largest batch size we can use. To do that, we will fix some generation configurations, so our code knows how we plan on running the model:
