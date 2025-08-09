@@ -16,7 +16,7 @@ class WeightedTrainer(Trainer):
             class_weights = None
         super().__init__(*args, **kwargs)
         if class_weights is not None:
-            self.class_weights = torch.tensor([class_weights])
+            self.class_weights = torch.tensor(class_weights)
         else:
             self.class_weights = None
 
