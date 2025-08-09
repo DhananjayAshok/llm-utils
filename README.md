@@ -13,7 +13,7 @@ Vision Language Models:
 2. Finetuning (Classification and SFT for Generation)
 3. Preference Optimization / RL Training
 
-All code is based on HuggingFace Transformers and TRL and supports multiple GPUs as well as quantization. 
+All code is based on HuggingFace Transformers and TRL and supports FSDP with multiple GPUs. 
 
 ## Setup
 
