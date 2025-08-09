@@ -13,7 +13,8 @@ from accelerate import Accelerator
 
 
 import os
-from dataclasses import dataclass, field
+import yaml
+from dataclasses import dataclass, field, asdict
 from typing import Optional
 import logging
 
@@ -23,10 +24,26 @@ from transformers import (
     set_seed,
 )
 from trl import SFTConfig, DPOConfig, PPOConfig
+from datetime import datetime, timezone
+
+
+
+def save_args(script_args, training_args):
+    parameters = script_args.parameters
+    output_dir = script_args.output_dir
+    output_path = os.path.join(output_dir, "run_args.yaml")
+    parameters.update(asdict(script_args))
+    if "accelerator" in parameters:
+        parameters.pop("accelerator") # cant serialize this
+    parameters.update(asdict(training_args))
+    with open(output_path, "w") as f:
+        yaml.dump(parameters, f)
+    log_info(f"Saved script arguments to {output_path}", parameters)
 
 
 
 default_parameters = load_parameters()
+default_parameters["run_start_time"] = datetime.now(timezone.utc).strftime("%Y-%m-%d-H%H-M%M-S%S")
 
 @dataclass
 class ScriptArguments:
@@ -74,7 +91,7 @@ class ScriptArguments:
 
 
 
-def override_defaults(training_args):
+def override_defaults(training_args, parameters=default_parameters):
     if training_args.save_total_limit is None:
         training_args.save_total_limit = 2
     if training_args.save_steps is None:
@@ -82,6 +99,9 @@ def override_defaults(training_args):
     if training_args.logging_strategy is None and training_args.logging_steps is None:
         training_args.logging_strategy = "steps"
         training_args.logging_steps = 10
+    if training_args.output_dir is None:
+        training_args.output_dir = parameters["tmp_dir"] + "/" + parameters["run_start_time"] + "/"
+    os.makedirs(training_args.output_dir, exist_ok=True)
     training_args.report_to = "wandb"
 
 
@@ -113,6 +133,8 @@ if __name__ == "__main__":
     script_args.seed = training_args.seed
     script_args.data_seed = training_args.data_seed
     override_defaults(training_args)
+    if accelerator.is_main_process:
+        log_info(f"Saving to: {training_args.output_dir}", default_parameters)
     if script_args.use_bnb:
         training_args.bf16 = True
         script_args.model_dtype = "bfloat16"
@@ -160,5 +182,6 @@ if __name__ == "__main__":
     save_function = accelerator.save
     state_dict = accelerator.get_state_dict(trainer.model)
     trainer.model.save_pretrained(output_dir, is_main_process=is_main_process, state_dict=state_dict, save_function=save_function)
+    log_info(f"Model saved to {output_dir}", script_args.parameters)
 
     accelerator.end_training()
