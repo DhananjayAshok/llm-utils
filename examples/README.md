@@ -74,7 +74,7 @@ We'll pick a batch_size slightly smaller than the maximum: 4.
 
 To run inference on all of the generation files, you can use the following command (make sure to set your desired batch_size first): 
 ```bash
-bash examples/scripts/pubmedqa_gen_queries.sh
+bash examples/scripts/pubmed_inference.sh
 ```
 
 Note, you do *not* need to run the above line in order to proceed with the tutorial. I have precomputed the output and make them available from my HuggingFace repo. To set them up on your system, run the command:

@@ -128,12 +128,14 @@ def load_data_splits(extension, script_args):
     if script_args.output_column != "output":
         dataset = drop_column_if_needed(dataset, "output")
         dataset = dataset.rename_column(script_args.output_column, "output")
-    if script_args.chosen_column is not None:
+    if script_args.chosen_column is not None and script_args.chosen_column != "chosen":
         dataset = drop_column_if_needed(dataset, "chosen")
         dataset = dataset.rename_column(script_args.chosen_column, "chosen")
-    if script_args.rejected_column is not None:
+    if script_args.rejected_column is not None and script_args.rejected_column != "rejected":
         dataset = drop_column_if_needed(dataset, "rejected")
         dataset = dataset.rename_column(script_args.rejected_column, "rejected")
+    if script_args.training_kind == "pre" and not script_args.pretrain_with_output:
+        dataset = drop_column_if_needed(dataset, "output")
     dataset = validate_data(dataset, script_args.training_kind, script_args.pretrain_with_output, parameters)
     if validation_file is None and train_split is not None:
         if 0 < train_split < 1:
@@ -150,10 +152,6 @@ def load_data_splits(extension, script_args):
         else:
             if validation_split == 0: # remove validation split and add test split
                 dataset["test"] = dataset.pop("validation")
-
-
-
-
     dataset = shuffle_and_handle_data_sizes(script_args, dataset, random_seed)
     return dataset
 
@@ -201,7 +199,7 @@ def log_token_statistics(script_args, dataset, tokenizer, parameters):
     Compute token statistics for the dataset and print to log
     """
     columns_to_track = ["input"]
-    if script_args.training_kind in ["sft"]:
+    if script_args.training_kind in ["sft"] or (script_args.training_kind == "pre" and script_args.pretrain_with_output):
         columns_to_track.append("output")
     elif script_args.training_kind in ["dpo", "ppo"]:
         columns_to_track.append("chosen")
@@ -213,6 +211,9 @@ def log_token_statistics(script_args, dataset, tokenizer, parameters):
     for split in dataset:
         statistics[split] = column_statistics.copy()
         for column in columns_to_track:
+            total_characters = 0
+            total_words = 0
+            total_tokens = 0
             for example in tqdm(dataset[split]):
                 text = example[column]
                 total_characters += len(text)

@@ -114,14 +114,16 @@ def override_defaults(training_args, parameters=default_parameters):
 
 
 if __name__ == "__main__":
+    # Parsing and setting up the arguments
+    # region
     # Parse arguments. The arguments we expect will depend on the training kind, so we have to parse the args twice. 
     parser = HfArgumentParser((ScriptArguments, TrainingArguments))
     script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0]  # return_remaining_strings stops error out on unknown args
     accelerator = Accelerator()
+    if script_args.training_kind != "clf":
+        if script_args.validation_test_split is not None or script_args.test_file is not None:
+            log_error(f"Test split evaluation is not supported for {script_args.training_kind}, make sure --validation_test_split and --test_file are not set.", default_parameters)
     if script_args.training_kind in ["pre", "sft"]:
-        if accelerator.is_main_process:
-            if script_args.training_kind == "sft":
-                log_warn("SFT is supported, but it works pretty badly. I think this has to do with the data collater class and is hence a bit more involved to fix.", default_parameters) # TODO: Fix SFT
         parser = HfArgumentParser((ScriptArguments, SFTConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
     elif script_args.training_kind == "dpo":
@@ -156,9 +158,8 @@ if __name__ == "__main__":
     script_args.parameters = default_parameters
     if accelerator.is_main_process:
         save_args(script_args, training_args)
-
-
     script_args.accelerator = accelerator
+    # endregion
 
     dataset = load_data(script_args)
 

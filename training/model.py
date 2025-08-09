@@ -25,7 +25,6 @@ def get_model_tokenizer(script_args, dataset):
         base_model = AutoModelForCausalLM.from_pretrained(
             script_args.model_name,
             quantization_config=bnb_config,
-            device_map={"": script_args.accelerator.local_process_index},  # I might not need this?
             trust_remote_code=True,
         )
     else:

@@ -107,26 +107,39 @@ def get_clf_trainer(script_args, training_args, dataset, model, tokenizer):
     return trainer, dataset
 
 
-def prepare_sample_text(example, input_col="input", output_col="output"):
-    if output_col is None:
+def prepare_sample_text(example, input_col="prompt", output_col="completion"):
+    if output_col not in example:
         return example[input_col]
     return f"Input: {example[input_col]} \nOutput: {example[output_col]}"
 
 
+def get_trl_renamed_train_val_dataset(dataset):
+    """
+    Rename the columns of the dataset to match the expected format for TRL trainers.
+    """
+    train_dataset = dataset["train"].rename_column("input", "prompt")
+    if "output" in dataset["train"].features:
+        train_dataset = train_dataset.rename_column("output", "completion")
+    if "validation" in dataset:
+        validation_dataset = dataset["validation"].rename_column("input", "prompt")
+        if "output" in dataset["validation"].features:
+            validation_dataset = validation_dataset.rename_column("output", "completion")
+    else:
+        validation_dataset = None
+    return train_dataset, validation_dataset
+
 
 def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_config):
-    input_col = "input"
-    output_col = None
-    if "output" in dataset["train"].features:
-        output_col = "output"
+    train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
 
     trainer = SFTTrainer(
         model=model,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["validation"] if "validation" in dataset else None,
+        train_dataset=train_dataset,
+        eval_dataset=validation_dataset,
         peft_config=peft_config,
-        formatting_func=lambda x: prepare_sample_text(x, input_col, output_col),
+        formatting_func=prepare_sample_text,
         processing_class=tokenizer,
+        completion_only_loss=False,
         args=training_args,
     )
     return trainer, dataset
@@ -134,17 +147,14 @@ def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_
 
 
 def get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_config):
-    response_template = "\nOutput: "
-    raise NotImplementedError
-    collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=tokenizer)
+    train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     trainer = SFTTrainer(
         model=model,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["validation"] if "validation" in dataset else None,
+        train_dataset=train_dataset,
+        eval_dataset=validation_dataset,
         peft_config=peft_config,
         formatting_func=prepare_sample_text,
         processing_class=tokenizer,
-        data_collator=collator,
         args=training_args,
     )
     return trainer, dataset
