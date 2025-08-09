@@ -26,7 +26,7 @@ class WeightedTrainer(Trainer):
         logits = outputs.get("logits")
 
         if self.class_weights is not None:        
-            loss_fct = torch.nn.CrossEntropyLoss(weight=self.class_weights.to(model.dtype).to(model.device))
+            loss_fct = torch.nn.CrossEntropyLoss(weight=self.class_weights.to(logits.dtype).to(logits.device))
         else:
             loss_fct = torch.nn.CrossEntropyLoss()
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1)) 
