@@ -90,6 +90,13 @@ class ScriptArguments:
 
 
 def override_defaults(training_args, parameters=default_parameters):
+    if training_args.resume_from_checkpoint is None:
+        training_args.resume_from_checkpoint = True
+    if training_args.resume_from_checkpoint is not None:
+        if training_args.resume_from_checkpoint.lower() == "true":
+            training_args.resume_from_checkpoint = True
+        elif training_args.resume_from_checkpoint.lower() == "false":
+            training_args.resume_from_checkpoint = False
     if training_args.save_total_limit is None:
         training_args.save_total_limit = 2
     if training_args.save_steps is None:
@@ -168,7 +175,7 @@ if __name__ == "__main__":
     if script_args.evaluate_before_training and "test" in dataset:
         trainer.evaluate(dataset["test"], metric_key_prefix="test") # This will fail if run in FSDP: https://github.com/huggingface/transformers/issues/39961
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint0=training_args.resume_from_checkpoint)
 
     if "test" in dataset:
         trainer.evaluate(dataset["test"], metric_key_prefix="test")
