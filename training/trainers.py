@@ -96,6 +96,7 @@ def get_clf_trainer(script_args, training_args, dataset, model, tokenizer):
     dataset = process_clf(script_args, training_args, dataset, model, tokenizer)
     trainer = WeightedTrainer(
         model=model,
+        class_weights=script_args.class_weights,
         args=training_args,
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"] if "validation" in dataset else None,
