@@ -14,4 +14,4 @@ Then, install the requirements:
 uv pip install -r setup/requirements.txt
 ```
 
-To be honest, you can probably get away with just installing the latest version of most of these, but be careful with TRL, that ones p weird. 
+To be honest, you can probably get away with just installing the latest version of most of these, but be careful with `numpy<2` and `vLLM`.
