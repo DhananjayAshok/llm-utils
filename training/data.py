@@ -139,14 +139,14 @@ def load_data_splits(extension, script_args):
     dataset = validate_data(dataset, script_args.training_kind, script_args.pretrain_with_output, parameters)
     if validation_file is None and train_split is not None:
         if 0 < train_split < 1:
-            train_val = dataset["train"].train_test_split(test_size=train_split, seed=random_seed)
+            train_val = dataset["train"].train_test_split(test_size=1-train_split, seed=random_seed)
             dataset["train"] = train_val["train"]
             dataset["validation"] = train_val["test"]
         else:
             log_error("train_validation_split cannot be outside 0 and 1, please provide a valid split.", parameters)
     if test_file is None and validation_split is not None:
         if 0 < validation_split < 1:
-            val_test = dataset["validation"].train_test_split(test_size=validation_split, seed=random_seed)
+            val_test = dataset["validation"].train_test_split(test_size=1-validation_split, seed=random_seed)
             dataset["validation"] = val_test["train"]
             dataset["test"] = val_test["test"]
         else:
