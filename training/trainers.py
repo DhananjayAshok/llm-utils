@@ -13,16 +13,22 @@ class WeightedTrainer(Trainer):
         if "class_weights" in kwargs:
             class_weights = kwargs.pop("class_weights")
         else:
-            class_weights = [1.0 for i in range(self.model.config.num_labels)]
+            class_weights = None
         super().__init__(*args, **kwargs)
-        self.class_weights = torch.tensor([class_weights[i] for i in range(self.model.config.num_labels)])
+        if class_weights is not None:
+            self.class_weights = torch.tensor([class_weights])
+        else:
+            self.class_weights = None
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         labels = inputs.get("labels")
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        
-        loss_fct = torch.nn.CrossEntropyLoss(weight=self.class_weights.to(model.dtype).to(model.device))
+
+        if self.class_weights is not None:        
+            loss_fct = torch.nn.CrossEntropyLoss(weight=self.class_weights.to(model.dtype).to(model.device))
+        else:
+            loss_fct = torch.nn.CrossEntropyLoss()
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1)) 
         return (loss, outputs) if return_outputs else loss
     
