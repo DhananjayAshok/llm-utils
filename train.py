@@ -38,7 +38,9 @@ def save_args(script_args, training_args):
     parameters.update(asdict(training_args))
     with open(output_path, "w") as f:
         yaml.dump(parameters, f)
-    log_info(f"Saved script arguments to {output_path}", parameters)
+    log_info(f"Saved script arguments to {output_path}\n"
+             f"HOWEVER: You can also find a config file in <run_location>/wandb/<run_name>/files/config.yaml",
+             parameters)
 
 
 
@@ -85,10 +87,6 @@ class ScriptArguments:
 
     # Log
     log_verbose: Optional[bool] = field(default=False, metadata={"help": "print summary stats of data and processing information."})
-
-    # Training Setup
-    using_deepspeed: bool = field(default=False, metadata={"help": "whether you are using deepspeed"})
-
 
 
 def override_defaults(training_args, parameters=default_parameters):
@@ -147,7 +145,8 @@ if __name__ == "__main__":
     if script_args.log_verbose:
         default_parameters["logger"].setLevel(logging.DEBUG)
     script_args.parameters = default_parameters
-    save_args(script_args, training_args)
+    if accelerator.is_main_process:
+        save_args(script_args, training_args)
 
 
     script_args.accelerator = accelerator
@@ -183,6 +182,7 @@ if __name__ == "__main__":
     save_function = accelerator.save
     state_dict = accelerator.get_state_dict(trainer.model)
     trainer.model.save_pretrained(output_dir, is_main_process=is_main_process, state_dict=state_dict, save_function=save_function)
-    log_info(f"Model saved to {output_dir}", script_args.parameters)
+    if accelerator.is_main_process:
+        log_info(f"Model saved to {output_dir}", script_args.parameters)
 
     accelerator.end_training()
