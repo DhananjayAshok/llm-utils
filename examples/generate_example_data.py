@@ -153,10 +153,10 @@ def make_pubmedqa_inference_datasets(parameters):
     val_dataset.push_to_hub("pubmed_inference", config_name="clf", split="val")
     po_train_df = po_train_dfs["qa_gen_train_output.jsonl"]
     po_train_df["chosen"] = po_train_df["output"]
-    po_train_df["rejected"] = po_train_df["qa_gen_background_train_output.jsonl"]["output"]
+    po_train_df["rejected"] = po_train_dfs["qa_gen_background_train_output.jsonl"]["output"]
     po_val_df = po_val_dfs["qa_gen_val_output.jsonl"]
     po_val_df["chosen"] = po_val_df["output"]
-    po_val_df["rejected"] = po_val_df["qa_gen_background_val_output.jsonl"]["output"]
+    po_val_df["rejected"] = po_val_dfs["qa_gen_background_val_output.jsonl"]["output"]
     po_train_dataset = Dataset.from_pandas(po_train_df[["input", "chosen", "rejected"]])
     po_val_dataset = Dataset.from_pandas(po_val_df[["input", "chosen", "rejected"]])
     po_train_dataset.push_to_hub("pubmed_inference", config_name="po", split="train")
