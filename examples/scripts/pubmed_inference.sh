@@ -1,7 +1,14 @@
 source examples/scripts/env.sh
 batch_size=20
-file_names="qa_gen_train qa_gen_val qa_gen_background_train qa_gen_background_val"
+file_names="gen_standard gen_method test_qa"
 for file_name in $file_names; do
   python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file $storage_dir/data/pubmedqa/${file_name}.csv \
   --max_new_tokens 200 hf --batch_size $batch_size --padding_side left
 done
+
+python3 << EOF
+import pandas as pd; df = pd.read_json("$storage_dir/data/pubmedqa/test_qa.jsonl", lines=True)
+df["output"] = df["output"].apply(lambda x: x[0] if isinstance(x, list) else x)
+df["binary_output"] = df["output"].apply(lambda x: x.split("Conclusion:")[-1].strip().lower() if isinstance(x, str) else x)
+print("LLama3-Instruct Model Achieves PubmedQA Accuracy: ", (df["binary_output"] == df["answer"]).mean())
+EOF

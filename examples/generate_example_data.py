@@ -8,87 +8,125 @@ import os
 hf_hub="Dhananjay99" # If you want to push and set up from your own hub, change this to your username. 
 
 class PubMedQAExample:
-    context_1 = "Group 2 innate lymphoid cells (ILC2s) represent a recently discovered cell population which has been implicated in driving Th2 inflammation in CRS; however, their relationship with clinical disease characteristics has yet to be investigated. In the CRS with nasal polyps (CRSwNP) population, ILC2s were increased in patients with co-existing asthma (P = 0.03)."
-    question_1 = "The studies results say that increased in the nasal polyp population, ILC2s are increased, suggesting a relationship.\nQuestion: Are group 2 innate lymphoid cells ( ILC2s ) increased in chronic rhinosinusitis with nasal polyps or eosinophilia?"
-    answer_1 = "As ILC2s are elevated in patients with CRSwNP, they may drive nasal polyp formation in CRS.\nConclusion: Yes"
-    background_question_1 = "Recently discovered ILC2s are said to have been implicated in driving Th2 inflammation, which is key background context. \nQuestion: Are ILC2s involved in any kind of inflammation?"
-    background_answer_1 = "\nLong Answer: Group 2 innate lymphoid cells (ILC2s) are a recently discovered cell population implicated in driving Th2 inflammation in chronic rhinosinusitis (CRS).\nConclusion: Yes"
+    standard_prompt = """
+    Generate a true or false question answer pair from the question context. The question should test knowledge of the context contents, but not be about the study itself, so no questions like "what does the study find / what does the study aim to do". 
+    First, explain the key, knowledge insight you can gain from the context and then make a question that tests for this knowledge with a long answer and a binary yes or no conclusion. 
+    
+    Background Context: Internationally, clinical ethics support has yet to be implemented systematically in community health and care services. A large-scale Norwegian project (2007-2015) attempted to increase ethical competence in community services through facilitating the implementation of ethics support activities in 241 Norwegian municipalities. The article describes the ethics project and the ethics activities that ensued.
+    Question Context: The Norwegian ethics project is vast in scope, yet has focused on some institutions and professions (e.g., nursing homes, home-based care; nurses, nurses\' aides, unskilled workers) whilst seldom reaching others (e.g., child and adolescent health care; physicians). This study addresses this gap. 
+    Insight from Question Context: The Norweigian national project has a scope that includes community health and care services like nursing homes. 
+    Question: Do the Norwegian national project for ethics support in community health and care services?
+    Long Answer: The Norwegian project discusses central ethical dilemmas, and conducts a large (national) scale implementation of CES structures for the municipal health and care services. 
+    Conclusion: Yes [STOP]
 
-    context_2 = "Many assume that most patients hospitalized with heart failure (HF) are short of breath at rest (SOBAR). The National HF Audit for England and Wales suggests that this assumption is false, which has profound implications for management. Vital signs were tracked and those who were SOBAR had higher median heart rate (HR), systolic blood pressure (SBP), and respiratory rate (RR) compared with those who were CARBOSE"
-    question_2 = "The study tracks the vital sighs of patients with shortness of breath, and finds their metrics better than those who are CARBOSE. \nQuestion: Is breathlessness at rest the dominant presentation of patients admitted with heart failure?"
-    answer_2 = "Many patients admitted with HF are CARBOSE. Shortness of breath at rest may be more alarming, but those who are CARBOSE have a worse prognosis. \nConclusion: No"
-    background_question_2 = "The text states a pre-existing bias towards thinking that patients who are short of breath are the ones who should be hospitalized. This is a premise of the study.\nQuestion: Is there a nuanced understanding of patients hospitalized with heart failure?"
-    background_answer_2 = "Many assume that most patients hospitalized with heart failure are short of breath at rest.\nConclusion: No"
+    Background Context: Nutrition studies in patients admitted to hospital frequently disregard oral intake because measurement is time-intensive and logistically challenging. In free-living populations, weighed food records (WFR) are the gold-standard and are conducted on weekend and weekdays to capture variations in intake, although this may not translate during hospitalisation. The present study aimed to determine whether oral intake differs between weekends and weekdays in hospitalised patients. For adult patients initially admitted to the intensive therapy unit with a moderate-severe head injury over a 12-month period, WFR were conducted each week on Tuesday, Thursday and Saturday throughout hospitalisation. Meal components were weighed before and after consumption, and energy and protein intakes were calculated using specialised software. Thirty-two patients had WFR collected on 220 days, 68% (n = 149) on weekdays and 32% (n = 71) on weekends. Overall, daily intakes were 5.72 (3.67) MJ [1367 (877) kcal] and 62 (40) g protein. There were no differences in intake across all days (P = 0.937 energy, P = 0.797 protein), nor between weekdays and weekends, in weeks 1-3 of oral intake (all P > 0.1). Limits of agreement between mean intakes across days were wide for energy [range -11.20 to 9.55 MJ (-2680 to 2283 kcal)] and protein (range -125 to 110 g).
+    Question Context: Thirty-two patients had WFR collected on 220 days, 68% (n = 149) on weekdays and 32% (n = 71) on weekends. Overall, daily intakes were 5.72 (3.67) MJ [1367 (877) kcal] and 62 (40) g protein. There were no differences in intake across all days (P = 0.937 energy, P = 0.797 protein), nor between weekdays and weekends, in weeks 1-3 of oral intake (all P > 0.1). Limits of agreement between mean intakes across days were wide for energy [range -11.20 to 9.55 MJ (-2680 to 2283 kcal)] and protein (range -125 to 110 g).
+    Insight from Question Context: The study found that oral intake in hospitalised patients is similar on weekdays and weekends, with no significant differences in energy and protein intakes.
+    Question: Are weekend days required to accurately measure oral intake in hospitalised patients?
+    Long Answer: Grouped energy and protein intakes from WFR in hospitalised patients are similar on weekdays and weekends, although large intra-patient variations occur. Future quantification of oral intake during hospitalisation should include as many days as feasible, although not necessarily weekend days, to reflect true intake.
+    Conclusion: No [STOP]
 
-    qa_gen_val_instruction = f"Generate a true or false question and answer pair from the context. First explain the key result of the context and then make a question pertaining to the results and findings of the study"
-    qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_1 + "\nResults: " + question_1 + "\nLong Answer: " + answer_1 + " [STOP]"
-    qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: " + context_2 + "\nResults: " + question_2 + "\nLong Answer: " + answer_2 + " [STOP]"
-    qa_gen_val_instruction = qa_gen_val_instruction + "\nContext: "
+    Background Context: 
+    """
 
-    qa_gen_background_instruction = f"Generate a true or false QA pair from the context. First identify a background information or premise from the context, then make a question pertaining to the background or premise of the study, not the results."
-    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_1 + "\nBackground: " + background_question_1 + "\nLong Answer: " + background_answer_1 + " [STOP]"
-    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: " + context_2 + "\nBackground: " + background_question_2 + "\nLong Answer: " + background_answer_2 + " [STOP]"
-    qa_gen_background_instruction = qa_gen_background_instruction + "\nContext: "
+    method_prompt = """
+    Generate a true or false question answer pair from the question context. The question should test reading comprehension of the study itself and not the general knowledge behind it, so more about what does the study specifically does or aims to do". 
+    First, explain the key, study insight you can gain from the context and then make a question that tests for this comprehension with a long answer and a binary yes or no conclusion. Do not ask generic questions like "what does the study find / what does the study aim to do".
+    
+    Background Context: Internationally, clinical ethics support has yet to be implemented systematically in community health and care services. A large-scale Norwegian project (2007-2015) attempted to increase ethical competence in community services through facilitating the implementation of ethics support activities in 241 Norwegian municipalities. The article describes the ethics project and the ethics activities that ensued.
+    Question Context: The Norwegian ethics project is vast in scope, yet has focused on some institutions and professions (e.g., nursing homes, home-based care; nurses, nurses\' aides, unskilled workers) whilst seldom reaching others (e.g., child and adolescent health care; physicians). This study addresses this gap. 
+    Insight from Question Context: The study declares its scope to be addressing the gap in the Norwegian national projects for ethical support. 
+    Question: Does the study intend on covering child and adolescent health care and physicians?
+    Long Answer: The context identifies the gap of the Norwegian national project as a lack of outreach to child and adolescent health care and physicians, and says it intends to remedy this gap, suggesting it will reach those groups.
+    Conclusion: Yes [STOP]
+
+    Background Context: Nutrition studies in patients admitted to hospital frequently disregard oral intake because measurement is time-intensive and logistically challenging. In free-living populations, weighed food records (WFR) are the gold-standard and are conducted on weekend and weekdays to capture variations in intake, although this may not translate during hospitalisation. The present study aimed to determine whether oral intake differs between weekends and weekdays in hospitalised patients. For adult patients initially admitted to the intensive therapy unit with a moderate-severe head injury over a 12-month period, WFR were conducted each week on Tuesday, Thursday and Saturday throughout hospitalisation. Meal components were weighed before and after consumption, and energy and protein intakes were calculated using specialised software. Thirty-two patients had WFR collected on 220 days, 68% (n = 149) on weekdays and 32% (n = 71) on weekends. Overall, daily intakes were 5.72 (3.67) MJ [1367 (877) kcal] and 62 (40) g protein. There were no differences in intake across all days (P = 0.937 energy, P = 0.797 protein), nor between weekdays and weekends, in weeks 1-3 of oral intake (all P > 0.1). Limits of agreement between mean intakes across days were wide for energy [range -11.20 to 9.55 MJ (-2680 to 2283 kcal)] and protein (range -125 to 110 g).
+    Question Context: Thirty-two patients had WFR collected on 220 days, 68% (n = 149) on weekdays and 32% (n = 71) on weekends. Overall, daily intakes were 5.72 (3.67) MJ [1367 (877) kcal] and 62 (40) g protein. There were no differences in intake across all days (P = 0.937 energy, P = 0.797 protein), nor between weekdays and weekends, in weeks 1-3 of oral intake (all P > 0.1). Limits of agreement between mean intakes across days were wide for energy [range -11.20 to 9.55 MJ (-2680 to 2283 kcal)] and protein (range -125 to 110 g).
+    Insight from Question Context: The study collected samples on 220 days
+    Question: Did the studies data collection period span for more than a year?
+    Long Answer: The study declares that thirty-two patients had WFR collected on 220 days, which is less than a year, suggesting that the data collection period did not span for more than a year.
+    Conclusion: No [STOP]
+
+    Background Context: 
+    """
+
+    answer_prompt = """
+    Answer the following question with a Long Answer and then a binary yes or no conclusion.
+    Question: Do the Norwegian national project for ethics support in community health and care services?
+    Long Answer: The Norwegian project discusses central ethical dilemmas, and conducts a large (national) scale implementation of CES structures for the municipal health and care services. 
+    Conclusion: Yes [STOP]
+
+    Question: Are weekend days required to accurately measure oral intake in hospitalised patients?
+    Long Answer: Grouped energy and protein intakes from WFR in hospitalised patients are similar on weekdays and weekends, although large intra-patient variations occur. Future quantification of oral intake during hospitalisation should include as many days as feasible, although not necessarily weekend days, to reflect true intake.
+    Conclusion: No [STOP]    
+
+    Question: 
+    """
 
 
 
 def setup_pubmedqa(parameters):
     """
     Loads the PubmedQA dataset and sets up the following files:
-        qa_gen_val.csv: contains columns: [context_id, input] which prompts a LM to generate a question, answer pair from the validation set contexts
-            We finetune on these QA pairs to see if knowledge can be absorbed by the model.
-        qa_gen_background_csv: same columns and contexts as above, but with prompts that ask for questions about the background or premise of the study.
-            We use this to test the contrastive learning approaches in this repo.
-        test_qa: contains columns: [input, output] where the input is a question and the output is the answer from the validation set.
+        pretraining: contains a single column "input" with the context of the PubmedQA dataset.
+        qa_gen_standard: contains columns: [context_id, sentence_id, background_context, input_context, input] where the input prompt asks for a QA pair about the knowledge contained in the input_context.
+        qa_gen_method: contains columns: [context_id, sentence_id, background_context, input_context, input] where the input prompt asks for a QA pair about the study itself, not the general knowledge.
+        test_qa: contains columns: [input, long_answer, answer] where the input is a prompt that asks a question from the dataset.
     """
     log_info("Setting up PubmedQA dataset...", parameters)
-    df = load_dataset("qiaojin/PubMedQA", "pqa_artificial", split="train").to_pandas().sample(n=20_000, random_state=parameters["random_seed"])
-    df["context"] = df["context"].apply(lambda x: "\n".join(x['contexts']))
-    contexts = df["context"].unique()
+    df = load_dataset("qiaojin/PubMedQA", "pqa_artificial", split="train").to_pandas().sample(n=20_000, random_state=parameters["random_seed"]).reset_index(drop=True)
     pretraining_columns = ["input"]
-    columns = ["context_id", "input"]
+    columns = ["context_id", "sentence_id", "background_context", "input_context", "input"]
     pretraining_data = []
-    qa_gen_val = []
-    qa_gen_background = []
-    qa_gen_val_prompt = PubMedQAExample.qa_gen_val_instruction
-    qa_gen_background_prompt = PubMedQAExample.qa_gen_background_instruction
-    for i, context in enumerate(contexts):
-        pretraining_data.append(context)
-        qa_gen_val.append([i, qa_gen_val_prompt + context + "\nResults: "])
-        qa_gen_background.append([i, qa_gen_background_prompt + context + "\nBackground: "])
+    qa_gen_standard = []
+    qa_gen_method = []
+    qa_gen_standard_prompt = PubMedQAExample.standard_prompt
+    qa_gen_method_prompt = PubMedQAExample.method_prompt
+    for i, row in df.iterrows():
+        context = row["context"]
+        context_labels = context["labels"]
+        context_texts = context["contexts"]
+        context_text = " ".join(context_texts)
+        pretraining_data.append([context_text])
+        for j in range(len(context_labels)):
+            label = context_labels[j]
+            if label == "METHODS": # It can be hard to draw knowledge insights from methods, so we skip them.
+                continue
+            sentence = context_texts[j]
+            add_data = [i, j, context_text, sentence]
+            standard_prompt = qa_gen_standard_prompt + context_text + "\nQuestion Context: " + sentence + "\nInsight from Question Context: " 
+            method_prompt = qa_gen_method_prompt + context_text + "\nQuestion Context: " + sentence + "\nInsight from Question Context: "
+            qa_gen_standard.append(add_data + [standard_prompt])
+            qa_gen_method.append(add_data + [method_prompt])
     pretraining_df = pd.DataFrame(pretraining_data, columns=pretraining_columns)
-    qa_gen_val_df = pd.DataFrame(qa_gen_val, columns=columns)
-    qa_gen_background_df = pd.DataFrame(qa_gen_background, columns=columns)
+    qa_gen_standard_df = pd.DataFrame(qa_gen_standard, columns=columns)
+    qa_gen_method_df = pd.DataFrame(qa_gen_method, columns=columns)
     save_dir = parameters["data_dir"] + "/pubmedqa/"
     os.makedirs(save_dir, exist_ok=True)
-    train_index = qa_gen_val_df.sample(frac=0.8, random_state=parameters["random_seed"]).index
-    qa_gen_train_df = qa_gen_val_df.loc[train_index].reset_index(drop=True)
-    qa_gen_val_df = qa_gen_val_df.drop(train_index).reset_index(drop=True)
-    qa_gen_background_train_df = qa_gen_background_df.loc[train_index].reset_index(drop=True)
-    qa_gen_background_val_df = qa_gen_background_df.drop(train_index).reset_index(drop=True)
     pretraining_df.to_csv(save_dir + "pretraining.csv", index=False)
-    qa_gen_val_df.to_csv(save_dir + "qa_gen_val.csv", index=False)
-    qa_gen_train_df.to_csv(save_dir + "qa_gen_train.csv", index=False)
-    qa_gen_train_df = qa_gen_val_df.sample(n=20).reset_index(drop=True)  # For testing purposes, we take a small sample
-    qa_gen_train_df.to_csv("tmp.csv", index=False)
-    qa_gen_background_val_df.to_csv(save_dir + "qa_gen_background_val.csv", index=False)
-    qa_gen_background_train_df.to_csv(save_dir + "qa_gen_background_train.csv", index=False)
-
-    test_df = df[["question", "long_answer", "final_decision"]]
+    qa_gen_standard_df.to_csv(save_dir + "qa_gen_standard.csv", index=False)
+    qa_gen_method_df.to_csv(save_dir + "qa_gen_method.csv", index=False)
+    test_df["answer"] = test_df["final_decision"]
+    test_df["input"] = PubMedQAExample.answer_prompt + test_df["question"] + "\nLong Answer: "
+    test_df = df[["question", "input", "long_answer", "final_decision"]]
     test_df.to_csv(save_dir + "test_qa.csv", index=False)
     log_info("PubMedQA dataset setup complete. Files saved in: " + save_dir)
 
 def parse_pubmedqa_inference_output(output):
-    lines = output.split("\n") # we only want the first 4
-    if len(lines) < 4:
-        return {"question": None, "answer": None, "conclusion": None}
-    justification = lines[0].strip().replace("Justification: ", "")
-    if "Question: " not in lines[1] or "Long Answer: " not in lines[2]:
-        return {"question": None, "answer": None, "justification": justification}
-    question = lines[1].strip().replace("Question: ", "")
-    answer = lines[2].strip().replace("Long Answer: ", "") + "\n".join(lines[3:])
-    return {
-        "question": question, "answer": answer, "justification": justification}
+    lines = output.split("Long Answer:")
+    if len(lines) != 2:
+        return None, None
+    else:
+        return lines[0].strip(), lines[1].strip()
+
+
+def get_train_test_split(df, random_seed, test_size=0.2):
+    """
+    Splits the dataframe into train and test sets.
+    """
+    train_df = df.sample(frac=1-test_size, random_state=random_seed).reset_index(drop=True)
+    test_df = df.drop(train_df.index).reset_index(drop=True)
+    return train_df, test_df
 
 def make_pubmedqa_inference_datasets(parameters):
     """
@@ -97,10 +135,8 @@ def make_pubmedqa_inference_datasets(parameters):
     parameters["random_seed"] = parameters.get("random_seed", 42)  # Ensure random seed is set
     save_dir = parameters["data_dir"] + "/pubmedqa/"
     required_files = [
-        "qa_gen_val_output.jsonl",
-        "qa_gen_train_output.jsonl",
-        "qa_gen_background_val_output.jsonl",
-        "qa_gen_background_train_output.jsonl",]
+        "qa_gen_standard_output.jsonl",
+        "qa_gen_method_output.jsonl"]
     missing_files = []
     for file in required_files:
         if not os.path.exists(os.path.join(save_dir, file)):
@@ -109,62 +145,62 @@ def make_pubmedqa_inference_datasets(parameters):
         log_error(f"Missing required files for PubmedQA inference: {', '.join(missing_files)}"
                   f"\n Make sure to run the inference scripts to generate these", parameters)
         return
-    clf_train_dfs = []
-    clf_val_dfs = []
-    ft_train_dfs = []
-    ft_val_dfs = []
-    po_train_dfs = {}
-    po_val_dfs = {}
+    po_dfs = {}
+    clf_dfs = []
     for file_name in required_files:
+        parse_errors = 0
+        total_attempts = 0
         file_path = os.path.join(save_dir, file_name)
         df = pd.read_json(file_path, lines=True)
-        columns = ["input", "output"]
-        data = []
+        ft_data = []
+        ft_keep_columns = list(set(df.columns) - {"output", "input"})
+        ft_columns = ft_keep_columns + ["input", "output"]
         for i, row in df.iterrows():
+            add_data = []
+            for keep_col in ft_keep_columns:
+                add_data.append(row[keep_col])
             outputs = row["output"]
             for output in outputs:
-                parsed_output = parse_pubmedqa_inference_output(output)
-                if parsed_output["question"] is not None:
-                    question, answer = parsed_output["question"], parsed_output["answer"]
-                    data.append([question, answer])
-        df = pd.DataFrame(data, columns=columns)
-        df["label"] = 0 if "background" in file_name else 1
-        split = "train" if "train" in file_name else "val"
-        if split == "train":
-            ft_train_dfs.append(df.copy())
-            po_train_dfs[file_name] = df.copy()
-            clf_train_dfs.append(df[["input", "label"]])
+                total_attempts += 1
+                question, answer = parse_pubmedqa_inference_output(output)
+                if question is not None:
+                    ft_data.append(add_data + [question, answer])
+                else:
+                    parse_errors += 1
+        if parse_errors > 0:
+            log_warn(f"Encountered {parse_errors}/{total_attempts} parse errors in {file_name}. ", parameters)
+        df = pd.DataFrame(ft_data, columns=ft_columns)
+        df["label"] = 1 if "standard" in file_name else 0
+        clf_dfs.append(df)
+        if "standard" in file_name:
+            po_dfs["standard"] = df
         else:
-            ft_val_dfs.append(df.copy())
-            po_val_dfs[file_name] = df.copy()
-            clf_val_dfs.append(df[["input", "label"]])
-
-    ft_train_df = pd.concat(ft_train_dfs, ignore_index=True)
-    ft_val_df = pd.concat(ft_val_dfs, ignore_index=True)
-    for df, split in zip([ft_train_df, ft_val_df], ["train", "val"]):
-        dataset = Dataset.from_pandas(df)
-        config = "ft"
-        dataset.push_to_hub(f"pubmed_inference", config_name=config, split=split)
-    clf_train_df = pd.concat(clf_train_dfs, ignore_index=True)
-    clf_val_df = pd.concat(clf_val_dfs, ignore_index=True)
+            po_dfs["method"] = df
+        if "standard" in file_name:
+            ft_train_df, ft_val_df = get_train_test_split(df, parameters["random_seed"], test_size=0.2)
+            train_dataset = Dataset.from_pandas(ft_train_df)
+            val_dataset = Dataset.from_pandas(ft_val_df)
+            train_dataset.push_to_hub(f"pubmed_inference", config_name="ft", split="train")
+            val_dataset.push_to_hub(f"pubmed_inference", config_name="ft", split="val")
+    clf_df = pd.concat(clf_dfs, ignore_index=True)
+    clf_train_df, clf_val_df = get_train_test_split(clf_df, parameters["random_seed"], test_size=0.2)
     train_dataset = Dataset.from_pandas(clf_train_df)
     val_dataset = Dataset.from_pandas(clf_val_df)
-    train_dataset.push_to_hub("pubmed_inference", config_name="clf", split="train")
-    val_dataset.push_to_hub("pubmed_inference", config_name="clf", split="val")
-    po_train_df = po_train_dfs["qa_gen_train_output.jsonl"]
-    po_train_df["chosen"] = po_train_df["output"]
-    po_train_df["rejected"] = po_train_dfs["qa_gen_background_train_output.jsonl"]["output"]
-    po_val_df = po_val_dfs["qa_gen_val_output.jsonl"]
-    po_val_df["chosen"] = po_val_df["output"]
-    po_val_df["rejected"] = po_val_dfs["qa_gen_background_val_output.jsonl"]["output"]
-    po_train_dataset = Dataset.from_pandas(po_train_df[["input", "chosen", "rejected"]])
-    po_val_dataset = Dataset.from_pandas(po_val_df[["input", "chosen", "rejected"]])
-    po_train_dataset.push_to_hub("pubmed_inference", config_name="po", split="train")
-    po_val_dataset.push_to_hub("pubmed_inference", config_name="po", split="val")
+    train_dataset.push_to_hub(f"pubmed_inference", config_name="clf", split="train")
+    val_dataset.push_to_hub(f"pubmed_inference", config_name="clf", split="val")
+    po_df = po_dfs["standard"]
+    po_df["chosen"] = po_dfs["method"]["input"]
+    po_df["rejected"] = po_df["input"]
+    po_df["input"] = "Create a question from the context: " + po_df["input_context"] + "\nQuestion: "
+    po_train_df, po_val_df = get_train_test_split(po_df, parameters["random_seed"], test_size=0.2)
+    po_train_dataset = Dataset.from_pandas(po_train_df)
+    po_val_dataset = Dataset.from_pandas(po_val_df)
+    po_train_dataset.push_to_hub(f"pubmed_inference", config_name="po", split="train")
+    po_val_dataset.push_to_hub(f"pubmed_inference", config_name="po", split="val")
     log_info("PubmedQA inference datasets setup complete. Datasets pushed to Hugging Face hub.", parameters)    
     return
 
-def setup_pubmedqa_finetune_datasets(parameters):
+def setup_pubmedqa_finetune_datasets(parameters, instruction_mix_in=0.05):
     store_dir = parameters["data_dir"] + "/pubmedqa/"
     if not os.path.exists(store_dir):
         os.makedirs(store_dir)
