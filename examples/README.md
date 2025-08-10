@@ -29,14 +29,14 @@ python create_examples.py setup --dataset_names pubmedqa
 This will create a few files in the `$storage_dir/data/pubmedqa` directory:
 - `test_qa.csv`: The question, answer pairs that we will be testing our eventual models on
 - `pretraining.csv`: The text of all the articles in PubMedQA, which we will use for pretraining to make the LM more familiar with the biomedical domain. 
-- `qa_gen_[train/val].csv`: Contains articles, and prompts that get a LM to generate question answer pairs from the articles. We will use this to generate synthetic QA pairs for finetuning a LM.
-- `qa_gen_background_[train/val].csv`: Quite similar to the above, but the prompts incentivize the model to only generate questions on the background or premise of the article, as opposed to its results. We will use this and the data generated from the previous file to preference tune a LM that only asks background related questions. 
+- `qa_gen_standard.csv`: Contains articles, and prompts that get a LM to generate question answer pairs from the articles. We will use this to generate synthetic QA pairs for finetuning a LM.
+- `qa_gen_method.csv`: Quite similar to the above, but the prompts incentivize the model to only generate questions on the study, as opposed to the knowledge inferable from it. We will use this and the data generated from the previous file to preference tune a LM that only asks study related questions. 
 
 ### Inference
 
 The first step is to run inference on the qa_gen files to generate the synthetic QA pairs. This is done with the following command (don't run it just yet):
 ```bash
-python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 150 hf 
+python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file $storage_dir/data/pubmedqa/qa_gen_standard.csv --max_new_tokens 150 hf 
 ```
 You may get the warning message: 
 ```bash
@@ -65,7 +65,7 @@ This should get a nice variety of questions from each article.
 
 Now let's run the following command to find the largest batch size we can use:
 ```bash
-python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file $storage_dir/data/pubmedqa/qa_gen_train.csv --max_new_tokens 200 --num_return_sequences 5 infer_batch_size --num_beams 5
+python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file $storage_dir/data/pubmedqa/qa_gen_standard.csv --max_new_tokens 200 --num_return_sequences 5 infer_batch_size --num_beams 5
 ```
 
 This gives me the recommended maximum batch size of 6. If you get 0 (i.e. nothing works), try setting `cache_implementation=offloaded` and try again.
