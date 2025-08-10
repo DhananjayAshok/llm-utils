@@ -106,6 +106,7 @@ def setup_pubmedqa(parameters):
     pretraining_df.to_csv(save_dir + "pretraining.csv", index=False)
     qa_gen_standard_df.to_csv(save_dir + "qa_gen_standard.csv", index=False)
     qa_gen_method_df.to_csv(save_dir + "qa_gen_method.csv", index=False)
+    test_df = df
     test_df["answer"] = test_df["final_decision"]
     test_df["input"] = PubMedQAExample.answer_prompt + test_df["question"] + "\nLong Answer: "
     test_df = df[["question", "input", "long_answer", "final_decision"]]
