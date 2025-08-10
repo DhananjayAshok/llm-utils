@@ -206,6 +206,8 @@ def setup_pubmedqa_finetune_datasets(parameters, instruction_mix_in=0.05):
     if not os.path.exists(store_dir):
         os.makedirs(store_dir)
     log_info("Setting up PubmedQA finetune datasets...", parameters)
+    instruction_data = load_dataset("Muennighoff/natural-instructions", split="test")
+    breakpoint()
     configs = ["clf", "ft", "po"]
     splits = ["train", "val"]
     for config in configs:
