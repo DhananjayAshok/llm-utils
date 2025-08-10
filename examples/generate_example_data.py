@@ -63,7 +63,25 @@ class PubMedQAExample:
     Question: 
     """
 
+    paraphrase_question_prompt = """
+    Paraphrase the following question:
 
+    Question: Do the Norwegian national project for ethics support in community health and care services?
+    Paraphrase: Is the national project for ethics in Norway supportive of care services? [STOP]
+
+    Question: Are weekend days required to accurately measure oral intake in hospitalised patients?
+    Paraphrase: Do we need to measure oral intake on weekends in hospitalised patients? [STOP]
+    """
+
+    paraphrase_answer_prompt = """
+    Paraphrase the following statement:
+
+    Statement: The Norwegian project discusses central ethical dilemmas, and conducts a large (national) scale implementation of CES structures for the municipal health and care services.
+    Paraphrase: The Norwegian project addresses key ethical issues and implements a large-scale CES structure for municipal health and care services. [STOP]
+
+    Statement: Grouped energy and protein intakes from WFR in hospitalised patients are similar on weekdays and weekends, although large intra-patient variations occur. Future quantification of oral intake during hospitalisation should include as many days as feasible, although not necessarily weekend days, to reflect true intake.
+    Paraphrase: In hospitalized patients, even though there is significant variance between them, WFR readings show comparable energy and protein intakes on weekdays and weekends. Assessments of oral intake during hospitalisation should be done on as many days as they can be and weekend days aren't in any way special with respect to accurately representing true intake.
+    """
 
 def setup_pubmedqa(parameters):
     """
@@ -106,10 +124,14 @@ def setup_pubmedqa(parameters):
     pretraining_df.to_csv(save_dir + "pretraining.csv", index=False)
     qa_gen_standard_df.to_csv(save_dir + "qa_gen_standard.csv", index=False)
     qa_gen_method_df.to_csv(save_dir + "qa_gen_method.csv", index=False)
-    test_df = df
+    yes_df = df[df["final_decision"] == "yes"]
+    no_df = df[df["final_decision"] == "no"]
+    # in this case, no_df is much smaller, so we sample from yes_df to make it the same size as no_df
+    yes_df = yes_df.sample(n=len(no_df), random_state=parameters["random_seed"]).reset_index(drop=True)
+    test_df = pd.concat([yes_df, no_df], ignore_index=True)
     test_df["answer"] = test_df["final_decision"]
     test_df["input"] = PubMedQAExample.answer_prompt + test_df["question"] + "\nLong Answer: "
-    test_df = df[["question", "input", "long_answer", "final_decision"]]
+    test_df = df[["question", "input", "long_answer", "answer"]]
     test_df.to_csv(save_dir + "test_qa.csv", index=False)
     log_info("PubMedQA dataset setup complete. Files saved in: " + save_dir)
 
@@ -118,7 +140,10 @@ def parse_pubmedqa_inference_output(output):
     if len(lines) != 2:
         return None, None
     else:
-        return lines[0].strip(), lines[1].strip()
+        answer = lines[1].split("Conclusion:")
+        if len(answer) != 2:
+            return None, None
+        return lines[0].strip(), answer[0].strip() , answer[1].strip().lower()
 
 
 def get_train_test_split(df, random_seed, test_size=0.2):
@@ -155,7 +180,7 @@ def make_pubmedqa_inference_datasets(parameters):
         df = pd.read_json(file_path, lines=True)
         ft_data = []
         ft_keep_columns = list(set(df.columns) - {"output", "input"})
-        ft_columns = ft_keep_columns + ["input", "output"]
+        ft_columns = ft_keep_columns + ["question", "long_answer", "answer"]
         for i, row in df.iterrows():
             add_data = []
             for keep_col in ft_keep_columns:
@@ -163,21 +188,24 @@ def make_pubmedqa_inference_datasets(parameters):
             outputs = row["output"]
             for output in outputs:
                 total_attempts += 1
-                question, answer = parse_pubmedqa_inference_output(output)
+                question, answer, binary = parse_pubmedqa_inference_output(output)
                 if question is not None:
-                    ft_data.append(add_data + [question, answer])
+                    ft_data.append(add_data + [question, answer, binary])
                 else:
                     parse_errors += 1
         if parse_errors > 0:
             log_warn(f"Encountered {parse_errors}/{total_attempts} parse errors in {file_name}. ", parameters)
         df = pd.DataFrame(ft_data, columns=ft_columns)
+        prompt_df = df.copy()
+
+        df["output"] = df["long_answer"] + "\nConclusion: " + df["answer"]
         df["label"] = 1 if "standard" in file_name else 0
         clf_dfs.append(df)
         if "standard" in file_name:
             po_dfs["standard"] = df
         else:
             po_dfs["method"] = df
-        if "standard" in file_name:
+        if "standard" in file_name:            
             ft_train_df, ft_val_df = get_train_test_split(df, parameters["random_seed"], test_size=0.2)
             train_dataset = Dataset.from_pandas(ft_train_df)
             val_dataset = Dataset.from_pandas(ft_val_df)
@@ -206,20 +234,26 @@ def setup_pubmedqa_finetune_datasets(parameters, instruction_mix_in=0.05):
     if not os.path.exists(store_dir):
         os.makedirs(store_dir)
     log_info("Setting up PubmedQA finetune datasets...", parameters)
-    instruction_data = load_dataset("Muennighoff/natural-instructions", split="test")
-    breakpoint()
+    instruction_data = load_dataset("tatsu-lab/alpaca", split="train").to_pandas()
+    instruction_data["input"] = instruction_data["instruction"]
     configs = ["clf", "ft", "po"]
     splits = ["train", "val"]
     for config in configs:
         for split in splits:
             dataset = load_dataset(f"{hf_hub}/pubmed_inference", config, split=split)
             df = dataset.to_pandas()
-            df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
-            log_info(f"Saved {config} {split} dataset to {store_dir}/hf_{config}_{split}.csv", parameters)
             if split == "train":
                 df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
                 df.to_csv(f"tmp_{config}.csv", index=False)
                 log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_{config}.csv", parameters)
+            if config == "ft" and split == "train":
+                if instruction_mix_in > 0:
+                    n_samples = min(len(instruction_data), int(len(df) * instruction_mix_in))
+                    instruction_sample = instruction_data[["input", "output"]].sample(n=n_samples, random_state=parameters["random_seed"]).reset_index(drop=True)
+                    df = pd.concat([df, instruction_sample], ignore_index=True)
+            df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
+            log_info(f"Saved {config} {split} dataset to {store_dir}/hf_{config}_{split}.csv", parameters)
+
 
 class ManyModalQAExample:
     colour_question_1 = "What are the primary colours of the Starry Night?"

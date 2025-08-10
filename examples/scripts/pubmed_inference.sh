@@ -9,8 +9,10 @@ for file_name in $file_names; do
 done
 
 python3 << EOF
-import pandas as pd; df = pd.read_json("$storage_dir/data/pubmedqa/test_qa.jsonl", lines=True)
+import pandas as pd; df = pd.read_json("$storage_dir/data/pubmedqa/test_qa_output.jsonl", lines=True)
 df["output"] = df["output"].apply(lambda x: x[0] if isinstance(x, list) else x)
 df["binary_output"] = df["output"].apply(lambda x: x.split("Conclusion:")[-1].strip().lower() if isinstance(x, str) else x)
-print("LLama3-Instruct Model Achieves PubmedQA Accuracy: ", (df["binary_output"] == df["answer"]).mean())
+print("Base Rate: \n", df["final_decision"].value_counts(normalize=True)* 100)
+df["correct"] = df["binary_output"] == df["final_decision"]
+print("LLama3-Instruct Model Achieves PubmedQA Accuracy: ", (df.groupby("final_decision")['correct'].mean()*100))
 EOF
