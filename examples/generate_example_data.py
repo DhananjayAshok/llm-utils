@@ -129,6 +129,7 @@ def make_pubmedqa_inference_datasets(parameters):
                     data.append([question, answer])
         df = pd.DataFrame(data, columns=columns)
         df["label"] = 0 if "background" in file_name else 1
+        split = "train" if "train" in file_name else "val"
         if split == "train":
             ft_train_dfs.append(df.copy())
             po_train_dfs[file_name] = df.copy()
