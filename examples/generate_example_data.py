@@ -111,6 +111,10 @@ def make_pubmedqa_inference_datasets(parameters):
         return
     clf_train_dfs = []
     clf_val_dfs = []
+    ft_train_dfs = []
+    ft_val_dfs = []
+    po_train_dfs = {}
+    po_val_dfs = {}
     for file_name in required_files:
         file_path = os.path.join(save_dir, file_name)
         df = pd.read_json(file_path, lines=True)
@@ -124,22 +128,39 @@ def make_pubmedqa_inference_datasets(parameters):
                     question, answer = parsed_output["question"], parsed_output["answer"]
                     data.append([question, answer])
         df = pd.DataFrame(data, columns=columns)
-        dataset = Dataset.from_pandas(df)
-        split = "train" if "train" in file_name else "val"
-        config = "background" if "background" in file_name else "default"
-        dataset.push_to_hub(f"pubmed_inference", config_name=config, split=split)
-        df["label"] = 0 if "background" in file_name else 1  # 0 for background, 1 for results QA
-        df = df[["input", "label"]]
+        df["label"] = 0 if "background" in file_name else 1
         if split == "train":
-            clf_train_dfs.append(df)
+            ft_train_dfs.append(df.copy())
+            po_train_dfs[file_name] = df.copy()
+            clf_train_dfs.append(df[["input", "label"]])
         else:
-            clf_val_dfs.append(df)
-    train_df = pd.concat(clf_train_dfs, ignore_index=True)
-    val_df = pd.concat(clf_val_dfs, ignore_index=True)
-    train_dataset = Dataset.from_pandas(train_df)
-    val_dataset = Dataset.from_pandas(val_df)
+            ft_val_dfs.append(df.copy())
+            po_val_dfs[file_name] = df.copy()
+            clf_val_dfs.append(df[["input", "label"]])
+
+    ft_train_df = pd.concat(ft_train_dfs, ignore_index=True)
+    ft_val_df = pd.concat(ft_val_dfs, ignore_index=True)
+    for df, split in zip([ft_train_df, ft_val_df], ["train", "val"]):
+        dataset = Dataset.from_pandas(df)
+        config = "ft"
+        dataset.push_to_hub(f"pubmed_inference", config_name=config, split=split)
+    clf_train_df = pd.concat(clf_train_dfs, ignore_index=True)
+    clf_val_df = pd.concat(clf_val_dfs, ignore_index=True)
+    train_dataset = Dataset.from_pandas(clf_train_df)
+    val_dataset = Dataset.from_pandas(clf_val_df)
     train_dataset.push_to_hub("pubmed_inference", config_name="clf", split="train")
     val_dataset.push_to_hub("pubmed_inference", config_name="clf", split="val")
+    po_train_df = po_train_dfs["qa_gen_train_output.jsonl"]
+    po_train_df["chosen"] = po_train_df["output"]
+    po_train_df["rejected"] = po_train_df["qa_gen_background_train_output.jsonl"]["output"]
+    po_val_df = po_val_dfs["qa_gen_val_output.jsonl"]
+    po_val_df["chosen"] = po_val_df["output"]
+    po_val_df["rejected"] = po_val_df["qa_gen_background_val_output.jsonl"]["output"]
+    po_train_dataset = Dataset.from_pandas(po_train_df[["input", "chosen", "rejected"]])
+    po_val_dataset = Dataset.from_pandas(po_val_df[["input", "chosen", "rejected"]])
+    po_train_dataset.push_to_hub("pubmed_inference", config_name="po", split="train")
+    po_val_dataset.push_to_hub("pubmed_inference", config_name="po", split="val")
+    log_info("PubmedQA inference datasets setup complete. Datasets pushed to Hugging Face hub.", parameters)    
     return
 
 def setup_pubmedqa_finetune_datasets(parameters):
@@ -147,7 +168,7 @@ def setup_pubmedqa_finetune_datasets(parameters):
     if not os.path.exists(store_dir):
         os.makedirs(store_dir)
     log_info("Setting up PubmedQA finetune datasets...", parameters)
-    configs = ["clf", "background", "default"]
+    configs = ["clf", "ft", "po"]
     splits = ["train", "val"]
     for config in configs:
         for split in splits:
@@ -155,14 +176,10 @@ def setup_pubmedqa_finetune_datasets(parameters):
             df = dataset.to_pandas()
             df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
             log_info(f"Saved {config} {split} dataset to {store_dir}/hf_{config}_{split}.csv", parameters)
-            if split == "train" and config == "clf":
+            if split == "train":
                 df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
-                df.to_csv("tmp_clf.csv", index=False)
-                log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_clf.csv", parameters)
-            if split == "train" and config == "default":
-                df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
-                df.to_csv("tmp_ft.csv", index=False)
-                log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_ft.csv", parameters)
+                df.to_csv(f"tmp_{config}.csv", index=False)
+                log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_{config}.csv", parameters)
 
 class ManyModalQAExample:
     colour_question_1 = "What are the primary colours of the Starry Night?"
