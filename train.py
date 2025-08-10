@@ -178,6 +178,8 @@ if __name__ == "__main__":
     if script_args.evaluate_before_training and "test" in dataset:
         trainer.evaluate(dataset["test"], metric_key_prefix="test") # This will fail if run in FSDP: https://github.com/huggingface/transformers/issues/39961
 
+    if accelerator.is_main_process:
+        log_info(f"Training starting with {len(trainer.train_dataset)} samples ...")
     trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
 
     if "test" in dataset:
