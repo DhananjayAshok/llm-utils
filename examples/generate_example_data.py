@@ -131,7 +131,7 @@ def setup_pubmedqa(parameters):
     test_df = pd.concat([yes_df, no_df], ignore_index=True)
     test_df["answer"] = test_df["final_decision"]
     test_df["input"] = PubMedQAExample.answer_prompt + test_df["question"] + "\nLong Answer: "
-    test_df = df[["question", "input", "long_answer", "answer"]]
+    test_df = test_df[["question", "input", "long_answer", "answer"]]
     test_df.to_csv(save_dir + "test_qa.csv", index=False)
     log_info("PubMedQA dataset setup complete. Files saved in: " + save_dir)
 
