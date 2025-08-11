@@ -1,9 +1,20 @@
 import torch
-from transformers import Trainer, default_data_collator
+from transformers import Trainer, default_data_collator, EarlyStoppingCallback
 from trl import SFTTrainer, DPOTrainer
 import numpy as np
 from training.model import get_peft_config
 
+
+def get_callback_list(script_args):
+    callbacks = []
+    if script_args.early_stopping_patience is not None:
+        callbacks.append(
+            EarlyStoppingCallback(
+                early_stopping_patience=script_args.early_stopping_patience,
+                early_stopping_threshold=script_args.early_stopping_threshold,
+            )
+        )
+    return callbacks
 
 class WeightedTrainer(Trainer):
     """
@@ -94,6 +105,7 @@ def process_clf(script_args, training_args, dataset, model, tokenizer):
 
 def get_clf_trainer(script_args, training_args, dataset, model, tokenizer):
     dataset = process_clf(script_args, training_args, dataset, model, tokenizer)
+    callbacks = get_callback_list(script_args)
     trainer = WeightedTrainer(
         model=model,
         class_weights=script_args.class_weights,
@@ -101,6 +113,7 @@ def get_clf_trainer(script_args, training_args, dataset, model, tokenizer):
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"] if "validation" in dataset else None,
         compute_metrics=compute_clf_metrics,
+        callbacks=callbacks,
         processing_class=tokenizer, # getting processing_class warning Deprication
         data_collator=default_data_collator,
     )
@@ -131,6 +144,7 @@ def get_trl_renamed_train_val_dataset(dataset):
 
 def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_config):
     train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    callbacks = get_callback_list(script_args)
 
     trainer = SFTTrainer(
         model=model,
@@ -141,6 +155,7 @@ def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         processing_class=tokenizer,
         completion_only_loss=False,
         args=training_args,
+        callbacks=callbacks,
     )
     return trainer, dataset
 
@@ -148,6 +163,7 @@ def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_
 
 def get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_config):
     train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    callbacks = get_callback_list(script_args)
     trainer = SFTTrainer(
         model=model,
         train_dataset=train_dataset,
@@ -155,12 +171,14 @@ def get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         peft_config=peft_config,
         processing_class=tokenizer,
         args=training_args,
+        callbacks=callbacks,
     )
     return trainer, dataset
 
 
 def get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_config):
     dataset = dataset.rename_column("input", "prompt")
+    callbacks = get_callback_list(script_args)
     trainer = DPOTrainer(
         model,
         ref_model=None,
@@ -168,6 +186,7 @@ def get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"] if "validation" in dataset else None,
         processing_class=tokenizer,
+        callbacks=callbacks,
         peft_config=peft_config,
     )   
     return trainer, dataset

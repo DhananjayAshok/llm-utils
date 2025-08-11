@@ -73,7 +73,10 @@ class ScriptArguments:
     evaluate_before_training: Optional[bool] = field(default=False, metadata={"help": "whether to evaluate before training"})
     num_workers: Optional[int] = field(default=4, metadata={"help": "the number of workers for huggingface datasets"})
 
+    # Training Arguments
     class_weights: Optional[List[float]] = field(default=None, metadata={"help": "the class weights to use for classification training. If not provided, will be uniform."})
+    early_stopping_patience: Optional[int] = field(default=None, metadata={"help": "the number of steps to wait for improvement before stopping training"})
+    early_stopping_threshold: Optional[float] = field(default=0.0, metadata={"help": "the threshold for early stopping. If the validation loss does not improve by this amount, training will stop."})
 
     # LoraConfig
     use_peft: Optional[bool] = field(default=True, metadata={"help": "whether to use Lora"})

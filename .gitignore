@@ -178,4 +178,5 @@ llm-env/
 .idea
 examples/scripts/env.sh # It won't change from now on. 
 results/
+wandb/
 *.out

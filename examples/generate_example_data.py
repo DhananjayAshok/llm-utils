@@ -4,6 +4,7 @@ import click
 import zipfile
 import pandas as pd
 import os
+import itertools
 
 hf_hub="Dhananjay99" # If you want to push and set up from your own hub, change this to your username. 
 
@@ -71,6 +72,8 @@ class PubMedQAExample:
 
     Question: Are weekend days required to accurately measure oral intake in hospitalised patients?
     Paraphrase: Do we need to measure oral intake on weekends in hospitalised patients? [STOP]
+
+    Question: 
     """
 
     paraphrase_answer_prompt = """
@@ -81,6 +84,8 @@ class PubMedQAExample:
 
     Statement: Grouped energy and protein intakes from WFR in hospitalised patients are similar on weekdays and weekends, although large intra-patient variations occur. Future quantification of oral intake during hospitalisation should include as many days as feasible, although not necessarily weekend days, to reflect true intake.
     Paraphrase: In hospitalized patients, even though there is significant variance between them, WFR readings show comparable energy and protein intakes on weekdays and weekends. Assessments of oral intake during hospitalisation should be done on as many days as they can be and weekend days aren't in any way special with respect to accurately representing true intake.
+
+    Statement: 
     """
 
 def setup_pubmedqa(parameters):
@@ -154,11 +159,10 @@ def get_train_test_split(df, random_seed, test_size=0.2):
     test_df = df.drop(train_df.index).reset_index(drop=True)
     return train_df, test_df
 
-def make_pubmedqa_inference_datasets(parameters):
+def process_pubmedqa_inference_datasets(parameters):
     """
     Processes the PubmedQA inference results. Assumes that inference has been run for all the necessary files.
     """
-    parameters["random_seed"] = parameters.get("random_seed", 42)  # Ensure random seed is set
     save_dir = parameters["data_dir"] + "/pubmedqa/"
     required_files = [
         "qa_gen_standard_output.jsonl",
@@ -171,8 +175,8 @@ def make_pubmedqa_inference_datasets(parameters):
         log_error(f"Missing required files for PubmedQA inference: {', '.join(missing_files)}"
                   f"\n Make sure to run the inference scripts to generate these", parameters)
         return
-    po_dfs = {}
-    clf_dfs = []
+    standard_df = None
+    method_df = None
     for file_name in required_files:
         parse_errors = 0
         total_attempts = 0
@@ -196,38 +200,89 @@ def make_pubmedqa_inference_datasets(parameters):
         if parse_errors > 0:
             log_warn(f"Encountered {parse_errors}/{total_attempts} parse errors in {file_name}. ", parameters)
         df = pd.DataFrame(ft_data, columns=ft_columns)
-        prompt_df = df.copy()
-
-        df["output"] = df["long_answer"] + "\nConclusion: " + df["answer"]
-        df["label"] = 1 if "standard" in file_name else 0
-        clf_dfs.append(df)
         if "standard" in file_name:
-            po_dfs["standard"] = df
+            standard_df = df
         else:
-            po_dfs["method"] = df
-        if "standard" in file_name:            
-            ft_train_df, ft_val_df = get_train_test_split(df, parameters["random_seed"], test_size=0.2)
-            train_dataset = Dataset.from_pandas(ft_train_df)
-            val_dataset = Dataset.from_pandas(ft_val_df)
-            train_dataset.push_to_hub(f"pubmed_inference", config_name="ft", split="train")
-            val_dataset.push_to_hub(f"pubmed_inference", config_name="ft", split="val")
-    clf_df = pd.concat(clf_dfs, ignore_index=True)
+            method_df = df
+    
+    clf_standard = standard_df.copy()
+    clf_method = method_df.copy()
+    clf_standard["label"] = 1
+    clf_method["label"] = 0
+    clf_df = pd.concat([clf_standard, clf_method], ignore_index=True)
+    clf_df["input"] = clf_df["question"]
     clf_train_df, clf_val_df = get_train_test_split(clf_df, parameters["random_seed"], test_size=0.2)
     train_dataset = Dataset.from_pandas(clf_train_df)
     val_dataset = Dataset.from_pandas(clf_val_df)
     train_dataset.push_to_hub(f"pubmed_inference", config_name="clf", split="train")
     val_dataset.push_to_hub(f"pubmed_inference", config_name="clf", split="val")
-    po_df = po_dfs["standard"]
-    po_df["chosen"] = po_dfs["method"]["input"]
-    po_df["rejected"] = po_df["input"]
-    po_df["input"] = "Create a question from the context: " + po_df["input_context"] + "\nQuestion: "
-    po_train_df, po_val_df = get_train_test_split(po_df, parameters["random_seed"], test_size=0.2)
-    po_train_dataset = Dataset.from_pandas(po_train_df)
-    po_val_dataset = Dataset.from_pandas(po_val_df)
-    po_train_dataset.push_to_hub(f"pubmed_inference", config_name="po", split="train")
-    po_val_dataset.push_to_hub(f"pubmed_inference", config_name="po", split="val")
-    log_info("PubmedQA inference datasets setup complete. Datasets pushed to Hugging Face hub.", parameters)    
+
+    standard_paraphrase_df = standard_df.copy()
+    standard_paraphrase_df["question_input"] = PubMedQAExample.paraphrase_question_prompt + standard_paraphrase_df["question"]
+    standard_paraphrase_df["answer_input"] = PubMedQAExample.paraphrase_answer_prompt + standard_paraphrase_df["long_answer"]
+
+    method_paraphrase_df = method_df.copy()
+    method_paraphrase_df["question_input"] = PubMedQAExample.paraphrase_question_prompt + method_paraphrase_df["question"]
+    # does not have answer_input as is not needed
+
+    standard_paraphrase_df.to_csv(os.path.join(save_dir, "standard_paraphrase.csv"), index=False)
+    method_paraphrase_df.to_csv(os.path.join(save_dir, "method_paraphrase.csv"), index=False)
+
+    po_df = standard_df.copy()
+    po_df["input"] = standard_df["input_context"]
+    po_df["chosen"] = method_df["question"]
+    po_df["rejected"] = standard_df["question"]
+    val_dataset = Dataset.from_pandas(po_df)
+    val_dataset.push_to_hub(f"pubmed_inference", config_name="po", split="val")
+
+    standard_df["input"] = standard_df["question"]
+    standard_df["output"] = standard_df["long_answer"] + "\nConclusion: " + standard_df["answer"]
+    val_dataset = Dataset.from_pandas(standard_df)
+    val_dataset.push_to_hub(f"pubmed_inference", config_name="ft", split="val")
+    log_info("PubmedQA inference datasets setup complete. Partial datasets pushed to Hugging Face hub. Now run the paraphrase script", parameters)
     return
+
+
+def process_pubmedqa_paraphrase_datasets(parameters):
+    save_dir = parameters["data_dir"] + "/pubmedqa/"
+    required_files = [
+        "standard_paraphrase_question_output.jsonl",
+        "standard_paraphrase_answer_output.jsonl",
+        "method_paraphrase_question_output.jsonl"]
+    missing_files = []
+    for file in required_files:
+        if not os.path.exists(os.path.join(save_dir, file)):
+            missing_files.append(file)
+    if missing_files:
+        log_error(f"Missing required files for PubmedQA inference: {', '.join(missing_files)}"
+                  f"\n Make sure to run the inference scripts to generate these", parameters)
+        return
+    standard_question_df = pd.read_json(os.path.join(save_dir, "standard_paraphrase_question_output.jsonl"), lines=True)
+    standard_answer_df = pd.read_json(os.path.join(save_dir, "standard_paraphrase_answer_output.jsonl"), lines=True)
+    method_question_df = pd.read_json(os.path.join(save_dir, "method_paraphrase_question_output.jsonl"), lines=True)
+
+    po_data = []
+    ft_data = []
+    ft_columns = ["input", "output"]
+    po_columns = ["input", "chosen", "rejected"]
+    for i, row in standard_question_df.iterrows():
+        questions = row["output"]
+        answers = standard_answer_df.loc[i]["output"]
+        method_questions = method_question_df.loc[i]["output"]
+        po_input = row["input_context"]
+        for question, answer in itertools.product(questions, answers):
+            ft_data.append([question, answer + "\nConclusion: " + row["answer"]])
+        for question, method_question in itertools.product(questions, method_questions):
+            po_data.append([po_input, method_question, question])
+    ft_df = pd.DataFrame(ft_data, columns=ft_columns)
+    po_df = pd.DataFrame(po_data, columns=po_columns)
+    train_dataset = Dataset.from_pandas(ft_df)
+    train_dataset.push_to_hub(f"pubmed_inference", config_name="ft", split="train")
+    train_dataset = Dataset.from_pandas(po_df)
+    train_dataset.push_to_hub(f"pubmed_inference", config_name="po", split="train")
+    log_info("PubmedQA paraphrase processing setup complete. Complete datasets pushed to Hugging Face hub.", parameters)
+    return
+
 
 def setup_pubmedqa_finetune_datasets(parameters, instruction_mix_in=0.05):
     store_dir = parameters["data_dir"] + "/pubmedqa/"
