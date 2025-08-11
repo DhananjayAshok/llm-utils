@@ -343,7 +343,7 @@ def setup_manymodalqa(parameters):
         os.remove(data_dir+output+".zip")
     log_info("ManyModalQA downloaded. Now setting up...")
     qa_path = os.path.join(data_dir, "ManyModalQAData", "ManyModalQAData")
-    img_dir = os.path.join(data_dir, "ManyModalQAImages", "ManyModalQAImages")
+    img_dir = os.path.join(data_dir, "ManyModalQAImages", "ManyModalImages")
     files = [f"official_aaai_split_{split}_data.json" for split in ["train", "dev"]]
     dfs = []
     def get_idx_str(idx):
@@ -375,7 +375,6 @@ def setup_manymodalqa(parameters):
     log_info("Sampled 20 rows from ManyModalQA color dataset for testing purposes and saved to tmp_color.csv", parameters)
 
 
-
 @click.command()
 @click.option("--dataset_names", default=["pubmedqa", "manymodalqa"], multiple=True)
 @click.pass_obj
@@ -398,8 +397,8 @@ def pubmed_process(parameters, step):
     if step == 1:
         process_pubmedqa_paraphrase_datasets(parameters)
     if step == 2:
-        setup_pubmedqa_finetune_datasets()
-    
+        setup_pubmedqa_finetune_datasets(parameters)
+
 
 if __name__ == "__main__":
     raise ValueError("This script is not meant to be run directly. Please use the create_examples.py script to set up the data.")
