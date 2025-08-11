@@ -63,8 +63,7 @@ def compute_precision(preds, labels, label):
 
 def compute_clf_metrics(p):
     """
-    Compute the accuracy of a classification model. 
-    TODO: Add other metrics like F1, precision and recall
+    Compute the accuracy of a classification model.
     """
     preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
     preds = np.argmax(preds, axis=1)
