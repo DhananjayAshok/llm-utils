@@ -335,20 +335,27 @@ def setup_manymodalqa(parameters):
     import gdown
     data_dir = parameters["data_dir"]+"/"
     os.makedirs(data_dir, exist_ok=True)
-    for url, output in [("https://drive.google.com/file/d/1nV4w1wOLfg4MfsghG0KI1YVtqmMl54gN/view","ManyModalQAData")]:
+    for url, output in [("https://drive.google.com/file/d/1nV4w1wOLfg4MfsghG0KI1YVtqmMl54gN/view","ManyModalQAData"),
+                        ("https://drive.google.com/file/d/1rGZod-5OXxBqVDpR2F4TPH1GRXeOrIRG/view", "ManyModalQAImages")]:
         gdown.download(url, data_dir+output+".zip", fuzzy=True)
         with zipfile.ZipFile(data_dir+output+".zip", 'r') as zip_ref:
             zip_ref.extractall(data_dir+output)
         os.remove(data_dir+output+".zip")
     log_info("ManyModalQA downloaded. Now setting up...")
     qa_path = os.path.join(data_dir, "ManyModalQAData", "ManyModalQAData")
+    img_dir = os.path.join(data_dir, "ManyModalQAImages", "ManyModalQAImages")
     files = [f"official_aaai_split_{split}_data.json" for split in ["train", "dev"]]
     dfs = []
+    def get_idx_str(idx):
+        path = os.path.join(img_dir, str(idx).zfill(20) + ".png")
+        assert os.path.exists(path)
+        return path
+
     for file in files:
         df = pd.read_json(os.path.join(qa_path, file))
         df = df[df.q_type == "image"].reset_index(drop=True)
         df["image_caption"] = df["image"].apply(lambda x: x['caption'])
-        df["image"] = df["image"].apply(lambda x: x['url'])
+        df["image"] = df["id"].apply(get_idx_str)
         df = df[["image", "image_caption", "question", "answer"]]
         dfs.append(df)
     df = pd.concat(dfs, ignore_index=True)
@@ -358,17 +365,10 @@ def setup_manymodalqa(parameters):
                          + "\nQuestion: ")
     shape_df = prompt_df.copy()
     shape_df["input"] = ManyModalQAExample.shape_instruction + df["image_caption"] + "\nQuestion: "
-    train_index = color_df.sample(frac=0.8, random_state=parameters["random_seed"]).index
-    color_train_df = color_df.loc[train_index].reset_index(drop=True)
-    color_val_df = color_df.drop(train_index).reset_index(drop=True)
-    shape_train_df = shape_df.loc[train_index].reset_index(drop=True)
-    shape_val_df = shape_df.drop(train_index).reset_index(drop=True)
     save_dir = parameters["data_dir"] + "/manymodalqa/"
     os.makedirs(save_dir, exist_ok=True)
-    color_train_df.to_csv(save_dir + "color_train.csv", index=False)
-    color_val_df.to_csv(save_dir + "color_val.csv", index=False)
-    shape_train_df.to_csv(save_dir + "shape_train.csv", index=False)
-    shape_val_df.to_csv(save_dir + "shape_val.csv", index=False)
+    color_df.to_csv(f"{save_dir}/color.csv", index=False)
+    shape_df.to_csv(f"{save_dir}/shape.csv", index=False)
     log_info("ManyModalQA dataset setup complete. Files saved in: " + data_dir, parameters)
     color_df = color_df.sample(n=20).reset_index(drop=True)  # For testing purposes, we take a small sample
     color_df.to_csv("tmp_color.csv", index=False)
