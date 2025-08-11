@@ -386,7 +386,7 @@ def setup_data(parameters, dataset_names):
         setup_manymodalqa(parameters)
 
 @click.command()
-@click.option("--step", type=int, default=1, help="Step number for the PubmedQA dataset setup.")
+@click.option("--step", type=int, default=2, help="Step number for the PubmedQA dataset setup.")
 @click.pass_obj
 def pubmed_process(parameters, step):
     """
@@ -394,9 +394,11 @@ def pubmed_process(parameters, step):
     Assumes that inference has been run for all the necessary files.
     """
     if step == 0:
-        make_pubmedqa_inference_datasets(parameters)
+        process_pubmedqa_inference_datasets(parameters)
     if step == 1:
-        setup_pubmedqa_finetune_datasets(parameters)
+        process_pubmedqa_paraphrase_datasets(parameters)
+    if step == 2:
+        setup_pubmedqa_finetune_datasets()
     
 
 if __name__ == "__main__":
