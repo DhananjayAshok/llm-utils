@@ -3,17 +3,17 @@ batch_size=20
 file_name="test_qa"
 
 model_name="meta-llama/Llama-3.2-1B-Instruct"
-#python infer.py --model_name $model_name --input_file $storage_dir/data/pubmedqa/${file_name}.csv \
-#--output_file $storage_dir/data/pubmedqa/${file_name}_base_output.jsonl --max_new_tokens 200 hf --batch_size $batch_size --padding_side left
-
 python infer.py --model_name $model_name --input_file $storage_dir/data/pubmedqa/${file_name}.csv \
---output_file $storage_dir/data/pubmedqa/${file_name}_base_output.jsonl --max_new_tokens 200 vllm --max_model_len 4000
+--output_file $storage_dir/data/pubmedqa/${file_name}_base_output.jsonl --max_new_tokens 200 hf --batch_size $batch_size --padding_side left
+
+#python infer.py --model_name $model_name --input_file $storage_dir/data/pubmedqa/${file_name}.csv \
+#--output_file $storage_dir/data/pubmedqa/${file_name}_base_output.jsonl --max_new_tokens 200 vllm --max_model_len 4000
 
 model_name="$storage_dir/models/ft_model/final_checkpoint"
-#python infer.py --model_name $model_name --input_file $storage_dir/data/pubmedqa/${file_name}.csv \
-#--output_file $storage_dir/data/pubmedqa/${file_name}_ft_output.jsonl --max_new_tokens 200 hf --batch_size $batch_size --padding_side left
 python infer.py --model_name $model_name --input_file $storage_dir/data/pubmedqa/${file_name}.csv \
---output_file $storage_dir/data/pubmedqa/${file_name}_ft_output.jsonl --max_new_tokens 200 vllm --max_model_len 4000
+--output_file $storage_dir/data/pubmedqa/${file_name}_ft_output.jsonl --max_new_tokens 200 hf --batch_size $batch_size --padding_side left
+#python infer.py --model_name $model_name --input_file $storage_dir/data/pubmedqa/${file_name}.csv \
+#--output_file $storage_dir/data/pubmedqa/${file_name}_ft_output.jsonl --max_new_tokens 200 vllm --max_model_len 4000
 
 
 python3 << EOF
