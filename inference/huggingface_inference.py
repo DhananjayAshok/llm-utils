@@ -153,7 +153,7 @@ def get_inputs(data_df, start, end, model, parameters):
         if parameters["vlm_kind"] in ["llava"]:
             if input_texts.apply(lambda x: "<image>" in x).any(): # do not use <image> tag, let the next line handle it
                 input_texts = input_texts.apply(lambda x: x.replace("<image>", ""))
-            input_texts = "USER: <image>\n" + input_texts + "\nASSISTANT: "
+            input_texts = "[INST] <image>\n" + input_texts + "[/INST]"
             input_texts = input_texts.tolist()
             raise NotImplementedError("This fails and I dont yet know why")
             inputs = parameters["tokenizer"](text=input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
@@ -309,6 +309,10 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
                 if prefix_text is not None:
                     input_str = "(Common prefix removed...) + " + input_str[len(prefix_text):]  # remove prefix from input
                 log_info(f"First generated output for sanity check: \nInput: {input_str} \nOutput(s): {output_str}", parameters)
+            if track_output_perplexity:
+                data_df.loc[i, output_perplexity_column] = output_normed_perplexity
+            if track_input_perplexity:
+                data_df.loc[i, input_perplexity_column] = input_normed_perplexity
         elif model_kind == "clf":
             output = model(**inputs)
             out = output.logits.argmax(dim=-1).detach().cpu().numpy() # might want to save logits instead
@@ -318,11 +322,6 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
         data_df.loc[i:i+batch_size-1, parameters["generation_complete_column"]] = True
         del inputs
         del output
-        if track_output_perplexity:
-            data_df.loc[i, output_perplexity_column] = output_normed_perplexity
-        if track_input_perplexity:
-            data_df.loc[i, input_perplexity_column] = input_normed_perplexity
-
         if (i % save_every == 0 and i > 0) or i >= len(data_df) - batch_size:
             data_df.to_json(output_filepath, index=False, orient="records", lines=True)
     log_info(f"Saved output to {output_filepath}", parameters)
