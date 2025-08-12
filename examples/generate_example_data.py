@@ -355,8 +355,9 @@ def setup_manymodalqa(parameters):
         df = pd.read_json(os.path.join(qa_path, file))
         df = df[df.q_type == "image"].reset_index(drop=True)
         df["image_caption"] = df["image"].apply(lambda x: x['caption'])
+        df["image_url"] = df["image"].apply(lambda x: x['url'])
         df["image"] = df["id"].apply(get_idx_str)
-        df = df[["image", "image_caption", "question", "answer"]]
+        df = df[["image", "image_caption", "image_url", "question", "answer"]]
         dfs.append(df)
     df = pd.concat(dfs, ignore_index=True)
     prompt_df = df[["image"]]
