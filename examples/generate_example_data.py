@@ -15,14 +15,14 @@ class PubMedQAExample:
     
     Background Context: Internationally, clinical ethics support has yet to be implemented systematically in community health and care services. A large-scale Norwegian project (2007-2015) attempted to increase ethical competence in community services through facilitating the implementation of ethics support activities in 241 Norwegian municipalities. The article describes the ethics project and the ethics activities that ensued.
     Question Context: The Norwegian ethics project is vast in scope, yet has focused on some institutions and professions (e.g., nursing homes, home-based care; nurses, nurses\' aides, unskilled workers) whilst seldom reaching others (e.g., child and adolescent health care; physicians). This study addresses this gap. 
-    Insight from Question Context: The Norweigian national project has a scope that includes community health and care services like nursing homes. 
+    Knowledge Insight from Question Context: The Norweigian national project has a scope that includes community health and care services like nursing homes. 
     Question: Do the Norwegian national project for ethics support in community health and care services?
     Long Answer: The Norwegian project discusses central ethical dilemmas, and conducts a large (national) scale implementation of CES structures for the municipal health and care services. 
     Conclusion: Yes [STOP]
 
     Background Context: Nutrition studies in patients admitted to hospital frequently disregard oral intake because measurement is time-intensive and logistically challenging. In free-living populations, weighed food records (WFR) are the gold-standard and are conducted on weekend and weekdays to capture variations in intake, although this may not translate during hospitalisation. The present study aimed to determine whether oral intake differs between weekends and weekdays in hospitalised patients. For adult patients initially admitted to the intensive therapy unit with a moderate-severe head injury over a 12-month period, WFR were conducted each week on Tuesday, Thursday and Saturday throughout hospitalisation. Meal components were weighed before and after consumption, and energy and protein intakes were calculated using specialised software. Thirty-two patients had WFR collected on 220 days, 68% (n = 149) on weekdays and 32% (n = 71) on weekends. Overall, daily intakes were 5.72 (3.67) MJ [1367 (877) kcal] and 62 (40) g protein. There were no differences in intake across all days (P = 0.937 energy, P = 0.797 protein), nor between weekdays and weekends, in weeks 1-3 of oral intake (all P > 0.1). Limits of agreement between mean intakes across days were wide for energy [range -11.20 to 9.55 MJ (-2680 to 2283 kcal)] and protein (range -125 to 110 g).
     Question Context: Thirty-two patients had WFR collected on 220 days, 68% (n = 149) on weekdays and 32% (n = 71) on weekends. Overall, daily intakes were 5.72 (3.67) MJ [1367 (877) kcal] and 62 (40) g protein. There were no differences in intake across all days (P = 0.937 energy, P = 0.797 protein), nor between weekdays and weekends, in weeks 1-3 of oral intake (all P > 0.1). Limits of agreement between mean intakes across days were wide for energy [range -11.20 to 9.55 MJ (-2680 to 2283 kcal)] and protein (range -125 to 110 g).
-    Insight from Question Context: The study found that oral intake in hospitalised patients is similar on weekdays and weekends, with no significant differences in energy and protein intakes.
+    Knowledge Insight from Question Context: The study found that oral intake in hospitalised patients is similar on weekdays and weekends, with no significant differences in energy and protein intakes.
     Question: Are weekend days required to accurately measure oral intake in hospitalised patients?
     Long Answer: Grouped energy and protein intakes from WFR in hospitalised patients are similar on weekdays and weekends, although large intra-patient variations occur. Future quantification of oral intake during hospitalisation should include as many days as feasible, although not necessarily weekend days, to reflect true intake.
     Conclusion: No [STOP]
@@ -31,19 +31,19 @@ class PubMedQAExample:
     """
 
     method_prompt = """
-    Generate a true or false question answer pair from the question context. The question should test reading comprehension of the study itself and not the general knowledge behind it, so more about what does the study specifically does or aims to do". 
+    Generate a true or false question answer pair from the question context. The question should test reading comprehension of the study methodology itself and not the general knowledge or implications of the studies results, so more about what does the study specifically does or aims to do or what tools and techniques they use". 
     First, explain the key, study insight you can gain from the context and then make a question that tests for this comprehension with a long answer and a binary yes or no conclusion. Do not ask generic questions like "what does the study find / what does the study aim to do".
     
     Background Context: Internationally, clinical ethics support has yet to be implemented systematically in community health and care services. A large-scale Norwegian project (2007-2015) attempted to increase ethical competence in community services through facilitating the implementation of ethics support activities in 241 Norwegian municipalities. The article describes the ethics project and the ethics activities that ensued.
     Question Context: The Norwegian ethics project is vast in scope, yet has focused on some institutions and professions (e.g., nursing homes, home-based care; nurses, nurses\' aides, unskilled workers) whilst seldom reaching others (e.g., child and adolescent health care; physicians). This study addresses this gap. 
-    Insight from Question Context: The study declares its scope to be addressing the gap in the Norwegian national projects for ethical support. 
+    Methodology Insight from Question Context: The study declares its scope to be addressing the gap in the Norwegian national projects for ethical support. 
     Question: Does the study intend on covering child and adolescent health care and physicians?
     Long Answer: The context identifies the gap of the Norwegian national project as a lack of outreach to child and adolescent health care and physicians, and says it intends to remedy this gap, suggesting it will reach those groups.
     Conclusion: Yes [STOP]
 
     Background Context: Nutrition studies in patients admitted to hospital frequently disregard oral intake because measurement is time-intensive and logistically challenging. In free-living populations, weighed food records (WFR) are the gold-standard and are conducted on weekend and weekdays to capture variations in intake, although this may not translate during hospitalisation. The present study aimed to determine whether oral intake differs between weekends and weekdays in hospitalised patients. For adult patients initially admitted to the intensive therapy unit with a moderate-severe head injury over a 12-month period, WFR were conducted each week on Tuesday, Thursday and Saturday throughout hospitalisation. Meal components were weighed before and after consumption, and energy and protein intakes were calculated using specialised software. Thirty-two patients had WFR collected on 220 days, 68% (n = 149) on weekdays and 32% (n = 71) on weekends. Overall, daily intakes were 5.72 (3.67) MJ [1367 (877) kcal] and 62 (40) g protein. There were no differences in intake across all days (P = 0.937 energy, P = 0.797 protein), nor between weekdays and weekends, in weeks 1-3 of oral intake (all P > 0.1). Limits of agreement between mean intakes across days were wide for energy [range -11.20 to 9.55 MJ (-2680 to 2283 kcal)] and protein (range -125 to 110 g).
     Question Context: Thirty-two patients had WFR collected on 220 days, 68% (n = 149) on weekdays and 32% (n = 71) on weekends. Overall, daily intakes were 5.72 (3.67) MJ [1367 (877) kcal] and 62 (40) g protein. There were no differences in intake across all days (P = 0.937 energy, P = 0.797 protein), nor between weekdays and weekends, in weeks 1-3 of oral intake (all P > 0.1). Limits of agreement between mean intakes across days were wide for energy [range -11.20 to 9.55 MJ (-2680 to 2283 kcal)] and protein (range -125 to 110 g).
-    Insight from Question Context: The study collected samples on 220 days
+    Methodology Insight from Question Context: The study collected samples on 220 days
     Question: Did the studies data collection period span for more than a year?
     Long Answer: The study declares that thirty-two patients had WFR collected on 220 days, which is less than a year, suggesting that the data collection period did not span for more than a year.
     Conclusion: No [STOP]
@@ -117,8 +117,8 @@ def setup_pubmedqa(parameters):
                 continue
             sentence = context_texts[j]
             add_data = [i, j, context_text, sentence]
-            standard_prompt = qa_gen_standard_prompt + context_text + "\nQuestion Context: " + sentence + "\nInsight from Question Context: " 
-            method_prompt = qa_gen_method_prompt + context_text + "\nQuestion Context: " + sentence + "\nInsight from Question Context: "
+            standard_prompt = qa_gen_standard_prompt + context_text + "\nQuestion Context: " + sentence + "\nKnowledge Insight from Question Context: " 
+            method_prompt = qa_gen_method_prompt + context_text + "\nQuestion Context: " + sentence + "\nMethodology Insight from Question Context: "
             qa_gen_standard.append(add_data + [standard_prompt])
             qa_gen_method.append(add_data + [method_prompt])
     pretraining_df = pd.DataFrame(pretraining_data, columns=pretraining_columns)
