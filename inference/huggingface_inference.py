@@ -9,7 +9,7 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSeque
 import torch
 import copy
 from inference.inference_utils import discover_prefix_prompt, save_meta_file
-
+from inference.vlm_utils import get_intern_vl_pixels
 from tqdm import tqdm
 import numpy as np
 from PIL import Image
@@ -101,8 +101,11 @@ def get_vlm(parameters, quantization, model_kind):
     vlm_kind = infer_vlm_kind(model_name)
     parameters["vlm_kind"] = vlm_kind
     if vlm_kind == "internvl":
-        raise NotImplementedError("I don't need this yet. If you do, please implement it.")
         model = AutoModel.from_pretrained(model_name, torch_dtype=dtype, device_map="auto", trust_remote_code=True)
+        tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side=padding_side, trust_remote_code=True)
+        parameters["tokenizer"] = tokenizer
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
     elif vlm_kind == "llava":
         # NOTE: THIS WILL FAIL FOR LLAVA1.5 AND BELOW, AS THEY DO NOT SUPPORT LLAVA NEXT PROCESSOR
         processor = LlavaNextProcessor.from_pretrained(model_name, padding_side=padding_side)
@@ -162,6 +165,12 @@ def get_inputs(data_df, start, end, model, parameters):
             input_texts = input_texts.tolist()
             inputs = parameters["tokenizer"](text=input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
             return inputs
+        elif parameters["vlm_kind"] in ["internvl"]:
+            pixel_values = []
+            for image in images:
+                pixel_values.append(get_intern_vl_pixels(image, input_size=parameters["image_size"], max_num=parameters["max_num"]))
+            pixel_values = torch.stack(pixel_values).to(model.device).to(model.dtype)
+            raise NotImplementedError("This is not implemented yet, need to figure out how to handle internvl inputs")
     else:
         raise ValueError(f"Bro what did you do.")
 
