@@ -155,7 +155,6 @@ def get_inputs(data_df, start, end, model, parameters):
                 input_texts = input_texts.apply(lambda x: x.replace("<image>", ""))
             input_texts = "[INST] <image>\n" + input_texts + "[/INST]"
             input_texts = input_texts.tolist()
-            raise NotImplementedError("This fails and I dont yet know why")
             inputs = parameters["tokenizer"](text=input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
             return inputs
         elif parameters["vlm_kind"] in ["qwen"]:
