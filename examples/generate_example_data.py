@@ -360,7 +360,7 @@ def setup_manymodalqa(parameters):
         df = df[["image", "image_caption", "image_url", "question", "answer"]]
         dfs.append(df)
     df = pd.concat(dfs, ignore_index=True)
-    prompt_df = df[["image"]]
+    prompt_df = df[["image", "image_url"]]
     color_df = prompt_df.copy()
     color_df["input"] = (ManyModalQAExample.colour_instruction + "\nCaption: " + df["image_caption"]
                          + "\nQuestion: ")
