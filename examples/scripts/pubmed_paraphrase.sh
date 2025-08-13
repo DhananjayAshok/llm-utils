@@ -5,3 +5,11 @@ standard_args="--max_new_tokens 200 --model_name meta-llama/Llama-3.1-8B-Instruc
 python infer.py --input_file $storage_dir/data/pubmedqa/standard_paraphrase.csv \
 --input_column question_input --output_file $storage_dir/data/pubmedqa/standard_paraphrase_question_output.jsonl \
 $standard_args
+
+python infer.py --input_file $storage_dir/data/pubmedqa/standard_paraphrase.csv \
+--input_column answer_input --output_file $storage_dir/data/pubmedqa/standard_paraphrase_answer_output.jsonl \
+$standard_args
+
+python infer.py --input_file $storage_dir/data/pubmedqa/method_paraphrase.csv \
+--input_column question_input --output_file $storage_dir/data/pubmedqa/method_paraphrase_question_output.jsonl \
+$standard_args
