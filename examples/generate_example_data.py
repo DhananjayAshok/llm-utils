@@ -277,8 +277,8 @@ def process_pubmedqa_paraphrase_datasets(parameters):
 
     po_data = []
     ft_data = []
-    ft_columns = ["input", "output"] + standard_df.columns.tolist()
-    po_columns = ["input", "chosen", "rejected"] + standard_df.columns.tolist()
+    ft_columns = ["paraphrase_id", "input", "output"] + standard_df.columns.tolist()
+    po_columns = ["paraphrase_id", "input", "chosen", "rejected"] + standard_df.columns.tolist()
     for i, row in standard_question_df.iterrows():
         other_column_data = []
         for col in ft_columns[2:]:
@@ -289,10 +289,14 @@ def process_pubmedqa_paraphrase_datasets(parameters):
         answers = standard_answer_df.loc[i]["output"]
         method_questions = method_question_df.loc[i]["output"]
         po_input = row["input_context"]
+        paraphrase_id = 0
         for question, answer in itertools.product(questions, answers):
-            ft_data.append([question, answer + "\nConclusion: " + row["answer"]] + other_column_data)
+            ft_data.append([paraphrase_id + 1, question, answer + "\nConclusion: " + row["answer"]] + other_column_data)
+            paraphrase_id += 1
+        paraphrase_id = 0
         for question, method_question in itertools.product(questions, method_questions):
-            po_data.append([po_input, method_question, question] + other_column_data)
+            po_data.append([paraphrase_id + 1, po_input, method_question, question] + other_column_data)
+            paraphrase_id += 1
     ft_df = pd.DataFrame(ft_data, columns=ft_columns)
     po_df = pd.DataFrame(po_data, columns=po_columns)
     train_dataset = Dataset.from_pandas(ft_df)
