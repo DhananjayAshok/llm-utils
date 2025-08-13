@@ -143,11 +143,11 @@ def setup_pubmedqa(parameters):
 def parse_pubmedqa_inference_output(output):
     lines = output.split("Long Answer:")
     if len(lines) != 2:
-        return None, None
+        return None, None, None
     else:
         answer = lines[1].split("Conclusion:")
         if len(answer) != 2:
-            return None, None
+            return None, None, None
         return lines[0].strip(), answer[0].strip() , answer[1].strip().lower()
 
 
