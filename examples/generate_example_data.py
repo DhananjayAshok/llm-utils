@@ -228,11 +228,11 @@ def process_pubmedqa_inference_datasets(parameters):
     val_dataset.push_to_hub(f"pubmed_inference", config_name="clf", split="val")
 
     standard_paraphrase_df = standard_df.copy()
-    standard_paraphrase_df["question_input"] = PubMedQAExample.paraphrase_question_prompt + standard_paraphrase_df["question"]
-    standard_paraphrase_df["answer_input"] = PubMedQAExample.paraphrase_answer_prompt + standard_paraphrase_df["long_answer"]
+    standard_paraphrase_df["question_input"] = PubMedQAExample.paraphrase_question_prompt + standard_paraphrase_df["question"] + "\nParaphrase: "
+    standard_paraphrase_df["answer_input"] = PubMedQAExample.paraphrase_answer_prompt + standard_paraphrase_df["long_answer"] + "\nParaphrase: "
 
     method_paraphrase_df = method_df.copy()
-    method_paraphrase_df["question_input"] = PubMedQAExample.paraphrase_question_prompt + method_paraphrase_df["question"]
+    method_paraphrase_df["question_input"] = PubMedQAExample.paraphrase_question_prompt + method_paraphrase_df["question"] + "\nParaphrase: "
     # does not have answer_input as is not needed
 
     standard_paraphrase_df.to_csv(os.path.join(save_dir, "standard_paraphrase.csv"), index=False)
@@ -240,6 +240,7 @@ def process_pubmedqa_inference_datasets(parameters):
     log_info("Saved standard paraphrase dataset to " + os.path.join(save_dir, "standard_paraphrase.csv"), parameters)
     log_info("Saved method paraphrase dataset to " + os.path.join(save_dir, "method_paraphrase.csv"), parameters)
 
+    standard_df["paraphrase_id"] = 0
     po_df = standard_df.copy()
     po_df["input"] = standard_df["input_context"]
     po_df["chosen"] = method_df["question"]
@@ -269,23 +270,29 @@ def process_pubmedqa_paraphrase_datasets(parameters):
         log_error(f"Missing required files for PubmedQA inference: {', '.join(missing_files)}"
                   f"\n Make sure to run the inference scripts to generate these", parameters)
         return
+    standard_df = pd.read_csv(os.path.join(save_dir, "standard_paraphrase.csv"))
     standard_question_df = pd.read_json(os.path.join(save_dir, "standard_paraphrase_question_output.jsonl"), lines=True)
     standard_answer_df = pd.read_json(os.path.join(save_dir, "standard_paraphrase_answer_output.jsonl"), lines=True)
     method_question_df = pd.read_json(os.path.join(save_dir, "method_paraphrase_question_output.jsonl"), lines=True)
 
     po_data = []
     ft_data = []
-    ft_columns = ["input", "output"]
-    po_columns = ["input", "chosen", "rejected"]
+    ft_columns = ["input", "output"] + standard_df.columns.tolist()
+    po_columns = ["input", "chosen", "rejected"] + standard_df.columns.tolist()
     for i, row in standard_question_df.iterrows():
+        other_column_data = []
+        for col in ft_columns[2:]:
+            other_column_data.append(standard_df.loc[i, col])
+        for col in po_columns[3:]:
+            other_column_data.append(standard_df.loc[i, col])
         questions = row["output"]
         answers = standard_answer_df.loc[i]["output"]
         method_questions = method_question_df.loc[i]["output"]
         po_input = row["input_context"]
         for question, answer in itertools.product(questions, answers):
-            ft_data.append([question, answer + "\nConclusion: " + row["answer"]])
+            ft_data.append([question, answer + "\nConclusion: " + row["answer"]] + other_column_data)
         for question, method_question in itertools.product(questions, method_questions):
-            po_data.append([po_input, method_question, question])
+            po_data.append([po_input, method_question, question] + other_column_data)
     ft_df = pd.DataFrame(ft_data, columns=ft_columns)
     po_df = pd.DataFrame(po_data, columns=po_columns)
     train_dataset = Dataset.from_pandas(ft_df)
