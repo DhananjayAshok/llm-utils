@@ -233,6 +233,8 @@ def process_pubmedqa_inference_datasets(parameters):
 
     standard_paraphrase_df.to_csv(os.path.join(save_dir, "standard_paraphrase.csv"), index=False)
     method_paraphrase_df.to_csv(os.path.join(save_dir, "method_paraphrase.csv"), index=False)
+    log_info("Saved standard paraphrase dataset to " + os.path.join(save_dir, "standard_paraphrase.csv"), parameters)
+    log_info("Saved method paraphrase dataset to " + os.path.join(save_dir, "method_paraphrase.csv"), parameters)
 
     po_df = standard_df.copy()
     po_df["input"] = standard_df["input_context"]
