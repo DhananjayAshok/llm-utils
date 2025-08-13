@@ -83,7 +83,7 @@ class PubMedQAExample:
     Paraphrase: The Norwegian project addresses key ethical issues and implements a large-scale CES structure for municipal health and care services. [STOP]
 
     Statement: Grouped energy and protein intakes from WFR in hospitalised patients are similar on weekdays and weekends, although large intra-patient variations occur. Future quantification of oral intake during hospitalisation should include as many days as feasible, although not necessarily weekend days, to reflect true intake.
-    Paraphrase: In hospitalized patients, even though there is significant variance between them, WFR readings show comparable energy and protein intakes on weekdays and weekends. Assessments of oral intake during hospitalisation should be done on as many days as they can be and weekend days aren't in any way special with respect to accurately representing true intake.
+    Paraphrase: In hospitalized patients, even though there is significant variance between them, WFR readings show comparable energy and protein intakes on weekdays and weekends. Assessments of oral intake during hospitalisation should be done on as many days as they can be and weekend days aren't in any way special with respect to accurately representing true intake. [STOP]
 
     Statement: 
     """
@@ -187,7 +187,7 @@ def process_pubmedqa_inference_datasets(parameters):
         file_path = os.path.join(save_dir, file_name)
         df = pd.read_json(file_path, lines=True)
         ft_data = []
-        ft_keep_columns = list(set(df.columns) - {"output", "input"})
+        ft_keep_columns = list(set(df.columns) - {"output", "input", "inference_completed"})
         ft_columns = ft_keep_columns + ["question", "long_answer", "answer"]
         for i, row in df.iterrows():
             add_data = []
