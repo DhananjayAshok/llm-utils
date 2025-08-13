@@ -148,7 +148,11 @@ def parse_pubmedqa_inference_output(output):
         answer = lines[1].split("Conclusion:")
         if len(answer) != 2:
             return None, None, None
-        return lines[0].strip(), answer[0].strip() , answer[1].strip().lower()
+        insight_question = lines[0].split("Question:")
+        if len(insight_question) != 2:
+            return None, None, None
+        question = insight_question[1].strip()
+        return question, answer[0].strip() , answer[1].strip().lower()
 
 
 def get_train_test_split(df, random_seed, test_size=0.2):
