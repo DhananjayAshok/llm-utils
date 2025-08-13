@@ -196,14 +196,20 @@ def process_pubmedqa_inference_datasets(parameters):
                 if question is not None:
                     ft_data.append(add_data + [question, answer, binary])
                 else:
+                    ft_data.append(add_data + [None, None, None])
                     parse_errors += 1
         if parse_errors > 0:
             log_warn(f"Encountered {parse_errors}/{total_attempts} parse errors in {file_name}. ", parameters)
         df = pd.DataFrame(ft_data, columns=ft_columns)
         if "standard" in file_name:
-            standard_df = df
+            standard_df = df[df["question"].notnull()]
         else:
-            method_df = df
+            method_df = df[df["question"].notnull()]
+    standard_index = standard_df.index
+    method_index = method_df.index
+    mutual_index = standard_index.intersection(method_index)
+    standard_df = standard_df.loc[mutual_index].reset_index(drop=True)
+    method_df = method_df.loc[mutual_index].reset_index(drop=True)
     
     clf_standard = standard_df.copy()
     clf_method = method_df.copy()
