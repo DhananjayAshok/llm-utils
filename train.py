@@ -51,9 +51,10 @@ default_parameters["run_start_time"] = datetime.now(timezone.utc).strftime("%Y-%
 class ScriptArguments:
     model_name: str = field(metadata={"help": "the model name"})    
     training_kind: str = field(metadata={"help": "the kind of training to do. Options: sft, dpo, clf, pre"})
+    train_file: str = field(metadata={"help": "the training file"})
+
     modality: str = field(default="lm", metadata={"help": "the modality of the model. Options: lm, vlm"})
 
-    train_file: str = field(metadata={"help": "the training file"})
     validation_file: Optional[str] = field(default=None, metadata={"help": "the validation file to use for internal model selection, early stopping etc."})
     test_file: Optional[str] = field(default=None, metadata={"help": "the test file to measure final fit. If not provided and validation_test split is set, then a random split of the validation file is used."})
     train_validation_split: Optional[float] = field(default=None, metadata={"help": "the split of the training file to use for training if validation file is not provided"})
