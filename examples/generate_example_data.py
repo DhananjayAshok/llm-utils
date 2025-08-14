@@ -279,6 +279,9 @@ def process_pubmedqa_paraphrase_datasets(parameters):
     ft_data = []
     ft_columns = ["paraphrase_id", "input", "output"] + standard_df.columns.tolist()
     po_columns = ["paraphrase_id", "input", "chosen", "rejected"] + standard_df.columns.tolist()
+    for col_set in [ft_columns, po_columns]:
+        col_set.remove("question_input")
+        col_set.remove("answer_input")
     for i, row in standard_question_df.iterrows():
         other_column_data = []
         for col in ft_columns[3:]:
