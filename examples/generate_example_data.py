@@ -311,7 +311,7 @@ def process_pubmedqa_paraphrase_datasets(parameters):
     return
 
 
-def setup_pubmedqa_finetune_datasets(parameters, instruction_mix_in=0.05):
+def setup_pubmedqa_finetune_datasets(parameters, max_paraphrases=2, instruction_mix_in=0.05):
     store_dir = parameters["data_dir"] + "/pubmedqa/"
     if not os.path.exists(store_dir):
         os.makedirs(store_dir)
@@ -328,9 +328,13 @@ def setup_pubmedqa_finetune_datasets(parameters, instruction_mix_in=0.05):
                 # We need to drop the malformed rows in output
                 output_bad = df["output"].apply(lambda x: "yes" not in x.split("Conclusion: ")[-1] and "no" not in x.split("Conclusion: ")[-1])
                 df = df[~output_bad].reset_index(drop=True)
+            if config != "clf":
+                if max_paraphrases is not None:
+                    df["paraphrase_id"] = df["paraphrase_id"].astype(int)
+                    df = df[df["paraphrase_id"] <= max_paraphrases].reset_index(drop=True)
             if split == "train":
-                df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
-                df.to_csv(f"tmp_{config}.csv", index=False)
+                sample_df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
+                sample_df.to_csv(f"tmp_{config}.csv", index=False)
                 log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_{config}.csv", parameters)
             if config == "ft" and split == "train":
                 if instruction_mix_in > 0:
