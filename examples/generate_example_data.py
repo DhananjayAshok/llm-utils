@@ -291,7 +291,10 @@ def process_pubmedqa_paraphrase_datasets(parameters):
         po_input = row["input_context"]
         paraphrase_id = 0
         for question, answer in itertools.product(questions, answers):
-            ft_data.append([paraphrase_id + 1, question, answer + "\nConclusion: " + row["answer"]] + other_column_data)
+            answer_str = row["answer"]
+            if not isinstance(answer_str, str):
+                answer_str = "NaN"
+            ft_data.append([paraphrase_id + 1, question, answer + "\nConclusion: " + answer_str] + other_column_data)
             paraphrase_id += 1
         paraphrase_id = 0
         for question, method_question in itertools.product(questions, method_questions):
@@ -320,6 +323,10 @@ def setup_pubmedqa_finetune_datasets(parameters, instruction_mix_in=0.05):
         for split in splits:
             dataset = load_dataset(f"{hf_hub}/pubmed_inference", config, split=split)
             df = dataset.to_pandas()
+            if config == "ft":
+                # We need to drop the malformed rows in output
+                output_bad = df["output"].apply(lambda x: "yes" not in x.split("Conclusion: ")[-1] and "no" not in x.split("Conclusion: ")[-1])
+                df = df[~output_bad].reset_index(drop=True)
             if split == "train":
                 df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
                 df.to_csv(f"tmp_{config}.csv", index=False)
