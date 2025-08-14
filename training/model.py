@@ -66,6 +66,9 @@ def get_model_processor(script_args, dataset):
         tokenizer.pad_token_id = tokenizer.eos_token_id
         base_model.config.pad_token_id = tokenizer.eos_token_id
         #tokenizer.padding_side = "right"  # Fix weird overflow issue with fp16 training
+    if script_args.modality == "vlm":
+        processor.pad_token = processor.tokenizer.pad_token
+        processor.eos_token = processor.tokenizer.eos_token # TRL expects this internally idk why
     return base_model, processor
 
 
