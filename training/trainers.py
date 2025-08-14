@@ -182,7 +182,10 @@ def get_trl_vlm_format_train_val_dataset(dataset):
 
 
 def get_pre_trainer(script_args, training_args, dataset, model, processor, peft_config):
-    train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    if script_args.modality == "lm":
+        train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    else:
+        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
     callbacks = get_callback_list(script_args)
 
     trainer = SFTTrainer(
@@ -201,7 +204,10 @@ def get_pre_trainer(script_args, training_args, dataset, model, processor, peft_
 
 
 def get_sft_trainer(script_args, training_args, dataset, model, processor, peft_config):
-    train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    if script_args.modality == "lm":
+        train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    else:
+        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
     callbacks = get_callback_list(script_args)
     trainer = SFTTrainer(
         model=model,
@@ -216,14 +222,17 @@ def get_sft_trainer(script_args, training_args, dataset, model, processor, peft_
 
 
 def get_dpo_trainer(script_args, training_args, dataset, model, processor, peft_config):
-    dataset = dataset.rename_column("input", "prompt")
+    if script_args.modality == "lm":
+        train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    else:
+        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
     callbacks = get_callback_list(script_args)
     trainer = DPOTrainer(
         model,
         ref_model=None,
         args=training_args,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["validation"] if "validation" in dataset else None,
+        train_dataset=train_dataset,
+        eval_dataset=validation_dataset,
         processing_class=processor,
         callbacks=callbacks,
         peft_config=peft_config,

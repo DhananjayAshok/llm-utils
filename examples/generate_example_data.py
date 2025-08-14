@@ -281,9 +281,9 @@ def process_pubmedqa_paraphrase_datasets(parameters):
     po_columns = ["paraphrase_id", "input", "chosen", "rejected"] + standard_df.columns.tolist()
     for i, row in standard_question_df.iterrows():
         other_column_data = []
-        for col in ft_columns[2:]:
+        for col in ft_columns[3:]:
             other_column_data.append(standard_df.loc[i, col])
-        for col in po_columns[3:]:
+        for col in po_columns[4:]:
             other_column_data.append(standard_df.loc[i, col])
         questions = row["output"]
         answers = standard_answer_df.loc[i]["output"]
