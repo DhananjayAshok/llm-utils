@@ -324,14 +324,23 @@ def setup_pubmedqa_finetune_datasets(parameters, max_paraphrases=2, instruction_
         for split in splits:
             dataset = load_dataset(f"{hf_hub}/pubmed_inference", config, split=split)
             df = dataset.to_pandas()
-            if config == "ft":
-                # We need to drop the malformed rows in output
-                output_bad = df["output"].apply(lambda x: "yes" not in x.split("Conclusion: ")[-1] and "no" not in x.split("Conclusion: ")[-1])
-                df = df[~output_bad].reset_index(drop=True)
             if config != "clf":
                 if max_paraphrases is not None:
                     df["paraphrase_id"] = df["paraphrase_id"].astype(int)
                     df = df[df["paraphrase_id"] <= max_paraphrases].reset_index(drop=True)
+            if config == "ft":
+                # We need to drop the malformed rows in output
+                output_bad = df["output"].apply(lambda x: "yes" not in x.split("Conclusion: ")[-1] and "no" not in x.split("Conclusion: ")[-1])
+                df = df[~output_bad].reset_index(drop=True)
+
+                # We also want to maintain class balance
+                conclusion_split = df["output"].apply(lambda x: x.split("Conclusion: ")[-1].strip().lower())
+                yes_df = df[conclusion_split.apply(lambda x: "yes" in x)]
+                no_df = df[conclusion_split.apply(lambda x: "no" in x)]
+                get_length = min(len(yes_df), len(no_df))
+                yes_df = yes_df.sample(n=get_length, random_state=parameters["random_seed"]).reset_index(drop=True)
+                no_df = no_df.sample(n=get_length, random_state=parameters["random_seed"]).reset_index(drop=True)
+                df = pd.concat([yes_df, no_df], ignore_index=True)
             if split == "train":
                 sample_df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
                 sample_df.to_csv(f"tmp_{config}.csv", index=False)
