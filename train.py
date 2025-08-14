@@ -60,6 +60,7 @@ class ScriptArguments:
     validation_test_split: Optional[float] = field(default=None, metadata={"help": "the split of the validation file to use for internal model selection, early stopping etc. The rest is used as test split"})
 
     input_column: str = field(default="input", metadata={"help": "the input column name"})
+    image_input_column: str = field(default="image", metadata={"help": "the image input column name. Should contain paths to image files. Only used for VLMs."})
     output_column: str = field(default="output", metadata={"help": "the output column name"})
     chosen_column: str = field(default=None, metadata={"help": "the chosen column name for preference training"})
     rejected_column: str = field(default=None, metadata={"help": "the rejected column name for preference training"})

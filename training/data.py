@@ -3,9 +3,16 @@ from utils import log_error, log_warn, log_info
 import datasets
 from datasets import load_dataset, disable_caching
 from tqdm import tqdm
+from PIL import Image
 
 disable_caching()
 
+def load_image(image_path):
+    """
+    Load an image from a file path or URL.
+    """
+    image = Image.open(image_path)
+    return image.convert('RGB')
 
 def validate_data(dataset, training_kind, pretrain_with_output, parameters):
     """
@@ -136,7 +143,18 @@ def load_data_splits(extension, script_args):
         dataset = dataset.rename_column(script_args.rejected_column, "rejected")
     if script_args.training_kind == "pre" and not script_args.pretrain_with_output:
         dataset = drop_column_if_needed(dataset, "output")
+    if script_args.modality == "vlm" and script_args.image_input_column != "image":
+        dataset = drop_column_if_needed(dataset, "image")
+        dataset = dataset.rename_column(script_args.image_input_column, "image")
     dataset = validate_data(dataset, script_args.training_kind, script_args.pretrain_with_output, parameters)
+    # load the image data from the urls in the image column if modality is vlm
+    if script_args.modality == "vlm":
+        dataset = dataset.map(
+            lambda x: {"image": load_image(x['image'])},
+            batched=True,
+            num_proc=script_args.num_workers,
+            desc="Loading images from file paths"
+        ) # TODO: Check that this doesn't break the dataset
     if validation_file is None and train_split is not None:
         if 0 < train_split < 1:
             train_val = dataset["train"].train_test_split(test_size=1-train_split, seed=random_seed)

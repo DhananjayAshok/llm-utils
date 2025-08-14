@@ -153,6 +153,34 @@ def get_trl_renamed_train_val_dataset(dataset):
     return train_dataset, validation_dataset
 
 
+def convert_vlm_conversational_format(text):
+    ret = [
+        {
+            "content": [
+                {"type": "image"}, 
+                {"type": "text", "text": text}
+            ]
+        }
+    ]
+    return ret
+
+
+def get_trl_vlm_format_train_val_dataset(dataset):
+    """
+    Convert to the expected conversational format for TRL trainers.
+    """
+    dataset = dataset.map(lambda x: {"images": [x["image"]]}, 
+                          remove_columns=["image"],
+                          num_proc=1,
+                          desc="Converting images to list format")
+    dataset = dataset.map(lambda x: {"input": convert_vlm_conversational_format(x["input"])},
+                          num_proc=1,
+                          desc="Converting input text to conversational format")
+    train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    return train_dataset, validation_dataset
+
+
+
 def get_pre_trainer(script_args, training_args, dataset, model, processor, peft_config):
     train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     callbacks = get_callback_list(script_args)
