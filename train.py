@@ -136,6 +136,7 @@ if __name__ == "__main__":
         parser = HfArgumentParser((ScriptArguments, DPOConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
     elif script_args.training_kind == "kto":
+        raise NotImplementedError(f"I think there is a bug in the KTO automatic dataset conversion")
         parser = HfArgumentParser((ScriptArguments, KTOConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
     elif script_args.training_kind == "cpo":

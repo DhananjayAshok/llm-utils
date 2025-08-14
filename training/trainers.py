@@ -265,7 +265,6 @@ def get_cpo_trainer(script_args, training_args, dataset, model, processor, peft_
     callbacks = get_callback_list(script_args)
     trainer = CPOTrainer(
         model,
-        ref_model=None,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=validation_dataset,
