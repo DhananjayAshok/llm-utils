@@ -23,7 +23,7 @@ from transformers import (
     TrainingArguments,
     set_seed,
 )
-from trl import SFTConfig, DPOConfig, PPOConfig
+from trl import SFTConfig, DPOConfig, KTOConfig, CPOConfig
 from datetime import datetime, timezone
 
 
@@ -50,7 +50,7 @@ default_parameters["run_start_time"] = datetime.now(timezone.utc).strftime("%Y-%
 @dataclass
 class ScriptArguments:
     model_name: str = field(metadata={"help": "the model name"})    
-    training_kind: str = field(metadata={"help": "the kind of training to do. Options: sft, dpo, clf, pre"})
+    training_kind: str = field(metadata={"help": "the kind of training to do. Options: clf, pre, sft, dpo, kto, cpo"})
     train_file: str = field(metadata={"help": "the training file"})
 
     modality: str = field(default="lm", metadata={"help": "the modality of the model. Options: lm, vlm"})
@@ -135,8 +135,11 @@ if __name__ == "__main__":
     elif script_args.training_kind == "dpo":
         parser = HfArgumentParser((ScriptArguments, DPOConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
-    elif script_args.training_kind == "ppo":
-        parser = HfArgumentParser((ScriptArguments, PPOConfig))
+    elif script_args.training_kind == "kto":
+        parser = HfArgumentParser((ScriptArguments, KTOConfig))
+        script_args, training_args = parser.parse_args_into_dataclasses()
+    elif script_args.training_kind == "cpo":
+        parser = HfArgumentParser((ScriptArguments, CPOConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
     elif script_args.training_kind == "clf":
         parser = HfArgumentParser((ScriptArguments, TrainingArguments))

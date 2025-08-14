@@ -1,6 +1,6 @@
 import torch
 from transformers import Trainer, default_data_collator, EarlyStoppingCallback
-from trl import SFTTrainer, DPOTrainer
+from trl import SFTTrainer, DPOTrainer, KTOTrainer, CPOTrainer
 import numpy as np
 from training.model import get_peft_config
 
@@ -239,6 +239,42 @@ def get_dpo_trainer(script_args, training_args, dataset, model, processor, peft_
     )   
     return trainer, dataset
 
+def get_kto_trainer(script_args, training_args, dataset, model, processor, peft_config):
+    if script_args.modality == "lm":
+        train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    else:
+        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
+    callbacks = get_callback_list(script_args)
+    trainer = KTOTrainer(
+        model,
+        ref_model=None,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=validation_dataset,
+        processing_class=processor,
+        callbacks=callbacks,
+        peft_config=peft_config,
+    )   
+    return trainer, dataset
+
+def get_cpo_trainer(script_args, training_args, dataset, model, processor, peft_config):
+    if script_args.modality == "lm":
+        train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    else:
+        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
+    callbacks = get_callback_list(script_args)
+    trainer = CPOTrainer(
+        model,
+        ref_model=None,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=validation_dataset,
+        processing_class=processor,
+        callbacks=callbacks,
+        peft_config=peft_config,
+    )   
+    return trainer, dataset
+
 def get_trainer(script_args, training_args, dataset, model, processor):
     if script_args.training_kind == "clf":
         trainer, dataset = get_clf_trainer(script_args, training_args, dataset, model, processor)
@@ -252,6 +288,10 @@ def get_trainer(script_args, training_args, dataset, model, processor):
             trainer, dataset = get_sft_trainer(script_args, training_args, dataset, model, processor, peft_config)
         elif script_args.training_kind == "dpo":
             trainer, dataset = get_dpo_trainer(script_args, training_args, dataset, model, processor, peft_config)
+        elif script_args.training_kind == "kto":
+            trainer, dataset = get_kto_trainer(script_args, training_args, dataset, model, processor, peft_config)
+        elif script_args.training_kind == "cpo":
+            trainer, dataset = get_cpo_trainer(script_args, training_args, dataset, model, processor, peft_config)
         else:
             raise ValueError(f"Training kind {script_args.training_kind} not supported")
     return trainer, dataset
