@@ -150,12 +150,9 @@ def load_data_splits(extension, script_args):
     # load the image data from the urls in the image column if modality is vlm
     if script_args.modality == "vlm":
         dataset = dataset.map(
-            lambda x: {"image": [load_image(image_path) for image_path in x["image"]]},
-            input_columns=["image"],
-            batched=True,
-            num_proc=script_args.num_workers,
-            desc="Loading images from file paths"
-        ) # TODO: Check that this doesn't break the dataset
+            lambda x: {"image": load_image(x["image"])}, # for some reason setting num_proc kills this. 
+            desc="Loading images",
+        )
     if validation_file is None and train_split is not None:
         if 0 < train_split < 1:
             train_val = dataset["train"].train_test_split(test_size=1-train_split, seed=random_seed)
