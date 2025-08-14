@@ -79,7 +79,7 @@ def compute_clf_metrics(p):
 
 
 
-def clf_preprocess_function(examples, tokenizer, max_length, label2id):
+def lm_clf_preprocess_function(examples, tokenizer, max_length, label2id):
     """
     Preprocess function for classification tasks.
     Tokenizes the input text, and converts the label to the corresponding id.
@@ -89,21 +89,33 @@ def clf_preprocess_function(examples, tokenizer, max_length, label2id):
     result["label"] = [(label2id[str(l)] if l != -1 else -1) for l in examples["output"]]
     return result
 
-def process_clf(script_args, training_args, dataset, model, tokenizer):
+def vlm_clf_preprocess_function(examples, processor, max_length, label2id):
+    raise NotImplementedError()
+
+def process_clf(script_args, training_args, dataset, model, processor):
     label2id = model.config.label2id
     # Running the preprocessing pipeline on all the datasets
     with training_args.main_process_first(desc="dataset map pre-processing"):
-        dataset = dataset.map(
-            lambda x: clf_preprocess_function(x, tokenizer, script_args.max_input_length, label2id),
-            batched=True,
-            num_proc=script_args.num_workers,
-            load_from_cache_file=False,
-            desc="Running tokenizer on dataset",
-        )
+        if script_args.modality == "lm":
+            dataset = dataset.map(
+                lambda x: lm_clf_preprocess_function(x, processor, script_args.max_input_length, label2id),
+                batched=True,
+                num_proc=script_args.num_workers,
+                load_from_cache_file=False,
+                desc="Running tokenizer on dataset",
+            )
+        elif script_args.modality == "vlm":
+            dataset = dataset.map(
+                lambda x: vlm_clf_preprocess_function(x, processor, script_args.max_input_length, label2id),
+                batched=True,
+                num_proc=script_args.num_workers,
+                load_from_cache_file=False,
+                desc="Running tokenizer on dataset",
+            )
     return dataset
 
-def get_clf_trainer(script_args, training_args, dataset, model, tokenizer):
-    dataset = process_clf(script_args, training_args, dataset, model, tokenizer)
+def get_clf_trainer(script_args, training_args, dataset, model, processor):
+    dataset = process_clf(script_args, training_args, dataset, model, processor)
     callbacks = get_callback_list(script_args)
     trainer = WeightedTrainer(
         model=model,
@@ -113,7 +125,7 @@ def get_clf_trainer(script_args, training_args, dataset, model, tokenizer):
         eval_dataset=dataset["validation"] if "validation" in dataset else None,
         compute_metrics=compute_clf_metrics,
         callbacks=callbacks,
-        processing_class=tokenizer, # getting processing_class warning Deprication
+        processing_class=processor,
         data_collator=default_data_collator,
     )
     return trainer, dataset
@@ -141,7 +153,7 @@ def get_trl_renamed_train_val_dataset(dataset):
     return train_dataset, validation_dataset
 
 
-def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_config):
+def get_pre_trainer(script_args, training_args, dataset, model, processor, peft_config):
     train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     callbacks = get_callback_list(script_args)
 
@@ -151,7 +163,7 @@ def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         eval_dataset=validation_dataset,
         peft_config=peft_config,
         formatting_func=prepare_sample_text,
-        processing_class=tokenizer,
+        processing_class=processor,
         completion_only_loss=False,
         args=training_args,
         callbacks=callbacks,
@@ -160,7 +172,7 @@ def get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_
 
 
 
-def get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_config):
+def get_sft_trainer(script_args, training_args, dataset, model, processor, peft_config):
     train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     callbacks = get_callback_list(script_args)
     trainer = SFTTrainer(
@@ -168,14 +180,14 @@ def get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         train_dataset=train_dataset,
         eval_dataset=validation_dataset,
         peft_config=peft_config,
-        processing_class=tokenizer,
+        processing_class=processor,
         args=training_args,
         callbacks=callbacks,
     )
     return trainer, dataset
 
 
-def get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_config):
+def get_dpo_trainer(script_args, training_args, dataset, model, processor, peft_config):
     dataset = dataset.rename_column("input", "prompt")
     callbacks = get_callback_list(script_args)
     trainer = DPOTrainer(
@@ -184,25 +196,25 @@ def get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_
         args=training_args,
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"] if "validation" in dataset else None,
-        processing_class=tokenizer,
+        processing_class=processor,
         callbacks=callbacks,
         peft_config=peft_config,
     )   
     return trainer, dataset
 
-def get_trainer(script_args, training_args, dataset, model, tokenizer):
+def get_trainer(script_args, training_args, dataset, model, processor):
     if script_args.training_kind == "clf":
-        trainer, dataset = get_clf_trainer(script_args, training_args, dataset, model, tokenizer)
+        trainer, dataset = get_clf_trainer(script_args, training_args, dataset, model, processor)
     else:
         peft_config = None
         if script_args.use_peft:
             peft_config = get_peft_config(script_args)
         if script_args.training_kind == "pre":
-            trainer, dataset = get_pre_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
+            trainer, dataset = get_pre_trainer(script_args, training_args, dataset, model, processor, peft_config)
         elif script_args.training_kind == "sft":
-            trainer, dataset = get_sft_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
+            trainer, dataset = get_sft_trainer(script_args, training_args, dataset, model, processor, peft_config)
         elif script_args.training_kind == "dpo":
-            trainer, dataset = get_dpo_trainer(script_args, training_args, dataset, model, tokenizer, peft_config)
+            trainer, dataset = get_dpo_trainer(script_args, training_args, dataset, model, processor, peft_config)
         else:
             raise ValueError(f"Training kind {script_args.training_kind} not supported")
     return trainer, dataset

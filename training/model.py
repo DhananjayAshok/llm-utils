@@ -1,13 +1,13 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoConfig, AutoTokenizer, BitsAndBytesConfig, AutoModelForSequenceClassification
+from transformers import AutoModelForCausalLM, AutoConfig, AutoTokenizer, BitsAndBytesConfig, AutoModelForSequenceClassification, AutoModelForImageTextToText, AutoProcessor
 from peft import LoraConfig, TaskType, get_peft_model
 from training.data import infer_label_list
 
 
 
-def get_model_tokenizer(script_args, dataset):
+def get_model_processor(script_args, dataset):
     """
-    Load the model and tokenizer with bits and bytes set up for the given script arguments. 
+    Load the model and processor (tokenizer for LMs) with bits and bytes set up for the given script arguments. 
 
     If classification then handles the label list and config for the model.
     """
@@ -22,11 +22,20 @@ def get_model_tokenizer(script_args, dataset):
         )
     
     if script_args.training_kind != "clf":
-        base_model = AutoModelForCausalLM.from_pretrained(
-            script_args.model_name,
-            quantization_config=bnb_config,
-            trust_remote_code=True,
-        )
+        if script_args.modality == "lm":
+            base_model = AutoModelForCausalLM.from_pretrained(
+                script_args.model_name,
+                quantization_config=bnb_config,
+                trust_remote_code=True,
+            )
+        elif script_args.modality == "vlm":
+            base_model = AutoModelForImageTextToText.from_pretrained(
+                script_args.model_name,
+                quantization_config=bnb_config,
+                trust_remote_code=True,
+            )
+        else:
+            raise ValueError(f"BROSKI WHAT IS THIS MODALITY: {script_args.modality}. Only lm and vlm are supported.")
     else:
         label_list = infer_label_list(dataset, script_args.parameters)
         num_labels = len(label_list)
@@ -46,14 +55,18 @@ def get_model_tokenizer(script_args, dataset):
         base_model.config.id2label = {id: label for label, id in label_to_id.items()}
     base_model.config.use_cache = False
 
-
-    tokenizer = AutoTokenizer.from_pretrained(script_args.model_name, trust_remote_code=True)
+    if script_args.modality == "lm":
+        processor = AutoTokenizer.from_pretrained(script_args.model_name, trust_remote_code=True)
+        tokenizer = processor
+    elif script_args.modality == "vlm":
+        processor = AutoProcessor.from_pretrained(script_args.model_name, trust_remote_code=True)
+        tokenizer = processor.tokenizer
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.pad_token_id = tokenizer.eos_token_id
         base_model.config.pad_token_id = tokenizer.eos_token_id
-        tokenizer.padding_side = "right"  # Fix weird overflow issue with fp16 training
-    return base_model, tokenizer
+        #tokenizer.padding_side = "right"  # Fix weird overflow issue with fp16 training
+    return base_model, processor
 
 
 def get_peft_config(script_args):
@@ -76,14 +89,14 @@ def get_peft_config(script_args):
     return peft_config
 
 
-def get_peft_model_tokenizer(script_args, dataset):
+def get_peft_model_processor(script_args, dataset):
     """
     Load the model and tokenizer with PEFT set up for the given script arguments.
     """
-    base_model, tokenizer = get_model_tokenizer(script_args, dataset)
+    base_model, processor = get_model_processor(script_args, dataset)
     peft_config = get_peft_config(script_args)
     model = get_peft_model(base_model, peft_config)
-    return model, tokenizer
+    return model, processor
 
 
 def log_trainable_parameters(model, logger):

@@ -7,7 +7,7 @@
 """
 from utils import load_parameters, log_error, log_info, log_warn
 from training.data import load_data, log_token_statistics
-from training.model import get_model_tokenizer, get_peft_model_tokenizer
+from training.model import get_model_processor, get_peft_model_processor
 from training.trainers import get_trainer
 from accelerate import Accelerator
 
@@ -51,6 +51,7 @@ default_parameters["run_start_time"] = datetime.now(timezone.utc).strftime("%Y-%
 class ScriptArguments:
     model_name: str = field(metadata={"help": "the model name"})    
     training_kind: str = field(metadata={"help": "the kind of training to do. Options: sft, dpo, clf, pre"})
+    modality: str = field(default="lm", metadata={"help": "the modality of the model. Options: lm, vlm"})
 
     train_file: str = field(metadata={"help": "the training file"})
     validation_file: Optional[str] = field(default=None, metadata={"help": "the validation file to use for internal model selection, early stopping etc."})
@@ -166,17 +167,17 @@ if __name__ == "__main__":
 
     dataset = load_data(script_args)
 
-    model, tokenizer = None, None
+    model, processor = None, None
     if script_args.training_kind == "clf" and script_args.use_peft:     
         # TRL takes in peft_config instead of model, so we load the peft model only for classification which uses Trainer directly
-        model, tokenizer = get_peft_model_tokenizer(script_args, dataset)
+        model, processor = get_peft_model_processor(script_args, dataset)
     else:
-        model, tokenizer = get_model_tokenizer(script_args, dataset)
+        model, processor = get_model_processor(script_args, dataset)
 
     if script_args.log_verbose:
-        log_token_statistics(script_args, dataset, tokenizer, script_args.parameters)
+        log_token_statistics(script_args, dataset, processor, script_args.parameters)
 
-    trainer, dataset = get_trainer(script_args, training_args, dataset, model, tokenizer)
+    trainer, dataset = get_trainer(script_args, training_args, dataset, model, processor)
 
     if script_args.evaluate_before_training and "test" in dataset:
         trainer.evaluate(dataset["test"], metric_key_prefix="test") # This will fail if run in FSDP: https://github.com/huggingface/transformers/issues/39961
