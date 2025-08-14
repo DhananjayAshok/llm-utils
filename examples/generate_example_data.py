@@ -283,8 +283,6 @@ def process_pubmedqa_paraphrase_datasets(parameters):
         other_column_data = []
         for col in ft_columns[3:]:
             other_column_data.append(standard_df.loc[i, col])
-        for col in po_columns[4:]:
-            other_column_data.append(standard_df.loc[i, col])
         questions = row["output"]
         answers = standard_answer_df.loc[i]["output"]
         method_questions = method_question_df.loc[i]["output"]
