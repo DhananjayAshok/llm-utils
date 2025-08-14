@@ -82,7 +82,7 @@ def get_peft_config(script_args):
     r=script_args.lora_r,
     lora_alpha=script_args.lora_alpha,
     lora_dropout=script_args.lora_dropout,
-    target_modules="all-linear", # TODO: Customize the modules to target inference based on the model architecture
+    target_modules=script_args.lora_target_modules,
     bias="none",
     task_type=task
     )

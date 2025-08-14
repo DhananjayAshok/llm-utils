@@ -81,12 +81,13 @@ class ScriptArguments:
     early_stopping_patience: Optional[int] = field(default=None, metadata={"help": "the number of steps to wait for improvement before stopping training"})
     early_stopping_threshold: Optional[float] = field(default=0.0, metadata={"help": "the threshold for early stopping. If the validation loss does not improve by this amount, training will stop."})
 
-    # LoraConfig
-    use_peft: Optional[bool] = field(default=True, metadata={"help": "whether to use Lora"})
+    # PEFT Config
+    use_peft: Optional[bool] = field(default=True, metadata={"help": "whether to use PEFT"})
     do_lora: Optional[bool] = field(default=True, metadata={"help": "whether to use lora"})
     lora_alpha: Optional[float] = field(default=16, metadata={"help": "the lora alpha parameter"})
     lora_dropout: Optional[float] = field(default=0.05, metadata={"help": "the lora dropout parameter"})
     lora_r: Optional[int] = field(default=8, metadata={"help": "the lora r parameter"})
+    lora_target_modules: Optional[List[str]] = field(default_factory=lambda: ["all-linear"], metadata={"help": "the lora target modules. If not provided, will use all-linear."})
 
     # BitsAndBytesConfig
     use_bnb: Optional[bool] = field(default=False, metadata={"help": "whether to use BitsAndBytes"})
