@@ -150,7 +150,8 @@ def load_data_splits(extension, script_args):
     # load the image data from the urls in the image column if modality is vlm
     if script_args.modality == "vlm":
         dataset = dataset.map(
-            lambda x: {"image": load_image(x['image'])},
+            lambda x: {"image": [load_image(image_path) for image_path in x["image"]]},
+            input_columns=["image"],
             batched=True,
             num_proc=script_args.num_workers,
             desc="Loading images from file paths"
