@@ -419,6 +419,59 @@ def setup_manymodalqa(parameters):
     color_df.to_csv("tmp_color.csv", index=False)
     log_info("Sampled 20 rows from ManyModalQA color dataset for testing purposes and saved to tmp_color.csv", parameters)
 
+def process_manymodalqa_inference_datasets(parameters):
+    """
+    Processes the ManyModalQA inference results. Assumes that inference has been run for all the necessary files.
+    """
+    save_dir = parameters["data_dir"] + "/manymodalqa/"
+    required_files = [
+        "color_output.jsonl",
+        "shape_output.jsonl"]
+    missing_files = []
+    for file in required_files:
+        if not os.path.exists(os.path.join(save_dir, file)):
+            missing_files.append(file)
+    if missing_files:
+        log_error(f"Missing required files for ManyModalQA inference: {', '.join(missing_files)}"
+                  f"\n Make sure to run the inference scripts to generate these", parameters)
+        return
+    color_df = pd.read_json(os.path.join(save_dir, "color_output.jsonl"), lines=True)
+    shape_df = pd.read_json(os.path.join(save_dir, "shape_output.jsonl"), lines=True)
+
+    po_data = []
+    po_columns = ["input", "chosen", "rejected", "image"]
+    for i, row in color_df.iterrows():
+        image = row["image"]
+        input_text = row["input"].split("Caption: ")[1]
+        chosen = color_df.loc[i, "output"][0]
+        rejected = shape_df.loc[i, "output"][0]
+        po_data.append([input_text, chosen, rejected, image])
+    po_df = pd.DataFrame(po_data, columns=po_columns)
+    po_df["output"] = po_df["chosen"]
+    train_df, val_df = get_train_test_split(po_df, parameters["random_seed"], test_size=0.2)
+    train_dataset = Dataset.from_pandas(train_df)
+    val_dataset = Dataset.from_pandas(val_df)
+    train_dataset.push_to_hub(f"manymodal_inference", config_name="po", split="train")
+    val_dataset.push_to_hub(f"manymodal_inference", config_name="po", split="val")
+    log_info("ManyModalQA inference datasets setup complete. Processed datasets saved in: " + save_dir, parameters)
+
+def setup_manymodalqa_finetune_datasets(parameters):
+    """
+    Sets up the finetune datasets for ManyModalQA.
+    """
+    store_dir = parameters["data_dir"] + "/manymodalqa/"
+    if not os.path.exists(store_dir):
+        os.makedirs(store_dir)
+    log_info("Setting up ManyModalQA finetune datasets...", parameters)
+    configs = ["po"]
+    splits = ["train", "val"]
+    for config in configs:
+        for split in splits:
+            dataset = load_dataset(f"{hf_hub}/manymodal_inference", config, split=split)
+            df = dataset.to_pandas()
+            df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
+            log_info(f"Saved {config} {split} dataset to {store_dir}/hf_{config}_{split}.csv", parameters)
+
 
 @click.command()
 @click.option("--dataset_names", default=["pubmedqa", "manymodalqa"], multiple=True)
@@ -443,6 +496,19 @@ def pubmed_process(parameters, step):
         process_pubmedqa_paraphrase_datasets(parameters)
     if step == 2:
         setup_pubmedqa_finetune_datasets(parameters)
+
+@click.command()
+@click.option("--step", type=int, default=1, help="Step number for the ManyModalQA dataset setup.")
+@click.pass_obj
+def manymodal_process(parameters, step):
+    """
+    Processes the inference results for ManyModalQA dataset.
+    Assumes that inference has been run for all the necessary files.
+    """
+    if step == 0:
+        process_manymodalqa_inference_datasets(parameters)
+    if step == 1:
+        setup_manymodalqa_finetune_datasets(parameters)
 
 
 if __name__ == "__main__":

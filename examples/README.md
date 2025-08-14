@@ -15,9 +15,13 @@ This guided example will take you through using the following features of this r
 3. LM Finetuning
 4. LM Preference Tuning
 
-The example centers around the PubMedQA dataset, which is a question answering dataset based on scientific, biomedical articles. The goal is to train a language model to acquire the knowledge in the articles, so that it can later answer the questions in without having to look at the articles again.
+The example centers around the PubMedQA dataset, which is a question answering dataset based on scientific, biomedical articles. The goal is to train a language model to acquire the knowledge in the articles, so that it can later answer the questions in without having to look at the articles again. To do this, we'll implement the following pipeline:
 
-We'll be using the Llama3-8B model for this example, but you can use any other model that is compatible with the HuggingFace Transformers library.
+1. Synthetically generate question answer pairs from the articles. We hope that these will be similar-ish to the test questions, and that learning these will allow the LM to answer the test queries better.
+2. Paraphrase the generated question answer pairs. 
+3. Fine-tune a question answering model on the paraphrases, while keeping the original LM generations as a validation set. By maintaining a validation set, we can stop training if we start overfitting to the specific wording of the questions in the train set. 
+
+We'll be using the Llama3-8B model for generation and LLama3-1B for fine-tuning, but you can use any other model that is compatible with the HuggingFace Transformers library.
 
 
 ### Setup
@@ -137,15 +141,21 @@ This calls on:
 ```bash
 accelerate launch train.py --training_kind sft --model_name meta-llama/Llama-3.2-1B-Instruct \
 --output_dir $storage_dir/models/ft_model \
---num_train_epochs 150 --train_file $storage_dir/data/pubmedqa/hf_default_train.csv \
+--train_file $storage_dir/data/pubmedqa/hf_ft_train.csv --validation_file $storage_dir/data/pubmedqa/hf_ft_val.csv \
+--num_train_epochs 50 \
 --per_device_train_batch_size 24 --per_device_eval_batch_size 24 \
---learning_rate 2e-4 --weight_decay 0.01 \
---train_validation_split 0.9  --logging_strategy epoch --eval_strategy epoch --save_strategy epoch --load_best_model_at_end True \
+--learning_rate 1e-4 --weight_decay 0.1 \
+--logging_strategy steps --logging_steps 200 \
+--eval_strategy steps --eval_steps 200 \
+--save_strategy steps --save_steps 200 \
+--early_stopping_patience 5 \
+--load_best_model_at_end True \
 --run_name pubmed-sft
 ```
 
 ### Pretraining
 
+Almost the exact same as above, just change the `training_kind` to `pre` and change the files accordingly. Pretraining doesn't have a validation file, so just set a `train_validation_split`. 
 
 
 ### Preference Optimization

@@ -6,12 +6,12 @@ Language Models:
 1. Inference (with HuggingFace Transformers and vLLM)
 2. Pretraining
 3. Finetuning (Classification and SFT for Generation)
-4. Preference Optimization / RL Training
+4. Preference Optimization / RL Training (DPO, CPO)
 
 Vision Language Models:
 1. Inference
 2. Finetuning (Classification and SFT for Generation)
-3. Preference Optimization / RL Training
+3. Preference Optimization / RL Training (DPO, CPO)
 
 All code is based on HuggingFace Transformers and TRL and supports FSDP with multiple GPUs. 
 
