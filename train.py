@@ -99,8 +99,6 @@ class ScriptArguments:
 
 
 def override_defaults(training_args, parameters=default_parameters):
-    if training_args.resume_from_checkpoint is None:
-        log_warn("resume_from_checkpoint is not set, defaulting to False. This will start training from scratch. To avoid this, set --resume_from_checkpoint arg", parameters)
     if training_args.resume_from_checkpoint is not None and not isinstance(training_args.resume_from_checkpoint, bool):
         if training_args.resume_from_checkpoint.lower() == "true":
             training_args.resume_from_checkpoint = True
@@ -152,6 +150,9 @@ if __name__ == "__main__":
 
     script_args.seed = training_args.seed
     script_args.data_seed = training_args.data_seed
+    if accelerator.is_main_process:
+        if training_args.resume_from_checkpoint is None:
+            log_warn("resume_from_checkpoint is not set, defaulting to False. This will start training from scratch. To avoid this, set --resume_from_checkpoint arg", default_parameters)        
     override_defaults(training_args)
     if accelerator.is_main_process:
         log_info(f"Saving to: {training_args.output_dir}", default_parameters)
