@@ -66,9 +66,6 @@ def get_model_processor(script_args, dataset):
         tokenizer.pad_token_id = tokenizer.eos_token_id
         base_model.config.pad_token_id = tokenizer.eos_token_id
         #tokenizer.padding_side = "right"  # Fix weird overflow issue with fp16 training
-    if script_args.modality == "vlm":
-        processor.pad_token = processor.tokenizer.pad_token
-        processor.eos_token = processor.tokenizer.eos_token # TRL expects this internally idk why
     return base_model, processor
 
 
@@ -81,11 +78,14 @@ def get_peft_config(script_args):
     task = TaskType.CAUSAL_LM
     if script_args.training_kind == "clf":
         task = TaskType.SEQ_CLS
+    target_modules = "all-linear"
+    if script_args.lora_target_modules is not None:
+        target_modules = script_args.lora_target_modules
     peft_config = LoraConfig(
     r=script_args.lora_r,
     lora_alpha=script_args.lora_alpha,
     lora_dropout=script_args.lora_dropout,
-    target_modules=script_args.lora_target_modules,
+    target_modules=target_modules,
     bias="none",
     task_type=task
     )
