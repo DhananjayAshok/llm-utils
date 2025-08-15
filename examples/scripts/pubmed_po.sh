@@ -11,3 +11,9 @@ accelerate launch train.py --training_kind dpo --model_name meta-llama/Llama-3.2
 --early_stopping_patience 5 \
 --load_best_model_at_end True \
 --run_name pubmed-dpo
+
+
+python infer.py --input_file $storage_dir/data/pubmedqa/hf_po_val.csv \
+--model_name $storage_dir/models/po_model \
+--output_column model_output --max_new_tokens 200 \
+--ignore_checkpoint hf --batch_size 24 --padding_side left
