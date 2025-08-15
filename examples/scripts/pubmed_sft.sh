@@ -6,8 +6,8 @@ accelerate launch train.py --training_kind sft --model_name meta-llama/Llama-3.2
 --per_device_train_batch_size 12 --per_device_eval_batch_size 12 \
 --learning_rate 1e-4 --weight_decay 0.3 \
 --logging_strategy steps --logging_steps 200 \
---eval_strategy steps --eval_steps 200 \
---save_strategy steps --save_steps 200 \
+--eval_strategy epoch --eval_steps 0.5 \
+--save_strategy epoch --save_steps 0.5 \
 --early_stopping_patience 5 \
 --load_best_model_at_end True \
 --run_name pubmed-sft
