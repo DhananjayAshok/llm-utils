@@ -198,11 +198,11 @@ if __name__ == "__main__":
         trainer.evaluate(dataset["test"], metric_key_prefix="test")
 
     output_dir = os.path.join(training_args.output_dir, "final_checkpoint")
+    trainer.processing_class.save_pretrained(output_dir)
+    trainer.model.config.save_pretrained(output_dir)
     if script_args.use_peft:
         trainer.model = trainer.model.merge_and_unload()
 
-    trainer.processing_class.save_pretrained(output_dir)
-    trainer.model.config.save_pretrained(output_dir)
     is_main_process = accelerator.is_main_process
     save_function = accelerator.save
     state_dict = accelerator.get_state_dict(trainer.model)
