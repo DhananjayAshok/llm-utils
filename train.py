@@ -202,6 +202,7 @@ if __name__ == "__main__":
         trainer.model = trainer.model.merge_and_unload()
 
     trainer.processing_class.save_pretrained(output_dir)
+    trainer.model.config.save_pretrained(output_dir)
     is_main_process = accelerator.is_main_process
     save_function = accelerator.save
     state_dict = accelerator.get_state_dict(trainer.model)

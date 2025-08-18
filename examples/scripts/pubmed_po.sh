@@ -4,9 +4,10 @@ accelerate launch train.py --training_kind dpo --model_name meta-llama/Llama-3.2
 --train_file $storage_dir/data/pubmedqa/hf_po_train.csv --validation_file $storage_dir/data/pubmedqa/hf_po_val.csv \
 --num_train_epochs 50 \
 --per_device_train_batch_size 12 --per_device_eval_batch_size 12 \
---learning_rate 1e-4 --weight_decay 0.1 \
+--learning_rate 1e-4 --weight_decay 2.0 \
 --logging_strategy steps --logging_steps 200 \
 --eval_strategy epoch --eval_steps 0.5 \
+--lora_target_modules v_proj o_proj \
 --save_strategy epoch --save_steps 0.5 \
 --early_stopping_patience 5 \
 --load_best_model_at_end True \

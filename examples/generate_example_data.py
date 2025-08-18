@@ -311,7 +311,7 @@ def process_pubmedqa_paraphrase_datasets(parameters):
     return
 
 
-def setup_pubmedqa_finetune_datasets(parameters, max_paraphrases=10, instruction_mix_in=0.05):
+def setup_pubmedqa_finetune_datasets(parameters, max_paraphrases=None, instruction_mix_in=0.05):
     store_dir = parameters["data_dir"] + "/pubmedqa/"
     if not os.path.exists(store_dir):
         os.makedirs(store_dir)
