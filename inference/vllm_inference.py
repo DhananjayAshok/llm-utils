@@ -4,7 +4,10 @@ from utils import log_info, log_warn, log_error
 from inference.inference_utils import save_meta_file
 import click
 import torch
+from tqdm import tqdm
 
+
+vllm_max_n = 5000 # I don't know why, but when we ask vLLM to do inference on too many points at once it produces garbage output. This is a safe max for now.
 
 def quick_token_count(text):
     return len(text.split())
@@ -44,16 +47,21 @@ def vllm_inference(parameters, enable_prefix_caching, max_model_len):
               max_model_len=max_model_len)
     if enable_prefix_caching:
         llm.generate(data_df[parameters["input_column"]].iloc[0], sampling_params) # warm up the cache
-    outputs = llm.generate(data_df[parameters["input_column"]], sampling_params)
-    output_texts = []
-    for output in outputs:
-        internal_outputs = []
-        for out_text in output.outputs:
-            internal_outputs.append(out_text.text)
-        output_texts.append(internal_outputs)
-    for i in range(len(output_texts)):
-        data_df.at[i, parameters["output_column"]] = output_texts[i]
-    data_df[parameters["generation_complete_column"]] = True
-    data_df.to_json(output_filepath, index=False, lines=True, orient="records")
+    start_idx = data_df[data_df[parameters["generation_complete_column"]] == False].index.min()
+    if start_idx != 0:
+        log_info(f"Resuming from index {start_idx}", parameters)
+    batch_size = vllm_max_n # not batches in the usual sense, just how many to do at once
+    for i in tqdm(range(start_idx, len(data_df), batch_size), desc="Performing vLLM inference"):
+        input_texts = data_df[parameters["input_column"]].loc[i:i+batch_size].tolist()
+        outputs = llm.generate(input_texts, sampling_params)
+        data_df.loc[i:i+batch_size-1, parameters["generation_complete_column"]] = True
+        append_i = 0
+        for output in outputs:
+            internal_outputs = []
+            for out_text in output.outputs:
+                internal_outputs.append(out_text.text)
+            data_df.at[i+append_i, parameters["output_column"]] = internal_outputs
+            append_i += 1
+        data_df.to_json(output_filepath, index=False, lines=True, orient="records")
     log_info(f"Saved output to {output_filepath}", parameters)
     return
