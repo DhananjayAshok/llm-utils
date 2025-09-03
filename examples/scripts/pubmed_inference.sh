@@ -13,7 +13,7 @@ exit
 python3 << EOF
 import pandas as pd
 df = pd.read_csv("/project/jonmay_1426/ashokd//tmp/data/pubmedqa/qa_gen_standard.csv")
-df.sample(9000, random_state=42).to_csv("tmp_inf.csv", index=False)
+df.sample(1000, random_state=42).to_csv("tmp_inf.csv", index=False)
 EOF
 
 python infer.py --model_name meta-llama/Llama-3.1-8B-Instruct --input_file tmp_inf.csv \
