@@ -27,15 +27,15 @@ def vllm_inference(parameters, enable_prefix_caching, max_model_len):
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
     meta_vars = {}
     temperature = 0.0
-    if parameters["temperature"] is not None:
+    if parameters.get("temperature", None) is not None:
         temperature = parameters["temperature"]
         meta_vars["temperature"] = temperature
     top_p = 1.0
-    if parameters["top_p"] is not None:
+    if parameters.get("top_p", None) is not None:
         top_p = parameters["top_p"]
         meta_vars["top_p"] = top_p
     top_k = -1
-    if parameters["top_k"] is not None:
+    if parameters.get("top_k", None) is not None:
         top_k = parameters["top_k"]
         meta_vars["top_k"] = top_k
     n = 1
