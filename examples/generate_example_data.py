@@ -374,7 +374,7 @@ class ManyModalQAExample:
     shape_instruction = shape_instruction + "\nExample Question: " + shape_question_1 + "\nAnswer: " + shape_answer_1 + " [STOP]"
     shape_instruction = shape_instruction + "\nExample Question: " + shape_question_2 + "\nAnswer: " + shape_answer_2 + " [STOP]"
 
-def setup_manymodalqa(parameters):
+def setup_manymodalqa(parameters): # ManyModalQA: Modality Disambiguation and QA over Diverse Inputs
     log_info("Setting up ManyModalQA dataset...", parameters)
     import gdown
     data_dir = parameters["data_dir"]+"/"

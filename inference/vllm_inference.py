@@ -14,7 +14,7 @@ def infer_max_input_length(model_name, data_df, start_idx, parameters):
     return max_input_length
 
 
-vllm_max_n = 15 # I don't know why, but when we ask vLLM to do inference on too many points at once it produces garbage output, and gives no warnings. This is a safe max for now.
+vllm_max_n = 10 # I don't know why, but when we ask vLLM to do inference on too many points at once it produces garbage output, and gives no warnings. This is a safe max for now.
 # This is not a parameter because it is not something we expect users to change. It's not clear how to determine the right value anyway.
 
 @click.command()
@@ -61,7 +61,7 @@ def vllm_inference(parameters, enable_prefix_caching, max_model_len):
     batch_size = vllm_max_n
     for i in tqdm(range(start_idx, len(data_df), batch_size), desc="Performing vLLM inference"):
         input_texts = data_df[parameters["input_column"]].loc[i:i+batch_size].tolist()
-        outputs = llm.generate(input_texts, sampling_params)
+        outputs = llm.generate(input_texts, sampling_params, use_tqdm=False)
         data_df.loc[i:i+batch_size-1, parameters["generation_complete_column"]] = True
         append_i = 0
         for output in outputs:
