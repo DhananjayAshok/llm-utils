@@ -1,6 +1,6 @@
 import click
 from utils.parameter_handling import load_parameters, compute_secondary_parameters
-from utils import log_error
+from utils import log_error, log_warn
 from inference.huggingface_inference import hf_inference
 from inference.batch_size_determination import infer_batch_size
 from inference.vllm_inference import vllm_inference
@@ -37,6 +37,8 @@ def main(ctx, **input_parameters):
 
     if not input_parameters["do_sample"]:
         for sampling_parameter in ["temperature", "top_p", "top_k"]:
+            if sampling_parameter in input_parameters:
+                log_warn(f"Did not get --do_sample flag, so ignoring {sampling_parameter} parameter", input_parameters)
             input_parameters[sampling_parameter] = None
 
 
