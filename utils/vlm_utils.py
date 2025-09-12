@@ -37,7 +37,7 @@ def get_vlm_text(vlm_kind, input_texts):
         if not isinstance(input_texts, list):
             input_texts = input_texts.tolist()
         return input_texts
-    elif vlm_kind in ["qwen"]:
+    elif vlm_kind in ["qwen2.5"]:
         for i, input_text in enumerate(input_texts):
             input_texts[i] = get_single_vlm_text("qwen2.5", input_text)
         if not isinstance(input_texts, list):
