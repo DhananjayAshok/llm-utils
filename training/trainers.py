@@ -198,7 +198,7 @@ def get_sft_trainer(script_args, training_args, dataset, model, processor, peft_
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     else:
-        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
+        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset, model)
     callbacks = get_callback_list(script_args)
     trainer = SFTTrainer(
         model=model,
