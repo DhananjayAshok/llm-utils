@@ -17,7 +17,7 @@ def infer_vlm_kind(model_name=None, config=None):
     """
     if config is None:
         config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
-    architecture = config.architectures
+    architecture = config.architectures[0]
     if architecture in ["LlavaNextForConditionalGeneration"]:
         return "llava-next"
     elif architecture in ["Qwen2_5_VLForConditionalGeneration"]:
