@@ -9,7 +9,7 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSeque
 import torch
 import copy
 from inference.inference_utils import discover_prefix_prompt, save_meta_file
-from inference.vlm_utils import get_intern_vl_pixels
+from utils.vlm_utils import get_intern_vl_pixels, infer_vlm_kind, get_vlm_text
 from tqdm import tqdm
 import numpy as np
 from PIL import Image
@@ -73,20 +73,6 @@ def handle_replace_stop_strings(data_df, parameters):
         data_df[parameters["input_column"]] = data_df[parameters["input_column"]].apply(replace_func)
     return
 
-def infer_vlm_kind(model_name):
-    """
-    Infer the kind of VLM based on the model name.
-    """
-    if "internvl" in model_name.lower():
-        return "internvl"
-    elif "llava" in model_name.lower():
-        return "llava"
-    elif "ovis" in model_name.lower():
-        return "ovis"
-    elif "qwen" in model_name.lower():
-        return "qwen"
-    else:
-        log_error(f"Unrecognized Model Kind: {model_name}")
 
 
 
@@ -100,41 +86,63 @@ def get_vlm(parameters, quantization, model_kind):
     padding_side = parameters["padding_side"]
     vlm_kind = infer_vlm_kind(model_name)
     parameters["vlm_kind"] = vlm_kind
+    quant_dict = {}
+    if quantization != "none":
+        from transformers import BitsAndBytesConfig
+        quant_dict["quantization_config"] = BitsAndBytesConfig(load_in_4bit=quantization == "4b", load_in_8bit=quantization == "8b")
+    else:
+        pass
     if vlm_kind == "internvl":
-        model = AutoModel.from_pretrained(model_name, torch_dtype=dtype, device_map="auto", trust_remote_code=True)
         tokenizer = AutoTokenizer.from_pretrained(model_name, padding_side=padding_side, trust_remote_code=True)
         parameters["tokenizer"] = tokenizer
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
-    elif vlm_kind == "llava":
-        # NOTE: THIS WILL FAIL FOR LLAVA1.5 AND BELOW, AS THEY DO NOT SUPPORT LLAVA NEXT PROCESSOR
-        processor = LlavaNextProcessor.from_pretrained(model_name, padding_side=padding_side)
-        model = LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
-                                                                  device_map="auto", trust_remote_code=True)
-        parameters["tokenizer"] = processor # idk for now doing this.
+        parameters["pad_token_id"] = tokenizer.pad_token_id
+        if model_kind == "clf":
+            model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=dtype, device_map="auto", trust_remote_code=True, **quant_dict)
+        else:
+            model = AutoModel.from_pretrained(model_name, torch_dtype=dtype, device_map="auto", trust_remote_code=True, **quant_dict)
+        return model.eval()
+    elif vlm_kind == "llava-next":
+        processor = AutoProcessor.from_pretrained(model_name, padding_side=padding_side)
+        if processor.tokenizer.pad_token is None:
+            processor.tokenizer.pad_token = processor.tokenizer.eos_token
+        parameters["tokenizer"] = processor
         parameters["pad_token_id"] = processor.tokenizer.pad_token_id
+        if model_kind == "clf":
+            model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=dtype,
+                                                                      device_map="auto", trust_remote_code=True, **quant_dict)
+        else:
+            model = LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
+                                                                    device_map="auto", trust_remote_code=True, **quant_dict)
         return model.eval()
     elif vlm_kind == "ovis":
-        raise NotImplementedError(f"This fails for some reason, need to investigate further...")
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype,
-                                                     multimodal_max_length=32768, # for now hard code this
-                                                     trust_remote_code=True, device_map="auto")
-        text_tokenizer = model.get_text_tokenizer()
-        visual_tokenizer = model.get_visual_tokenizer()
-        parameters["tokenizer"] = text_tokenizer
-        parameters["visual_tokenizer"] = visual_tokenizer
-        if text_tokenizer.pad_token is None:
-            text_tokenizer.pad_token = text_tokenizer.eos_token
-        parameters["pad_token_id"] = text_tokenizer.pad_token_id
-        return model.eval()
-    elif vlm_kind == "qwen":
-        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
-                                                                    device_map="auto")
+        #TODO: Check this. it was failing. 
         processor = AutoProcessor.from_pretrained(model_name, padding_side=padding_side)
         parameters["tokenizer"] = processor
         if processor.tokenizer.pad_token is None:
             processor.tokenizer.pad_token = processor.tokenizer.eos_token
         parameters["pad_token_id"] = processor.tokenizer.pad_token_id
+        if model_kind == "clf":
+            model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=dtype,
+                                                                      device_map="auto", trust_remote_code=True, **quant_dict)
+        else:
+            model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype,
+                                                        multimodal_max_length=32768, # for now hard code this
+                                                        trust_remote_code=True, device_map="auto", **quant_dict)
+        return model.eval()
+    elif vlm_kind == "qwen2.5":
+        processor = AutoProcessor.from_pretrained(model_name, padding_side=padding_side)
+        parameters["tokenizer"] = processor
+        if processor.tokenizer.pad_token is None:
+            processor.tokenizer.pad_token = processor.tokenizer.eos_token
+        parameters["pad_token_id"] = processor.tokenizer.pad_token_id
+        if model_kind == "clf":
+            model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=dtype,
+                                                                      device_map="auto", trust_remote_code=True, **quant_dict)
+        else:
+            model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
+                                                                        device_map="auto", **quant_dict)
         return model.eval()
     else:
         log_error(f"Bruh how")
@@ -153,23 +161,12 @@ def get_inputs(data_df, start, end, model, parameters):
         for url in input_image_urls:
             image = Image.open(url) if os.path.isfile(url) else Image.fromarray(io.imread(url))
             images.append(image)
-        if parameters["vlm_kind"] in ["llava"]:
-            if input_texts.apply(lambda x: "<image>" in x).any(): # do not use <image> tag, let the next line handle it
-                input_texts = input_texts.apply(lambda x: x.replace("<image>", ""))
-            input_texts = "[INST] <image>\n" + input_texts + "[/INST]"
-            input_texts = input_texts.tolist()
-            inputs = parameters["tokenizer"](text=input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
+        vlm_kind = parameters["vlm_kind"]
+        input_text = get_vlm_text(vlm_kind, input_texts)
+        if vlm_kind in ["llava-next", "qwen2.5"]:
+            inputs = parameters["tokenizer"](text=input_text, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
             return inputs
-        elif parameters["vlm_kind"] in ["qwen"]:
-            input_texts = "<|im_start|>user\n<vision_start|><|image_pad|><|vision_end|>\n" + input_texts + "\n<|im_end|><|im_start|>assistant\n"
-            input_texts = input_texts.tolist()
-            inputs = parameters["tokenizer"](text=input_texts, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
-            return inputs
-        elif parameters["vlm_kind"] in ["internvl"]:
-            pixel_values = []
-            for image in images:
-                pixel_values.append(get_intern_vl_pixels(image, input_size=parameters["image_size"], max_num=parameters["max_num"]))
-            pixel_values = torch.stack(pixel_values).to(model.device).to(model.dtype)
+        else:
             raise NotImplementedError("This is not implemented yet, need to figure out how to handle internvl inputs")
     else:
         raise ValueError(f"Bro what did you do.")

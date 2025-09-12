@@ -4,9 +4,62 @@ import torch
 import torchvision.transforms as T
 from PIL import Image
 from torchvision.transforms.functional import InterpolationMode
+from transformers import AutoConfig
+from utils import log_error
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
+
+
+def infer_vlm_kind(model_name=None, config=None):
+    """
+    Infer the kind of VLM based on the model name.
+    """
+    if config is None:
+        config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
+    architecture = config.architectures
+    if architecture in ["LlavaNextForConditionalGeneration"]:
+        return "llava-next"
+    elif architecture in ["Qwen2_5_VLForConditionalGeneration"]:
+        return "qwen2.5"
+    elif architecture in ["InternVLChatModel"]:
+        return "internvl"
+    elif architecture in ["Ovis2_5"]:
+        return "ovis"   
+    else:
+        log_error(f"Unrecognized Model Kind: {model_name} with architecture {architecture}")
+
+
+def get_vlm_text(vlm_kind, input_texts):
+    if vlm_kind in ["llava-next"]:
+        for i, input_text in enumerate(input_texts):
+            input_texts[i] = get_single_vlm_text("llava-next", input_text)
+        if not isinstance(input_texts, list):
+            input_texts = input_texts.tolist()
+        return input_texts
+    elif vlm_kind in ["qwen"]:
+        for i, input_text in enumerate(input_texts):
+            input_texts[i] = get_single_vlm_text("qwen2.5", input_text)
+        if not isinstance(input_texts, list):
+            input_texts = input_texts.tolist()
+        return input_texts
+    elif vlm_kind in ["internvl"]:
+        raise NotImplementedError("This is not implemented yet, need to figure out how to handle internvl inputs")
+
+def get_single_vlm_text(vlm_kind, input_text):
+    if vlm_kind in ["llava-next"]:
+        if "<image>" in input_text:
+            input_text = input_text.replace("<image>", "")
+        input_text = "[INST] <image>\n" + input_text + "[/INST]"
+        return input_text
+    elif vlm_kind in ["qwen2.5"]:
+        input_text = "<|im_start|>user\n<vision_start|><|image_pad|><|vision_end|>\n" + input_text + "\n<|im_end|><|im_start|>assistant\n"
+        return input_text
+    elif vlm_kind in ["internvl"]:
+        raise NotImplementedError("This is not implemented yet, need to figure out how to handle internvl inputs")
+    else:
+        log_error(f"Unrecognized VLM Kind: {vlm_kind}")
+
 
 def build_transform(input_size):
     MEAN, STD = IMAGENET_MEAN, IMAGENET_STD
@@ -78,3 +131,4 @@ def get_intern_vl_pixels(pil_image, input_size=448, max_num=12):
     pixel_values = [transform(image) for image in images]
     pixel_values = torch.stack(pixel_values)
     return pixel_values
+

@@ -3,6 +3,7 @@ from transformers import Trainer, default_data_collator, EarlyStoppingCallback
 from trl import SFTTrainer, DPOTrainer, KTOTrainer, CPOTrainer
 import numpy as np
 from training.model import get_peft_config
+from utils.vlm_utils import infer_vlm_kind, get_single_vlm_text, get_vlm_text
 
 
 def get_callback_list(script_args):
@@ -89,8 +90,11 @@ def lm_clf_preprocess_function(examples, tokenizer, max_length, label2id):
     result["label"] = [(label2id[str(l)] if l != -1 else -1) for l in examples["output"]]
     return result
 
-def vlm_clf_preprocess_function(examples, processor, max_length, label2id):
-    raise NotImplementedError()
+def vlm_clf_preprocess_function(examples, processor, max_length, label2id, vlm_kind):
+    vlm_texts = get_vlm_text(vlm_kind=vlm_kind, input_texts=examples["input"].list())
+    result = processor(text=vlm_texts, images=examples["image"], padding="max_length", max_length=max_length, truncation=True, return_tensors="pt")
+    result["label"] = [(label2id[str(l)] if l != -1 else -1) for l in examples["output"]]
+    return result
 
 def process_clf(script_args, training_args, dataset, model, processor):
     label2id = model.config.label2id
@@ -105,8 +109,9 @@ def process_clf(script_args, training_args, dataset, model, processor):
                 desc="Running tokenizer on dataset",
             )
         elif script_args.modality == "vlm":
+            vlm_kind = infer_vlm_kind(model_name=None, config=model.config)
             dataset = dataset.map(
-                lambda x: vlm_clf_preprocess_function(x, processor, script_args.max_input_length, label2id),
+                lambda x: vlm_clf_preprocess_function(x, processor, script_args.max_input_length, label2id, vlm_kind),
                 batched=True,
                 num_proc=script_args.num_workers,
                 load_from_cache_file=False,
@@ -153,29 +158,15 @@ def get_trl_renamed_train_val_dataset(dataset):
     return train_dataset, validation_dataset
 
 
-def convert_vlm_conversational_format(text):
-    ret = [
-        {
-            "content": [
-                {"type": "image"}, 
-                {"type": "text", "text": text}
-            ]
-        }
-    ]
-    return ret
-
-
-def get_trl_vlm_format_train_val_dataset(dataset):
+def get_trl_vlm_format_train_val_dataset(dataset, model):
     """
     Convert to the expected conversational format for TRL trainers.
     """
-    dataset = dataset.map(lambda x: {"images": [x["image"]]}, 
-                          remove_columns=["image"],
+    model_config = model.config
+    vlm_kind = infer_vlm_kind(model_name=None, config=model_config)
+    dataset = dataset.map(lambda x: {"input": get_single_vlm_text(vlm_kind, x["input"])},
                           num_proc=1,
-                          desc="Converting images to list format")
-    dataset = dataset.map(lambda x: {"input": convert_vlm_conversational_format(x["input"])},
-                          num_proc=1,
-                          desc="Converting input text to conversational format")
+                          desc="Converting input text to VLM format")
     train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     return train_dataset, validation_dataset
 
