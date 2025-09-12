@@ -61,6 +61,7 @@ def get_model_processor(script_args, dataset):
     elif script_args.modality == "vlm":
         processor = AutoProcessor.from_pretrained(script_args.model_name, trust_remote_code=True)
         tokenizer = processor.tokenizer
+        processor.pad_token = processor.tokenizer.eos_token
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.pad_token_id = tokenizer.eos_token_id
