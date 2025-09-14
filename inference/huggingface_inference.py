@@ -197,7 +197,6 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
 @click.option("--diversity_penalty", type=float, default=0.2, help="The diversity penalty to use for group beam search. Set to 0.0 for no diversity penalty.")
 @click.option("--cache_implementation", default="dynamic", type=click.Choice(["dynamic", "static", "offloaded", "offloaded_static", "quantized"]), help="The implementation to use for cache.")
 @click.option("--cache_prefix", type=bool, default=False, help="If true, will search for a prefix prompt in the input column and precompute its KV cache.")
-@click.option("--checkpoint_every", type=float, default=0.2)
 @click.option("--replace_stop_strings", type=bool, default=True, help="If set, will replace stop strings in the input text with the models eos token.")
 @click.option("--track_output_perplexity", type=bool, default=False)
 @click.option("--output_perplexity_column", type=str, default="output_perplexity")
@@ -205,7 +204,7 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
 @click.option("--input_perplexity_column", type=str, default="input_perplexity")
 @click.option("--debug", type=bool, default=True, help="If set, will print the first generated output for a sanity check")
 @click.pass_obj
-def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, num_beams, num_beam_groups, diversity_penalty, cache_implementation, cache_prefix, checkpoint_every, replace_stop_strings, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, debug):
+def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, num_beams, num_beam_groups, diversity_penalty, cache_implementation, cache_prefix, replace_stop_strings, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, debug):
     if model_kind == "gen":
         if parameters["max_new_tokens"] is None:
             log_error("--max_new_tokens is required for Generative LM inference", parameters)
@@ -263,7 +262,7 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
     start_idx = data_df[data_df[parameters["generation_complete_column"]] == False].index.min()
     checkpointed = start_idx != 0
     save_meta_file(meta_vars, output_filepath, parameters, consider_checkpoint=checkpointed)
-    save_every = int(checkpoint_every * ((len(data_df) - start_idx) / batch_size))+1
+    save_every = int(parameters["checkpoint_every"] * ((len(data_df) - start_idx) / batch_size))+1
     log_warn(f"Saving every {save_every} batches", parameters)
     prompt_cache = None
     prefix_text = discover_prefix_prompt(data_df, parameters["input_column"], parameters)
@@ -324,9 +323,9 @@ def hf_inference(parameters, quantization, padding_side, model_kind, batch_size,
             for counter, j in enumerate(range(i, i+n_items_in_batch)):
                 data_df.at[j, parameters["output_column"]] = out[counter][0]
         data_df.loc[i:i+batch_size-1, parameters["generation_complete_column"]] = True
-        del inputs
-        del output
         if (i % save_every == 0 and i > 0) or i >= len(data_df) - batch_size:
             data_df.to_json(output_filepath, index=False, orient="records", lines=True)
+        del inputs
+        del output
     log_info(f"Saved output to {output_filepath}", parameters)
     return

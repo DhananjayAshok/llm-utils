@@ -59,6 +59,7 @@ def vllm_inference(parameters, enable_prefix_caching, max_model_len):
     if start_idx != 0:
         log_info(f"Resuming from index {start_idx}", parameters)
     batch_size = vllm_max_n
+    save_every = int(parameters["checkpoint_every"] * ((len(data_df) - start_idx) / batch_size))+1
     for i in tqdm(range(start_idx, len(data_df), batch_size), desc="Performing vLLM inference"):
         input_texts = data_df[parameters["input_column"]].loc[i:i+batch_size].tolist()
         outputs = llm.generate(input_texts, sampling_params, use_tqdm=False)
@@ -70,6 +71,7 @@ def vllm_inference(parameters, enable_prefix_caching, max_model_len):
                 internal_outputs.append(out_text.text)
             data_df.at[i+append_i, parameters["output_column"]] = internal_outputs
             append_i += 1
-        data_df.to_json(output_filepath, index=False, lines=True, orient="records")
+        if (i % save_every == 0 and i > 0) or i >= len(data_df) - batch_size:
+            data_df.to_json(output_filepath, index=False, orient="records", lines=True)
     log_info(f"Saved output to {output_filepath}", parameters)
     return
