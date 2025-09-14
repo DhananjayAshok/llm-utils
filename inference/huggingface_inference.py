@@ -50,11 +50,11 @@ def get_model(parameters, quantization, model_kind):
     else:
         raise ValueError(f"Invalid model kind {model_kind}. Must be 'gen' or 'clf'.")
     if quantization == "none":
-        model = load_class.from_pretrained(model_name, device_map="auto", torch_dtype=dtype)
+        model = load_class.from_pretrained(model_name, device_map="auto", dtype=dtype)
     else:
         from transformers import BitsAndBytesConfig
         quantization_config = BitsAndBytesConfig(load_in_4bit=quantization == "4b", load_in_8bit=quantization == "8b")
-        model = load_class.from_pretrained(model_name, device_map="auto", torch_dtype=dtype, quantization_config=quantization_config)
+        model = load_class.from_pretrained(model_name, device_map="auto", dtype=dtype, quantization_config=quantization_config)
     return model.eval()
 
 def handle_replace_stop_strings(data_df, parameters):
@@ -98,9 +98,9 @@ def get_vlm(parameters, quantization, model_kind):
             tokenizer.pad_token = tokenizer.eos_token
         parameters["pad_token_id"] = tokenizer.pad_token_id
         if model_kind == "clf":
-            model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=dtype, device_map="auto", trust_remote_code=True, **quant_dict)
+            model = AutoModelForSequenceClassification.from_pretrained(model_name, dtype=dtype, device_map="auto", trust_remote_code=True, **quant_dict)
         else:
-            model = AutoModel.from_pretrained(model_name, torch_dtype=dtype, device_map="auto", trust_remote_code=True, **quant_dict)
+            model = AutoModel.from_pretrained(model_name, dtype=dtype, device_map="auto", trust_remote_code=True, **quant_dict)
         return model.eval()
     elif vlm_kind == "llava-next":
         processor = AutoProcessor.from_pretrained(model_name, padding_side=padding_side)
@@ -109,10 +109,10 @@ def get_vlm(parameters, quantization, model_kind):
         parameters["tokenizer"] = processor
         parameters["pad_token_id"] = processor.tokenizer.pad_token_id
         if model_kind == "clf":
-            model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=dtype,
+            model = AutoModelForSequenceClassification.from_pretrained(model_name, dtype=dtype,
                                                                       device_map="auto", trust_remote_code=True, **quant_dict)
         else:
-            model = LlavaNextForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
+            model = LlavaNextForConditionalGeneration.from_pretrained(model_name, dtype=dtype,
                                                                     device_map="auto", trust_remote_code=True, **quant_dict)
         return model.eval()
     elif vlm_kind == "ovis":
@@ -123,10 +123,10 @@ def get_vlm(parameters, quantization, model_kind):
             processor.tokenizer.pad_token = processor.tokenizer.eos_token
         parameters["pad_token_id"] = processor.tokenizer.pad_token_id
         if model_kind == "clf":
-            model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=dtype,
+            model = AutoModelForSequenceClassification.from_pretrained(model_name, dtype=dtype,
                                                                       device_map="auto", trust_remote_code=True, **quant_dict)
         else:
-            model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype,
+            model = AutoModelForCausalLM.from_pretrained(model_name, dtype=dtype,
                                                         multimodal_max_length=32768, # for now hard code this
                                                         trust_remote_code=True, device_map="auto", **quant_dict)
         return model.eval()
@@ -137,10 +137,10 @@ def get_vlm(parameters, quantization, model_kind):
             processor.tokenizer.pad_token = processor.tokenizer.eos_token
         parameters["pad_token_id"] = processor.tokenizer.pad_token_id
         if model_kind == "clf":
-            model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=dtype,
+            model = AutoModelForSequenceClassification.from_pretrained(model_name, dtype=dtype,
                                                                       device_map="auto", trust_remote_code=True, **quant_dict)
         else:
-            model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model_name, torch_dtype=dtype,
+            model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model_name, dtype=dtype,
                                                                         device_map="auto", **quant_dict)
         return model.eval()
     else:
