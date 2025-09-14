@@ -5,7 +5,7 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSeque
                           DynamicCache, StaticCache, OffloadedCache, OffloadedStaticCache,
                           LlavaNextProcessor, LlavaNextForConditionalGeneration,
                           Qwen2_5_VLForConditionalGeneration, AutoProcessor,
-                          QuantizedCache, QuantizedCacheConfig, GenerationConfig, set_seed)
+                          GenerationConfig, set_seed)
 import torch
 import copy
 from inference.inference_utils import discover_prefix_prompt, save_meta_file
@@ -28,8 +28,7 @@ def get_cache(cache_implementation, model, batch_size, num_beams=1):
     elif cache_implementation == "offloaded_static":
         return OffloadedStaticCache(config=model.config, max_batch_size=batch_size, max_cache_len=1024, device=model.device, dtype=model.dtype)
     elif cache_implementation == "quantized":
-        config = QuantizedCacheConfig(compute_dtype=model.dtype,device=model.device)
-        return QuantizedCache(config)
+        raise NotImplementedError("Quantized cache is not implemented yet. It seems to be broken in transformers? QuantizedCache, QuantizedCacheConfig are the relevant classes.")
     else:
         raise ValueError(f"Invalid cache implementation {cache_implementation}. Must be one of 'dynamic', 'static', 'offloaded', 'offloaded_static', or 'quantized'.")
 
