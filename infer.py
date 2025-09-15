@@ -31,6 +31,22 @@ loaded_parameters = load_parameters()
 @click.option("--log_file", default=loaded_parameters["log_file"], help="The file to log to")
 @click.pass_context
 def main(ctx, **input_parameters):
+    """
+    Entry point for llm / vlm inference. This will save to a JSON lines file.
+    If you have only one output per input and want to flatten the output, you can use:
+
+    ```python
+    import pandas as pd
+    import sys
+    filename = sys.argv[1]
+    output_column = "output"
+    #output_column = sys.argv[2] # the name of the output column you specified if its not output
+    df = pd.read_json(filename, lines=True)
+    df[output_column] = df[output_column].apply(lambda x: x[0] if isinstance(x, list) else x)
+    df.to_csv(filename.replace(".jsonl", ".csv"), index=False)
+    ```
+
+    """
     input_parameters["stop_strings"] = list(input_parameters["stop_strings"])
     for default_parameter in ["temperature", "top_p", "top_k"]:
         if input_parameters[default_parameter] is None:
