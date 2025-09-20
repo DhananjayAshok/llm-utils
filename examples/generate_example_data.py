@@ -8,6 +8,29 @@ import itertools
 
 hf_hub="Dhananjay99" # If you want to push and set up from your own hub, change this to your username. 
 
+
+
+def get_train_test_split(df, random_seed, test_size=0.2):
+    """
+    Splits the dataframe into train and test sets.
+    """
+    train_df = df.sample(frac=1-test_size, random_state=random_seed).reset_index(drop=True)
+    test_df = df.drop(train_df.index).reset_index(drop=True)
+    return train_df, test_df
+
+
+def setup_alpaca(parameters, train_test_split=0.1):
+    df = load_dataset("tatsu-lab/alpaca", split="train").to_pandas()
+    df["input"] = df["instruction"]
+    df = df[["input", "output"]]
+    train_df, test_df = get_train_test_split(df, parameters["random_seed"], test_size=train_test_split)
+    data_dir = parameters["data_dir"]+"/alpaca/"
+    os.makedirs(data_dir, exist_ok=True)
+    train_df.to_csv(data_dir+"train.csv", index=False)
+    test_df.to_csv(data_dir+"test.csv", index=False)
+    return train_df, test_df
+    
+
 class PubMedQAExample:
     standard_prompt = """
     Generate a true or false question answer pair from the question context. The question should test knowledge of the context contents, but not be about the study itself, so no questions like "what does the study find / what does the study aim to do". 
@@ -154,14 +177,6 @@ def parse_pubmedqa_inference_output(output):
         question = insight_question[1].strip()
         return question, answer[0].strip() , answer[1].strip().lower()
 
-
-def get_train_test_split(df, random_seed, test_size=0.2):
-    """
-    Splits the dataframe into train and test sets.
-    """
-    train_df = df.sample(frac=1-test_size, random_state=random_seed).reset_index(drop=True)
-    test_df = df.drop(train_df.index).reset_index(drop=True)
-    return train_df, test_df
 
 def process_pubmedqa_inference_datasets(parameters):
     """
@@ -474,9 +489,11 @@ def setup_manymodalqa_finetune_datasets(parameters):
 
 
 @click.command()
-@click.option("--dataset_names", default=["pubmedqa", "manymodalqa"], multiple=True)
+@click.option("--dataset_names", default=["alpaca", "pubmedqa", "manymodalqa"], multiple=True)
 @click.pass_obj
 def setup_data(parameters, dataset_names):
+    if "alpaca" in dataset_names:
+        setup_alpaca(parameters)
     if "pubmedqa" in dataset_names:
         setup_pubmedqa(parameters)
     if "manymodalqa" in dataset_names:
