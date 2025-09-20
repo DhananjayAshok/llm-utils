@@ -6,7 +6,7 @@ gdown==5.2.0
 numpy==1.26.4
 peft==0.15.1
 scikit-image==0.25.2
-torch==2.8.0
+torch
 torchvision
 transformers
 trl
