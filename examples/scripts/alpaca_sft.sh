@@ -2,7 +2,7 @@ source examples/scripts/env.sh
 accelerate launch train.py --training_kind sft --model_name meta-llama/Meta-Llama-3-8B \
 --output_dir $storage_dir/models/it_model \
 --train_file $storage_dir/data/alpaca/train.csv \
---train_val_split 0.2 \
+--train_validation_split 0.2 \
 --num_train_epochs 50 \
 --per_device_train_batch_size 12 --per_device_eval_batch_size 12 \
 --learning_rate 1e-4 \
