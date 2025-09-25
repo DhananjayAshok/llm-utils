@@ -52,7 +52,7 @@ def vllm_inference(parameters, enable_prefix_caching, max_model_len):
         log_info(f"Inferred max_input_length of {max_input_length} from data. Setting max_model_len to {max_model_len}", parameters)
     elif max_model_len < max_input_length + parameters["max_new_tokens"]:
         log_warn(f"Warning: provided max_model_len of {max_model_len} is less than the max input length + max_new_tokens ({max_input_length + parameters['max_new_tokens']}). This may cause errors.", parameters)
-    llm = LLM(model=parameters["model_name"], tensor_parallel_size=n_gpus, enable_prefix_caching=enable_prefix_caching,
+    llm = LLM(model=parameters["model_name"], tensor_parallel_size=n_gpus, enable_prefix_caching=enable_prefix_caching, max_num_seqs=vllm_max_n+5,
               max_model_len=max_model_len)
     if enable_prefix_caching:
         llm.generate(data_df[parameters["input_column"]].iloc[0], sampling_params) # warm up the cache
