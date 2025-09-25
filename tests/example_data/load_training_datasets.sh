@@ -1,2 +1,2 @@
 python create_examples.py pubmed_process
-python create_examples.py multimodal_process
+python create_examples.py manymodal_process
