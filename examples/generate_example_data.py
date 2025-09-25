@@ -477,6 +477,12 @@ def process_manymodalqa_inference_datasets(parameters):
     val_dataset.push_to_hub(f"manymodal_inference", config_name="po", split="val")
     log_info("ManyModalQA inference datasets setup complete. Processed datasets saved in: " + save_dir, parameters)
 
+
+def fix_image_path(x, data_dir):
+    _, valid = x.split("ManyModalQAImages")
+    return os.path.join(data_dir, "ManyModalQAImages", valid)
+
+
 def setup_manymodalqa_finetune_datasets(parameters):
     """
     Sets up the finetune datasets for ManyModalQA.
@@ -492,6 +498,7 @@ def setup_manymodalqa_finetune_datasets(parameters):
         for split in splits:
             dataset = load_dataset(f"{hf_hub}/manymodal_inference", config, split=split)
             df = dataset.to_pandas()
+            df["image"] = df["image"].apply(lambda x: fix_image_path(x, parameters["data_dir"]))
             df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
             log_info(f"Saved {config} {split} dataset to {store_dir}/hf_{config}_{split}.csv", parameters)
             if split == "train":
