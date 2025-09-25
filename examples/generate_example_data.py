@@ -462,12 +462,17 @@ def process_manymodalqa_inference_datasets(parameters):
 
     po_data = []
     po_columns = ["input", "chosen", "rejected", "image"]
+    clf_data = []
+    clf_columns = ["input", "label", "image"]
     for i, row in color_df.iterrows():
         image = row["image"]
         input_text = row["input"].split("Caption: ")[1]
         chosen = color_df.loc[i, "output"][0]
         rejected = shape_df.loc[i, "output"][0]
         po_data.append([input_text, chosen, rejected, image])
+        clf_data.append([chosen, 1, image])
+        clf_data.append([rejected, 0, image])
+    clf_df = pd.DataFrame(clf_data, columns=clf_columns)
     po_df = pd.DataFrame(po_data, columns=po_columns)
     po_df["output"] = po_df["chosen"]
     train_df, val_df = get_train_test_split(po_df, parameters["random_seed"], test_size=0.2)
@@ -475,6 +480,11 @@ def process_manymodalqa_inference_datasets(parameters):
     val_dataset = Dataset.from_pandas(val_df)
     train_dataset.push_to_hub(f"manymodal_inference", config_name="po", split="train")
     val_dataset.push_to_hub(f"manymodal_inference", config_name="po", split="val")
+    train_df, val_df = get_train_test_split(clf_df, parameters["random_seed"], test_size=0.2)
+    train_dataset = Dataset.from_pandas(train_df)
+    val_dataset = Dataset.from_pandas(val_df)
+    train_dataset.push_to_hub(f"manymodal_inference", config_name="clf", split="train")
+    val_dataset.push_to_hub(f"manymodal_inference", config_name="clf", split="val")
     log_info("ManyModalQA inference datasets setup complete. Processed datasets saved in: " + save_dir, parameters)
 
 
@@ -492,7 +502,7 @@ def setup_manymodalqa_finetune_datasets(parameters):
         os.makedirs(store_dir)
     log_info("Setting up ManyModalQA finetune datasets...", parameters)
     os.makedirs("tmp_test_data", exist_ok=True)
-    configs = ["po"]
+    configs = ["po", "clf"]
     splits = ["train", "val"]
     for config in configs:
         for split in splits:
@@ -504,7 +514,9 @@ def setup_manymodalqa_finetune_datasets(parameters):
             if split == "train":
                 sample_df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
                 sample_df.to_csv(f"tmp_test_data/tmp_vlm_{config}.csv", index=False)
-                log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_test_data/tmp_vlm_{config}.csv. Note, this is also an sft dataset.", parameters)
+                log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_test_data/tmp_vlm_{config}.csv", parameters)
+                if config == "po":
+                    log_info("Note: The ManyModalQA PO dataset has an 'input' column, and hence is also an sft dataset", parameters)
 
 
 
