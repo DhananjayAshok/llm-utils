@@ -485,6 +485,7 @@ def setup_manymodalqa_finetune_datasets(parameters):
     if not os.path.exists(store_dir):
         os.makedirs(store_dir)
     log_info("Setting up ManyModalQA finetune datasets...", parameters)
+    os.makedirs("tmp_test_data", exist_ok=True)
     configs = ["po"]
     splits = ["train", "val"]
     for config in configs:
@@ -493,6 +494,11 @@ def setup_manymodalqa_finetune_datasets(parameters):
             df = dataset.to_pandas()
             df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
             log_info(f"Saved {config} {split} dataset to {store_dir}/hf_{config}_{split}.csv", parameters)
+            if split == "train":
+                sample_df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
+                sample_df.to_csv(f"tmp_test_data/tmp_vlm_{config}.csv", index=False)
+                log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_test_data/tmp_vlm_{config}.csv. Note, this is also an sft dataset.", parameters)
+
 
 
 @click.command()
