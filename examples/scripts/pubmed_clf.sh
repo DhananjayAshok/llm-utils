@@ -1,4 +1,4 @@
-source examples/scripts/env.sh
+source configs/config.env
 accelerate launch train.py --training_kind clf --model_name meta-llama/Llama-3.2-1B-Instruct \
 --output_dir $storage_dir/models/clf_model --num_train_epochs 10 \
 --train_file $storage_dir/data/pubmedqa/hf_clf_train.csv --train_validation_split 0.85 --test_file $storage_dir/data/pubmedqa/hf_clf_val.csv --output_column label  \

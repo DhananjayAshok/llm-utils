@@ -1,4 +1,4 @@
-source examples/scripts/env.sh
+source configs/config.env
 accelerate launch train.py --training_kind dpo --model_name meta-llama/Llama-3.2-1B-Instruct \
 --output_dir $storage_dir/models/po_model \
 --train_file $storage_dir/data/pubmedqa/hf_po_train.csv --validation_file $storage_dir/data/pubmedqa/hf_po_val.csv \

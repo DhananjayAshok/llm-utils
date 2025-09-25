@@ -335,6 +335,7 @@ def setup_pubmedqa_finetune_datasets(parameters, max_paraphrases=None, instructi
     instruction_data["input"] = instruction_data["instruction"]
     configs = ["clf", "ft", "po"]
     splits = ["train", "val"]
+    os.makedirs("tmp_test_data", exist_ok=True)
     for config in configs:
         for split in splits:
             dataset = load_dataset(f"{hf_hub}/pubmed_inference", config, split=split)
@@ -358,8 +359,8 @@ def setup_pubmedqa_finetune_datasets(parameters, max_paraphrases=None, instructi
                 df = pd.concat([yes_df, no_df], ignore_index=True)
             if split == "train":
                 sample_df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
-                sample_df.to_csv(f"tmp_{config}.csv", index=False)
-                log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_{config}.csv", parameters)
+                sample_df.to_csv(f"tmp_test_data/tmp_{config}.csv", index=False)
+                log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_test_data/tmp_{config}.csv", parameters)
             if config == "ft" and split == "train":
                 if instruction_mix_in > 0:
                     n_samples = min(len(instruction_data), int(len(df) * instruction_mix_in))

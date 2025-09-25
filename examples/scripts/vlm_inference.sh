@@ -1,4 +1,4 @@
-source examples/scripts/env.sh
+source configs/config.env
 batch_size=10
 file_names="color shape"
 for file_name in $file_names; do

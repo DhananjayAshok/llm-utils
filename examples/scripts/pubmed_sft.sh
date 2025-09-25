@@ -1,4 +1,4 @@
-source examples/scripts/env.sh
+source configs/config.env
 accelerate launch train.py --training_kind sft --model_name meta-llama/Llama-3.2-1B-Instruct \
 --output_dir $storage_dir/models/ft_model \
 --train_file $storage_dir/data/pubmedqa/hf_ft_train.csv --validation_file $storage_dir/data/pubmedqa/hf_ft_val.csv \
@@ -7,7 +7,7 @@ accelerate launch train.py --training_kind sft --model_name meta-llama/Llama-3.2
 --learning_rate 1e-4 \
 --logging_strategy steps --logging_steps 200 \
 --eval_strategy epoch --eval_steps 0.5 \
---lora_target_modules k_proj, v_proj o_proj \
+--lora_target_modules k_proj, v_proj, o_proj \
 --save_strategy epoch --save_steps 0.5 \
 --early_stopping_patience 5 \
 --load_best_model_at_end True \

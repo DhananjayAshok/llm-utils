@@ -1,4 +1,4 @@
-source examples/scripts/env.sh
+source configs/config.env
 accelerate launch train.py --training_kind dpo --model_name Qwen/Qwen2.5-VL-7B-Instruct --modality vlm \
 --output_dir $storage_dir/models/vlm_po_model \
 --train_file $storage_dir/data/manymodalqa/hf_po_train.csv --validation_file $storage_dir/data/manymodalqa/hf_po_val.csv \

@@ -1,4 +1,4 @@
-source examples/scripts/env.sh
+source configs/config.env
 batch_size=30
 standard_args="--max_new_tokens 200 --model_name meta-llama/Llama-3.1-8B-Instruct --ignore_checkpoint --num_return_sequences 5 --do_sample hf --batch_size $batch_size --padding_side left"
 

@@ -1,4 +1,4 @@
-source examples/scripts/env.sh
+source configs/config.env
 batch_size=20
 file_name="test_qa"
 

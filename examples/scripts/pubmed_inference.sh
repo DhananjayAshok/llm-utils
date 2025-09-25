@@ -1,4 +1,4 @@
-source examples/scripts/env.sh
+source configs/config.env
 batch_size=20
 file_names="qa_gen_standard qa_gen_method"
 for file_name in $file_names; do

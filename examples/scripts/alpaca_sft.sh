@@ -1,4 +1,4 @@
-source examples/scripts/env.sh
+source configs/config.env
 accelerate launch train.py --training_kind sft --model_name meta-llama/Meta-Llama-3-8B \
 --output_dir $storage_dir/models/it_model \
 --train_file $storage_dir/data/alpaca/train.csv \
