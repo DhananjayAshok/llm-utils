@@ -62,8 +62,7 @@ def load_parameters(parameters=None):
                     error(f"{key} is present in multiple config files. At least one of which is {file}. Please remove the duplicate")
             params.update(configs)
         else:
-            if file != "README.md":
-                error(f"Please remove {file} from the configs directory. Only yaml files that hold project parameters should be present")
+            pass
 
     for key in params:
         if params[key] == "PLACEHOLDER":
