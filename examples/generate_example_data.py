@@ -162,6 +162,11 @@ def setup_pubmedqa(parameters):
     test_df = test_df[["question", "input", "long_answer", "answer"]]
     test_df.to_csv(save_dir + "test_qa.csv", index=False)
     log_info("PubMedQA dataset setup complete. Files saved in: " + save_dir)
+    test_sample = test_df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
+    test_dir = "tmp_test_data/"
+    os.makedirs(test_dir, exist_ok=True)
+    test_sample.to_csv(test_dir + "tmp_inference.csv", index=False)
+    log_info("A small sample of the test_qa dataset has been saved to " + test_dir + "/tmp_inference.csv for quick testing.", parameters)
 
 def parse_pubmedqa_inference_output(output):
     lines = output.split("Long Answer:")
@@ -432,8 +437,9 @@ def setup_manymodalqa(parameters): # ManyModalQA: Modality Disambiguation and QA
     shape_df.to_csv(f"{save_dir}/shape.csv", index=False)
     log_info("ManyModalQA dataset setup complete. Files saved in: " + data_dir, parameters)
     color_df = color_df.sample(n=20).reset_index(drop=True)  # For testing purposes, we take a small sample
-    color_df.to_csv("tmp_color.csv", index=False)
-    log_info("Sampled 20 rows from ManyModalQA color dataset for testing purposes and saved to tmp_color.csv", parameters)
+    os.makedirs("tmp_test_data", exist_ok=True)
+    color_df.to_csv("tmp_test_data/tmp_vlm_inference.csv", index=False)
+    log_info("Sampled 20 rows from ManyModalQA color dataset for testing purposes and saved to tmp_test_data/tmp_vlm_inference.csv", parameters)
 
 def process_manymodalqa_inference_datasets(parameters):
     """
