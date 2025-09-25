@@ -467,8 +467,12 @@ def process_manymodalqa_inference_datasets(parameters):
     for i, row in color_df.iterrows():
         image = row["image"]
         input_text = row["input"].split("Caption: ")[1]
-        chosen = color_df.loc[i, "output"][0]
-        rejected = shape_df.loc[i, "output"][0]
+        chosen = color_df.loc[i, "output"]
+        rejected = shape_df.loc[i, "output"]
+        if chosen is None or rejected is None:
+            continue
+        chosen = chosen[0]
+        rejected = rejected[0]
         po_data.append([input_text, chosen, rejected, image])
         clf_data.append([chosen, 1, image])
         clf_data.append([rejected, 0, image])
