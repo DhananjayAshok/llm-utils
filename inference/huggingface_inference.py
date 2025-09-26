@@ -204,7 +204,7 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
 @click.option("--input_perplexity_column", type=str, default="input_perplexity")
 @click.option("--debug", type=bool, default=True, help="If set, will print the first generated output for a sanity check")
 @click.pass_obj
-def hf_inference(parameters, quantization, padding_side, model_kind, batch_size, num_beams, num_beam_groups, diversity_penalty, cache_implementation, cache_prefix, replace_stop_strings, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, debug):
+def hf_inference(parameters, model_kind, quantization, padding_side, batch_size, num_beams, num_beam_groups, diversity_penalty, cache_implementation, cache_prefix, replace_stop_strings, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, debug):
     if model_kind == "gen":
         if parameters["max_new_tokens"] is None:
             log_error("--max_new_tokens is required for Generative LM inference", parameters)
