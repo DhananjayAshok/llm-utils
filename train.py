@@ -157,7 +157,8 @@ if __name__ == "__main__":
     script_args.data_seed = training_args.data_seed
     if accelerator.is_main_process:
         if training_args.resume_from_checkpoint is None:
-            log_warn("resume_from_checkpoint is not set, defaulting to False. This will start training from scratch. To avoid this, set --resume_from_checkpoint arg", default_parameters)        
+            log_warn("resume_from_checkpoint is not set, defaulting to True. This will search for the output directory and if not found, will start training from scratch. To avoid this, explicitly set --resume_from_checkpoint arg", default_parameters)        
+            training_args.resume_from_checkpoint = True
     override_defaults(training_args)
     if accelerator.is_main_process:
         log_info(f"Saving to: {training_args.output_dir}", default_parameters)
