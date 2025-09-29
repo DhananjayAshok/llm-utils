@@ -101,7 +101,12 @@ class ScriptArguments:
 def override_defaults(training_args, parameters=default_parameters):
     if training_args.resume_from_checkpoint is not None and not isinstance(training_args.resume_from_checkpoint, bool):
         if training_args.resume_from_checkpoint.lower() == "true":
-            training_args.resume_from_checkpoint = True
+            if not os.path.exists(training_args.output_dir):
+                log_warn(f"resume_from_checkpoint is set to True but output_dir {training_args.output_dir} does not exist. Starting training from scratch.", parameters)
+                training_args.resume_from_checkpoint = False
+            else:
+                log_warn("Trying to resume from checkpoint. Will fail if output_dir does not contain a valid checkpoint.", parameters)
+                training_args.resume_from_checkpoint = True
         elif training_args.resume_from_checkpoint.lower() == "false":
             training_args.resume_from_checkpoint = False
     if training_args.save_total_limit is None:
