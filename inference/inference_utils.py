@@ -92,6 +92,7 @@ def handle_files(input_file, output_file, input_column, generation_complete_colu
     if ignore_checkpoint or not os.path.exists(output_file_path):
         input_df[output_column] = None
         input_df[generation_complete_column] = False
+        input_df[parameters["output_logits_column"]] = None
         return input_df, output_file_path
     else:
         output_df = load_file(output_file_path, "."+output_file_path.rsplit(".", 1)[-1], parameters)
@@ -104,8 +105,6 @@ def handle_files(input_file, output_file, input_column, generation_complete_colu
         else:
             start_idx = output_df[output_df[generation_complete_column] == False].index[0]
             log_info(f"Checkpoint detected. Starting inference from index {start_idx}/{len(output_df)}...", parameters)
-            if parameters["output_logits_column"] not in output_df.columns:
-                output_df[parameters["output_logits_column"]] = None                
             return output_df, output_file_path
 
 
