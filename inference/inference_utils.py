@@ -104,6 +104,8 @@ def handle_files(input_file, output_file, input_column, generation_complete_colu
         else:
             start_idx = output_df[output_df[generation_complete_column] == False].index[0]
             log_info(f"Checkpoint detected. Starting inference from index {start_idx}/{len(output_df)}...", parameters)
+            if parameters["output_logits_column"] not in output_df.columns:
+                output_df[parameters["output_logits_column"]] = None                
             return output_df, output_file_path
 
 
