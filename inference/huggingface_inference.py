@@ -154,7 +154,7 @@ def get_inputs(data_df, start, end, model, parameters):
         inputs = parameters["tokenizer"](inputs, padding=True, truncation=True, return_tensors="pt").to(model.device)
         return inputs
     elif parameters["modality"] == "vlm":
-        input_texts = data_df.loc[start:end, parameters["input_column"]]
+        input_texts = data_df.loc[start:end, parameters["input_column"]].reset_index(drop=True)
         input_image_urls = data_df.loc[start:end, parameters["image_input_column"]].tolist()
         images = []
         for url in input_image_urls:
