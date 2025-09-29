@@ -54,6 +54,8 @@ def get_input_file(input_file, input_column, generation_complete_column, paramet
                 log_error(f"Input file must have a column named '{parameters['image_input_column']}' for image input. Available columns: {df.columns.tolist()}", parameters)
         if generation_complete_column in df.columns:
             log_error(f"Input file already has a column named '{generation_complete_column}'. This is used to track inference completion, reset it with --generation_complete_column or rename the column in your df", parameters)
+        if parameters["output_logits_column"] in df.columns:
+            log_error(f"Input file already has a column named '{parameters['output_logits_column']}'. This is used to store the model's output logits/probabilities, reset it with --output_logits_column or rename the column in your df", parameters)
         if len(df) == 0:
             log_error(f"Input file {input_file} is empty.", parameters)
         return df
