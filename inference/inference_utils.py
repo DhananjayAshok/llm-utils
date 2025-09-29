@@ -120,6 +120,10 @@ def discover_prefix_prompt(input_df, input_column, parameters, n_samples=10):
     input_texts = input_df[input_column].sample(n_samples, random_state=parameters["random_seed"])
     indexes = input_texts.index.tolist()
     input_texts = input_texts.tolist()
+    all_equal = all(text == input_texts[0] for text in input_texts)
+    if all_equal:
+        log_warn("All input texts are identical. No prefix prompt to discover. This could be okay for VLMs", parameters)
+        return ""
     prefix_end_index = -1
     discontinuity_found = False
     limiting_index = None
@@ -142,9 +146,9 @@ def discover_prefix_prompt(input_df, input_column, parameters, n_samples=10):
         \n Input: {input_df.loc[limiting_index, input_column]}
         """
         log_error(message, parameters)
-
+    
     if prefix_end_index == -1:
-        return None
+        return ""
 
     return input_texts[0][:prefix_end_index] # TODO: Check if this should have a +1
 
