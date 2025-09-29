@@ -123,7 +123,7 @@ To see the parameters that can be used on the command line see the respective co
 
 #### Checkpointing
 
-By default, we do not resume from a checkpoint and will begin training from the first step. When using LoRA + FSDP etc, the checkpoint files are *not* complete models, but rather sharded adapters, and cannot be read and treated as normal HuggingFace models. In order to use a saved checkpoint, you must relaunch the script, but set the `--num_train_epochs` or `--max_steps` value to be lower than the checkpoint. This way, the script will load the model and immediately save it. There's an example of this being done [here](examples/README.md#checkpointing).
+By default, we do try to resume from a checkpoint. If the output directory is not found, we will begin training from the first step. If there is an output directory with no valid checkpoint, the code will *fail* unless --resume_from_checkpoint is `False`. When using LoRA + FSDP etc, the checkpoint files are *not* complete models, but rather sharded adapters, and cannot be read and treated as normal HuggingFace models. In order to use a saved checkpoint, you must relaunch the script, but set the `--num_train_epochs` or `--max_steps` value to be lower than the checkpoint. This way, the script will load the model and immediately save it. There's an example of this being done [here](examples/README.md#checkpointing).
 
 #### Input Format
 The essential format to follow for each training paradigm is given below:
