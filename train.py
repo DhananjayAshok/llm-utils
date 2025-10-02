@@ -159,10 +159,10 @@ if __name__ == "__main__":
     if script_args.training_kind != "clf":
         if script_args.validation_test_split is not None or script_args.test_file is not None:
             log_error(f"Test split evaluation is not supported for {script_args.training_kind}, make sure --validation_test_split and --test_file are not set.", default_parameters)
-    if script_args.training_kind in ["pre", "sft"]:
+    if script_args.training_kind in ["pre", "sft", "ga"]:
         parser = HfArgumentParser((ScriptArguments, SFTConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
-    elif script_args.training_kind == "dpo":
+    elif script_args.training_kind in ["dpo", "npo"]:
         parser = HfArgumentParser((ScriptArguments, DPOConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
     elif script_args.training_kind == "kto":

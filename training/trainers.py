@@ -1,6 +1,7 @@
 import torch
 from transformers import Trainer, default_data_collator, EarlyStoppingCallback
 from trl import SFTTrainer, DPOTrainer, KTOTrainer, CPOTrainer
+from training.unlearning import GATrainer, NPOTrainer
 import numpy as np
 from training.model import get_peft_config
 from utils.vlm_utils import infer_vlm_kind, get_single_vlm_text, get_vlm_text
@@ -47,6 +48,7 @@ class WeightedTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
     
 
+
 def compute_recall(preds, labels, label):
     """
     Compute the recall for a specific label
@@ -81,7 +83,6 @@ def compute_clf_metrics(p):
     return result
 
 
-
 def lm_clf_preprocess_function(examples, tokenizer, max_length, label2id):
     """
     Preprocess function for classification tasks.
@@ -91,6 +92,7 @@ def lm_clf_preprocess_function(examples, tokenizer, max_length, label2id):
     result = tokenizer(examples["input"], padding="max_length", max_length=max_length, truncation=True)
     result["label"] = [(label2id[str(l)] if l != -1 else -1) for l in examples["output"]]
     return result
+
 
 def vlm_clf_preprocess_function(examples, processor, max_length, label2id, vlm_kind):
     vlm_texts = get_vlm_text(vlm_kind=vlm_kind, input_texts=examples["input"].list())
@@ -197,7 +199,6 @@ def get_trl_vlm_format_train_val_dataset(dataset, model):
     return train_dataset, validation_dataset
 
 
-
 def get_pre_trainer(script_args, training_args, dataset, model, processor, peft_config):
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
@@ -217,7 +218,6 @@ def get_pre_trainer(script_args, training_args, dataset, model, processor, peft_
         callbacks=callbacks,
     )
     return trainer, dataset
-
 
 
 def get_sft_trainer(script_args, training_args, dataset, model, processor, peft_config):
@@ -291,6 +291,42 @@ def get_cpo_trainer(script_args, training_args, dataset, model, processor, peft_
     )   
     return trainer, dataset
 
+def get_ga_trainer(script_args, training_args, dataset, model, processor, peft_config):
+    if script_args.modality == "lm":
+        train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    else:
+        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset, model)
+    callbacks = get_callback_list(script_args)
+    trainer = GATrainer(
+        model=model,
+        train_dataset=train_dataset,
+        eval_dataset=validation_dataset,
+        peft_config=peft_config,
+        processing_class=processor,
+        args=training_args,
+        callbacks=callbacks,
+    )
+    return trainer, dataset
+
+def get_npo_trainer(script_args, training_args, dataset, model, processor, peft_config):
+    if script_args.modality == "lm":
+        train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+    else:
+        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
+    callbacks = get_callback_list(script_args)
+    trainer = NPOTrainer(
+        model,
+        ref_model=None,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=validation_dataset,
+        processing_class=processor,
+        callbacks=callbacks,
+        peft_config=peft_config,
+    )   
+    return trainer, dataset
+
+
 def get_trainer(script_args, training_args, dataset, model, processor):
     if script_args.training_kind == "clf":
         trainer, dataset = get_clf_trainer(script_args, training_args, dataset, model, processor)
@@ -308,6 +344,10 @@ def get_trainer(script_args, training_args, dataset, model, processor):
             trainer, dataset = get_kto_trainer(script_args, training_args, dataset, model, processor, peft_config)
         elif script_args.training_kind == "cpo":
             trainer, dataset = get_cpo_trainer(script_args, training_args, dataset, model, processor, peft_config)
+        elif script_args.training_kind == "ga":
+            trainer, dataset = get_ga_trainer(script_args, training_args, dataset, model, processor, peft_config)
+        elif script_args.training_kind == "npo":
+            trainer, dataset = get_npo_trainer(script_args, training_args, dataset, model, processor, peft_config)
         else:
             raise ValueError(f"Training kind {script_args.training_kind} not supported")
     return trainer, dataset

@@ -19,10 +19,11 @@ def validate_data(dataset, training_kind, pretrain_with_output, parameters):
     Check that the dataset has the right columns and data types for the training kind
     """
     mandatory_columns = ["input"]
-    if training_kind in ["sft", "clf"] or training_kind == "pre" and pretrain_with_output:
+    if training_kind in ["sft", "clf", "ga"] or training_kind == "pre" and pretrain_with_output:
         mandatory_columns.append("output")
-    elif training_kind in ["dpo, ppo"]:
+    elif training_kind in ["dpo", "npo"]:
         mandatory_columns.append("chosen")
+    if training_kind in ["dpo"]:
         mandatory_columns.append("rejected")
     for split in dataset:
         for column in mandatory_columns:
@@ -33,6 +34,10 @@ def validate_data(dataset, training_kind, pretrain_with_output, parameters):
                 log_error(err_string, parameters)
 
     dataset = handle_nans(dataset, mandatory_columns, parameters)
+    if training_kind == "npo":
+        # create a new column chosen that just has the string: "idk"
+        for split in dataset:
+            dataset[split] = dataset[split].map(lambda x: {"chosen": "idk"})
     return dataset # Right now the dtype doesn't seem to update after dropping nans, so just trust the user. 
     string_columns = ["input", "chosen", "rejected"]
     string_or_int_or_bool_columns = []
@@ -175,7 +180,6 @@ def load_data_splits(extension, script_args):
     return dataset
 
 
-
 def load_data(script_args):
     """
     Load the data from the file arguments and return the dataset
@@ -218,10 +222,11 @@ def log_token_statistics(script_args, dataset, tokenizer, parameters):
     Compute token statistics for the dataset and print to log
     """
     columns_to_track = ["input"]
-    if script_args.training_kind in ["sft"] or (script_args.training_kind == "pre" and script_args.pretrain_with_output):
+    if script_args.training_kind in ["sft", "output"] or (script_args.training_kind == "pre" and script_args.pretrain_with_output):
         columns_to_track.append("output")
-    elif script_args.training_kind in ["dpo", "ppo"]:
+    elif script_args.training_kind in ["dpo", "npo"]:
         columns_to_track.append("chosen")
+    if script_args.training_kind in ["dpo"]:
         columns_to_track.append("rejected")
     column_statistics = {}
     for column in columns_to_track:
