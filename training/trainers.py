@@ -4,6 +4,7 @@ from trl import SFTTrainer, DPOTrainer, KTOTrainer, CPOTrainer
 import numpy as np
 from training.model import get_peft_config
 from utils.vlm_utils import infer_vlm_kind, get_single_vlm_text, get_vlm_text
+from utils import log_info
 
 
 def get_callback_list(script_args):
@@ -145,6 +146,8 @@ def get_clf_trainer(script_args, training_args, dataset, model, processor):
     callbacks = get_callback_list(script_args)
     if script_args.auto_infer_class_weights:
         script_args.class_weights = infer_class_weights(dataset["train"])
+        log_info(f"Inferred class weights: {script_args.class_weights}", script_args.parameters)
+
     trainer = WeightedTrainer(
         model=model,
         class_weights=script_args.class_weights,
