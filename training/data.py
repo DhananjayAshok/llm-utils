@@ -80,16 +80,19 @@ def shuffle_and_handle_data_sizes(script_args, dataset, data_seed):
     dataset["train"] = dataset["train"].shuffle(seed=data_seed)
     if "validation" in dataset:
         dataset["validation"] = dataset["validation"].shuffle(seed=data_seed)
+    if "test" in dataset:
+        dataset["test"] = dataset["test"].shuffle(seed=data_seed)
 
-    if max_train_samples is not None:
+    if max_train_samples is not None and max_train_samples < len(dataset["train"]):
         dataset["train"] = dataset["train"].select(range(max_train_samples))
 
     if max_valid_samples is not None and "validation" in dataset:
-        dataset["validation"] = dataset["validation"].select(range(max_valid_samples))
+        if max_valid_samples < len(dataset["validation"]):
+            dataset["validation"] = dataset["validation"].select(range(max_valid_samples))
 
     if max_test_samples is not None and "test" in dataset:
-        dataset["test"] = dataset["test"].shuffle(seed=data_seed)
-        dataset["test"] = dataset["test"].select(range(max_test_samples))
+        if max_test_samples < len(dataset["test"]):
+            dataset["test"] = dataset["test"].select(range(max_test_samples))
 
     return dataset
 
