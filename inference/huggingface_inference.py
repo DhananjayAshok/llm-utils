@@ -318,7 +318,7 @@ def hf_inference(parameters, model_kind, quantization, padding_side, batch_size,
                 data_df.loc[i, input_perplexity_column] = input_normed_perplexity
         elif model_kind == "clf":
             output = model(**inputs)
-            out = output.logits.detach().cpu().numpy() # .argmax(dim=-1)
+            out = output.logits.detach().cpu().float().numpy() # .argmax(dim=-1)
             for counter, j in enumerate(range(i, i+n_items_in_batch)):
                 data_df.at[j, parameters["output_column"]] = out[counter].argmax().item()
                 data_df.at[j, parameters["output_logits_column"]] = out[counter].tolist()

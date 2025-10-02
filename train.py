@@ -78,6 +78,7 @@ class ScriptArguments:
 
     # Training Arguments
     class_weights: Optional[List[float]] = field(default=None, metadata={"help": "the class weights to use for classification training. If not provided, will be uniform."})
+    auto_infer_class_weights: Optional[bool] = field(default=False, metadata={"help": "whether to automatically infer class weights from the training data. Only used if class_weights is not provided. Will override class_weights if both are provided."})
     early_stopping_patience: Optional[int] = field(default=None, metadata={"help": "the number of steps to wait for improvement before stopping training"})
     early_stopping_threshold: Optional[float] = field(default=0.0, metadata={"help": "the threshold for early stopping. If the validation loss does not improve by this amount, training will stop."})
 

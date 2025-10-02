@@ -29,6 +29,7 @@ class WeightedTrainer(Trainer):
         super().__init__(*args, **kwargs)
         if class_weights is not None:
             self.class_weights = torch.tensor(class_weights)
+            self.class_weights = self.class_weights / self.class_weights.sum() # normalize
         else:
             self.class_weights = None
 
@@ -119,9 +120,31 @@ def process_clf(script_args, training_args, dataset, model, processor):
             )
     return dataset
 
+
+def infer_class_weights(train_dataset):
+    """
+    Infer class weights from the training dataset.
+    """
+    labels = train_dataset["label"]
+    label_counter = {}
+    for label in labels:
+        if label not in label_counter:
+            label_counter[label] = 0
+        label_counter[label] += 1
+    n_labels = len(label_counter)
+    class_weights = []
+    for i in range(n_labels):
+        count = label_counter[i]
+        class_weight = 1 / (count)
+        class_weights.append(class_weight)
+    return class_weights
+
+
 def get_clf_trainer(script_args, training_args, dataset, model, processor):
     dataset = process_clf(script_args, training_args, dataset, model, processor)
     callbacks = get_callback_list(script_args)
+    if script_args.auto_infer_class_weights:
+        script_args.class_weights = infer_class_weights(dataset["train"])
     trainer = WeightedTrainer(
         model=model,
         class_weights=script_args.class_weights,
