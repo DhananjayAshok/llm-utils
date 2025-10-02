@@ -20,19 +20,23 @@ def get_model_processor(script_args, dataset):
             bnb_4bit_use_double_quant=True, # set storage type
             bnb_4bit_quant_storage=torch.bfloat16, # set storage type
         )
-    
+    model_kwargs = {}
+    if script_args.accelerator.num_processes == 1: # then we distribute the model ourselves
+        model_kwargs["device_map"] = "auto"
     if script_args.training_kind != "clf":
         if script_args.modality == "lm":
             base_model = AutoModelForCausalLM.from_pretrained(
                 script_args.model_name,
                 quantization_config=bnb_config,
                 trust_remote_code=True,
+                **model_kwargs
             )
         elif script_args.modality == "vlm":
             base_model = AutoModelForImageTextToText.from_pretrained(
                 script_args.model_name,
                 quantization_config=bnb_config,
                 trust_remote_code=True,
+                **model_kwargs
             )
         else:
             raise ValueError(f"BROSKI WHAT IS THIS MODALITY: {script_args.modality}. Only lm and vlm are supported.")
@@ -48,6 +52,8 @@ def get_model_processor(script_args, dataset):
             script_args.model_name,
             config=config,
             trust_remote_code=True,
+            quantization_config=bnb_config,
+            **model_kwargs
         )
         label_to_id = {v: i for i, v in enumerate(label_list)}
         # update config with label infos
