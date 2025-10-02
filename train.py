@@ -99,17 +99,42 @@ class ScriptArguments:
     log_verbose: Optional[bool] = field(default=False, metadata={"help": "print summary stats of data and processing information."})
 
 
+def search_for_checkpoint(output_dir, parameters):
+    if not os.path.exists(output_dir):
+        return None
+    final_exists = os.path.exists(output_dir + "/final_checkpoint")
+    checkpoints = [os.path.join(output_dir, d) for d in os.listdir(output_dir) if d.startswith("checkpoint-")]
+    if len(checkpoints) == 0 and final_exists:
+        log_info(f"Found no numbered checkpoints, but final checkpoint in {output_dir}. Resuming from final checkpoint.", parameters)
+        return output_dir + "/final_checkpoint"
+    elif not final_exists:
+        log_info(f"{output_dir} exists but no checkpoint found, starting from scratch.", parameters)
+        return None
+    checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))
+    log_info(f"Found {len(checkpoints)} checkpoints in {output_dir}. Resuming from {checkpoints[-1]}.", parameters)
+    return checkpoints[-1]
+
+
 def override_defaults(training_args, parameters=default_parameters):
     if training_args.resume_from_checkpoint is not None and not isinstance(training_args.resume_from_checkpoint, bool):
-        if training_args.resume_from_checkpoint.lower() == "true":
-            if not os.path.exists(training_args.output_dir):
-                log_warn(f"resume_from_checkpoint is set to True but output_dir {training_args.output_dir} does not exist. Starting training from scratch.", parameters)
+        if training_args.resume_from_checkpoint.lower().strip() in ["true", "1", "false", "0"]:
+            training_args.resume_from_checkpoint = bool(training_args.resume_from_checkpoint)
+    if training_args.resume_from_checkpoint == True:
+        if not os.path.exists(training_args.output_dir):
+            log_warn(f"resume_from_checkpoint is set to True but output_dir {training_args.output_dir} does not exist. Starting training from scratch.", parameters)
+            training_args.resume_from_checkpoint = False
+        else:
+            log_warn("Trying to resume from checkpoint.", parameters)
+            available_checkpoint = search_for_checkpoint(training_args.output_dir, parameters)
+            if available_checkpoint is None:
                 training_args.resume_from_checkpoint = False
             else:
-                log_warn("Trying to resume from checkpoint. Will fail if output_dir does not contain a valid checkpoint.", parameters)
-                training_args.resume_from_checkpoint = True
-        elif training_args.resume_from_checkpoint.lower() == "false":
-            training_args.resume_from_checkpoint = False
+                training_args.resume_from_checkpoint = True # TODO: Debug, this might not work for classification as it may need to load it instead of the model. 
+    elif training_args.resume_from_checkpoint is None or training_args.resume_from_checkpoint == False:
+        training_args.resume_from_checkpoint = False
+    else: # then it is a path
+        if not os.path.exists(training_args.resume_from_checkpoint):
+            log_error(f"resume_from_checkpoint is set to {training_args.resume_from_checkpoint} but this path does not exist.", parameters)        
     if training_args.save_total_limit is None:
         training_args.save_total_limit = 2
     if training_args.save_steps is None:
