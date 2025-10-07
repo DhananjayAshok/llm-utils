@@ -156,6 +156,7 @@ if __name__ == "__main__":
     parser = HfArgumentParser((ScriptArguments, TrainingArguments))
     script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0]  # return_remaining_strings stops error out on unknown args
     accelerator = Accelerator()
+    script_args.distributed = accelerator.num_processes > 1
     if script_args.training_kind != "clf":
         if script_args.validation_test_split is not None or script_args.test_file is not None:
             log_error(f"Test split evaluation is not supported for {script_args.training_kind}, make sure --validation_test_split and --test_file are not set.", default_parameters)
