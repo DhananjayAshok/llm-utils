@@ -21,7 +21,7 @@ def get_model_processor(script_args, dataset):
             bnb_4bit_quant_storage=torch.bfloat16, # set storage type
         )
     model_kwargs = {}
-    if script_args.distributed: # then we distribute the model ourselves
+    if not script_args.distributed: # then we distribute the model ourselves
         model_kwargs["device_map"] = "auto"
     if script_args.training_kind != "clf":
         if script_args.modality == "lm":
