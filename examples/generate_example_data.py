@@ -29,6 +29,47 @@ def setup_alpaca(parameters, train_test_split=0.1):
     train_df.to_csv(data_dir+"train.csv", index=False)
     test_df.to_csv(data_dir+"test.csv", index=False)
     return train_df, test_df
+
+
+def setup_rwku(parameters):
+    df = load_dataset("jinzhuoran/RWKU", "train_positive_llama3", split="train").to_pandas()
+    # keep only the rows where df['subject'] == "Stephen King"
+    df = df[df['subject'] == "Stephen King"].reset_index(drop=True)
+    df["input"] = "Tell me about Stephen King\n"
+    df["output"] = df["text"]
+    df["forget"] = True
+    df = df[["input", "output", "forget"]]
+    first_two_paras = df["output"].apply(lambda x: "\n".join(x.split("\n")[:2]))
+    dpo_df = df.copy()
+    dpo_df["chosen"] = "I do not know anything about Stephen King."
+    dpo_df["rejected"] = first_two_paras
+    dpo_df = dpo_df[["input", "chosen", "rejected"]]
+    alpaca_df = load_dataset("tatsu-lab/alpaca", split="train").to_pandas()
+    alpaca_df["forget"] = False
+    alpaca_df["input"] = alpaca_df["instruction"]
+    alpaca_df = alpaca_df[["input", "output", "forget"]]
+    alpaca_train = alpaca_df.sample(n=len(df), random_state=parameters["random_seed"])
+    alpaca_test = alpaca_df.drop(alpaca_train.index).sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)[["input"]]
+    df = pd.concat([df, alpaca_df], ignore_index=True).reset_index(drop=True)
+    alpaca_dpo_df = alpaca_train.copy()
+    alpaca_dpo_df["chosen"] = alpaca_train["output"]
+    alpaca_dpo_df["rejected"] = "I do not know anything about that."
+    dpo_df = pd.concat([dpo_df, alpaca_dpo_df], ignore_index=True).reset_index(drop=True)
+    dpo_df["output"] = dpo_df["chosen"]
+    data_dir = parameters["data_dir"]+"/rwku/"
+    os.makedirs(data_dir, exist_ok=True)
+    df.to_csv(data_dir+"train.csv", index=False)
+    dpo_df.to_csv(data_dir+"dpo_train.csv", index=False)
+    test_df = load_dataset("jinzhuoran/RWKU", "forget_level2", split="test").to_pandas()
+    # keep only the rows where df['subject'] == "Stephen King"
+    test_df = test_df[test_df['subject'] == "Stephen King"].reset_index(drop=True)
+    test_df["input"] = "Question: " + test_df["query"] + "\nAnswer: "
+    test_df = test_df[["input"]]
+    test_df = pd.concat([test_df, alpaca_test], ignore_index=True).reset_index(drop=True)
+    test_df.to_csv(data_dir+"test.csv", index=False)
+    log_info(f"RWKU dataset setup complete. Files saved in: {data_dir}", parameters)
+    return df, test_df
+
     
 
 class PubMedQAExample:
@@ -525,7 +566,7 @@ def setup_manymodalqa_finetune_datasets(parameters):
 
 
 @click.command()
-@click.option("--dataset_names", default=["alpaca", "pubmedqa", "manymodalqa"], multiple=True)
+@click.option("--dataset_names", default=["alpaca", "pubmedqa", "manymodalqa", "rwku"], multiple=True)
 @click.pass_obj
 def setup_data(parameters, dataset_names):
     if "alpaca" in dataset_names:
@@ -534,6 +575,8 @@ def setup_data(parameters, dataset_names):
         setup_pubmedqa(parameters)
     if "manymodalqa" in dataset_names:
         setup_manymodalqa(parameters)
+    if "rwku" in dataset_names:
+        setup_rwku(parameters)
 
 @click.command()
 @click.option("--step", type=int, default=2, help="Step number for the PubmedQA dataset setup.")

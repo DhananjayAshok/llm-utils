@@ -78,7 +78,7 @@ We'll pick a batch_size slightly smaller than the maximum: 4.
 
 To run inference on all of the generation files, you can use the following command (make sure to set your desired batch_size first): 
 ```bash
-bash examples/scripts/pubmed_inference.sh
+bash examples/scripts/pubmed/pubmed_inference.sh
 ```
 
 Note, you do *not* need to run the above line in order to proceed with the tutorial. I have precomputed the output and make them available from my HuggingFace repo. To set them up on your system, run the command:
@@ -91,7 +91,7 @@ This will set up the fine-tuning csv's with columns `input` (the question text) 
 We'll use the files from above and train a classifier that tells us whether a generated question is a results based (1) or background based (0) question. First, make sure you have `CUDA_HOME` accessible in the environment where the script will execute. Then, run:
 
 ```bash
-bash examples/scripts/pubmed_clf.sh
+bash examples/scripts/pubmed/pubmed_clf.sh
 ```
 
 This command triggers classification fine-tuning of a small LLama3 model with:
@@ -134,7 +134,7 @@ accelerate launch train.py --training_kind clf --model_name meta-llama/Llama-3.2
 ### Supervised Finetuning
 To train a Question Answering model with supervised finetuning, run:
 ```bash
-bash examples/scripts/pubmed_sft.sh
+bash examples/scripts/pubmed/pubmed_sft.sh
 ```
 
 This calls on:

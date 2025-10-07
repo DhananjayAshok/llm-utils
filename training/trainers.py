@@ -148,7 +148,7 @@ def get_clf_trainer(script_args, training_args, dataset, model, processor):
     callbacks = get_callback_list(script_args)
     if script_args.auto_infer_class_weights:
         script_args.class_weights = infer_class_weights(dataset["train"])
-        log_info(f"Inferred class weights: {script_args.class_weights}", script_args.parameters)
+        log_info(f"Inferred class weights: {script_args.class_weights}. This is pre-normalization.", script_args.parameters)
 
     trainer = WeightedTrainer(
         model=model,

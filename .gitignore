@@ -180,3 +180,5 @@ examples/scripts/env.sh # It won't change from now on.
 results/
 wandb/
 *.out
+storage/
+tmp_test_data/
