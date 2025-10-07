@@ -156,7 +156,6 @@ if __name__ == "__main__":
     parser = HfArgumentParser((ScriptArguments, TrainingArguments))
     script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0]  # return_remaining_strings stops error out on unknown args
     accelerator = Accelerator()
-    script_args.distributed = accelerator.num_processes > 1
     if script_args.training_kind != "clf":
         if script_args.validation_test_split is not None or script_args.test_file is not None:
             log_error(f"Test split evaluation is not supported for {script_args.training_kind}, make sure --validation_test_split and --test_file are not set.", default_parameters)
@@ -182,6 +181,7 @@ if __name__ == "__main__":
 
     script_args.seed = training_args.seed
     script_args.data_seed = training_args.data_seed
+    script_args.distributed = accelerator.num_processes > 1    
     if accelerator.is_main_process:
         if training_args.resume_from_checkpoint is None:
             log_warn("resume_from_checkpoint is not set, defaulting to True. This will search for the output directory and if not found, will start training from scratch. To avoid this, explicitly set --resume_from_checkpoint arg", default_parameters)        
