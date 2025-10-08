@@ -70,7 +70,7 @@ def handle_nans(dataset, check_cols, parameters):
     for split in dataset:
         newlength = len(dataset[split])
         if newlength != lengths[split]:
-            log_warn(f"Removed {lengths[split] - newlength} rows with NaN values from {split} split", parameters)
+            log_warn(f"Removed {lengths[split] - newlength}/{lengths[split]} rows with NaN values from {split} split", parameters)
     return dataset
 
 
