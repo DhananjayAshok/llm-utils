@@ -13,6 +13,9 @@ from openai import OpenAI
 
 class OpenAIInference:
     def __init__(self, variant="gpt-4o-mini", max_new_tokens=10, parameters=None):
+        options = ["gpt-4o", "gpt-4o-mini"]
+        if variant not in options:
+            log_error(f"Variant {variant} not supported. Choose from {options}", parameters)
         self.client = OpenAI()
         self.max_new_tokens = max_new_tokens
         self.variant = variant
@@ -141,10 +144,10 @@ class OpenAIInference:
 
 @click.command()
 @click.option("--batch_name", type=str, required=True, help="A name for this batch. Used to store temporary files and track completion.")
-@click.option("--variant", type=click.Choice(["gpt-4o", "gpt-4o-mini"]), default="gpt-4o-mini", help="The OpenAI model variant to use.")
 @click.pass_obj
-def openai_inference(parameters, batch_name, variant):
+def openai_inference(parameters, batch_name):
     max_new_tokens = parameters["max_new_tokens"]
+    variant = parameters["model_name"]
     model = OpenAIInference(variant=variant, max_new_tokens=max_new_tokens, parameters=parameters)
     batch_results = model.get_batch_results(batch_name)
     if isinstance(batch_results, int):
