@@ -554,6 +554,8 @@ def setup_manymodalqa_finetune_datasets(parameters):
             dataset = load_dataset(f"{hf_hub}/manymodal_inference", config, split=split)
             df = dataset.to_pandas()
             df["image"] = df["image"].apply(lambda x: fix_image_path(x, parameters["data_dir"]))
+            # dropna rows
+            df = df.dropna().reset_index(drop=True)
             df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
             log_info(f"Saved {config} {split} dataset to {store_dir}/hf_{config}_{split}.csv", parameters)
             if split == "train":
