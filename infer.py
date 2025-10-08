@@ -2,6 +2,7 @@ import click
 from utils.parameter_handling import load_parameters, compute_secondary_parameters
 from utils import log_error, log_warn
 from inference.huggingface_inference import hf_inference
+from inference.openai_inference import openai_inference
 from inference.batch_size_determination import infer_batch_size
 from inference.vllm_inference import vllm_inference
 from inference.inference_utils import handle_files
@@ -79,6 +80,7 @@ def main(ctx, **input_parameters):
 
 main.add_command(hf_inference, name="hf")
 main.add_command(vllm_inference, name="vllm")
+main.add_command(openai_inference, name="openai")
 main.add_command(infer_batch_size, name="infer_batch_size")
 
 if __name__ == "__main__":
