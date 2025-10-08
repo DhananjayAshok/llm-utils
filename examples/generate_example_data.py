@@ -535,7 +535,7 @@ def process_manymodalqa_inference_datasets(parameters):
 
 def fix_image_path(x, data_dir):
     _, valid = x.split("ManyModalQAImages")
-    return os.path.join(data_dir, "ManyModalQAImages", valid)
+    return data_dir + "/ManyModalQAImages" + valid
 
 
 def setup_manymodalqa_finetune_datasets(parameters):
