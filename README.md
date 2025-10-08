@@ -84,7 +84,7 @@ tpu_use_sudo: false
 use_cpu: false
 ```
 
-That's it! You can now run the code.
+That's it! You can now run the code. Test that the code base works fine by following the [test instructions](tests/README.md)
 
 ## Examples
 
