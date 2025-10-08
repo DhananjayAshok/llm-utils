@@ -104,10 +104,10 @@ def search_for_checkpoint(output_dir, parameters):
         return None
     final_exists = os.path.exists(output_dir + "/final_checkpoint")
     checkpoints = [os.path.join(output_dir, d) for d in os.listdir(output_dir) if d.startswith("checkpoint-")]
-    if len(checkpoints) == 0 and final_exists:
-        log_info(f"Found no numbered checkpoints, but final checkpoint in {output_dir}. Resuming from final checkpoint.", parameters)
+    if final_exists:
+        log_info(f"Resuming from final checkpoint.", parameters)
         return output_dir + "/final_checkpoint"
-    elif not final_exists:
+    elif len(checkpoints) == 0:
         log_info(f"{output_dir} exists but no checkpoint found, starting from scratch.", parameters)
         return None
     checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))
