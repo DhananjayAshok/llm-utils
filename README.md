@@ -84,7 +84,12 @@ tpu_use_sudo: false
 use_cpu: false
 ```
 
-That's it! You can now run the code. Test that the code base works fine by following the [test instructions](tests/README.md)
+That's it! You can now run the code. Test that the code base works fine by running:
+```bash
+bash tests/test_all.sh
+```
+
+If this fails, then isolate the problem by following the [test instructions](tests/README.md)
 
 ## Examples
 
