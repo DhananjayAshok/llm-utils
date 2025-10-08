@@ -8,6 +8,8 @@ import math
 
 def do_batch_size_run(data_df, tmp_path, batch_size, command, hf_command, parameters):
     sample_df = data_df.sample(n=batch_size, random_state=parameters["random_seed"]).reset_index(drop=True)
+    if parameters['output_logits_column'] in sample_df.columns:
+        sample_df.drop(columns=[parameters['output_logits_column']], inplace=True)
     sample_df.to_csv(tmp_path, index=False)
     final_command = command + ["hf"] + hf_command + [f"--batch_size", f"{batch_size}"]
     #log_info(f"Running command: {' '.join(final_command)}", parameters)
