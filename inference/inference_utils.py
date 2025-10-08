@@ -3,6 +3,16 @@ import pandas as pd
 import yaml
 from utils import log_warn, log_error, log_info, file_makedir
 from datetime import datetime, timezone
+import torch
+
+
+def require_gpu(parameters):
+    if not torch.cuda.is_available():
+        log_error("No GPU available. This script requires a GPU to run.", parameters)
+    else:
+        # Print Device Count
+        num_devices = torch.cuda.device_count()
+        log_info(f"Number of available GPU devices: {num_devices}", parameters)
 
 
 def load_file(file_path, extension, parameters):

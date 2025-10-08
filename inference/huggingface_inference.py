@@ -8,7 +8,7 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSeque
                           GenerationConfig, set_seed)
 import torch
 import copy
-from inference.inference_utils import discover_prefix_prompt, save_meta_file
+from inference.inference_utils import discover_prefix_prompt, save_meta_file, require_gpu
 from utils.vlm_utils import get_intern_vl_pixels, infer_vlm_kind, get_vlm_text
 from tqdm import tqdm
 import numpy as np
@@ -205,6 +205,7 @@ def log_discrepancies(generation_parameters, original_generation_config, paramet
 @click.option("--debug", type=bool, default=True, help="If set, will print the first generated output for a sanity check")
 @click.pass_obj
 def hf_inference(parameters, model_kind, quantization, padding_side, batch_size, num_beams, num_beam_groups, diversity_penalty, cache_implementation, cache_prefix, replace_stop_strings, track_output_perplexity, output_perplexity_column, track_input_perplexity, input_perplexity_column, debug):
+    require_gpu(parameters)
     if model_kind == "gen":
         if parameters["max_new_tokens"] is None:
             log_error("--max_new_tokens is required for Generative LM inference", parameters)

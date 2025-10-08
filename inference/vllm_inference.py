@@ -1,7 +1,7 @@
 from utils.log_handling import log_warn
 from vllm import LLM, SamplingParams
 from utils import log_info, log_warn, log_error
-from inference.inference_utils import save_meta_file
+from inference.inference_utils import save_meta_file, require_gpu
 from transformers import AutoTokenizer
 import click
 import torch
@@ -22,6 +22,7 @@ vllm_max_n = 10 # I don't know why, but when we ask vLLM to do inference on too 
 @click.option("--max_model_len", type=int, default=None, help="The maximum sequence length for the model. If not set, will automatically infer it.")
 @click.pass_obj
 def vllm_inference(parameters, enable_prefix_caching, max_model_len):
+    require_gpu(parameters)
     if parameters["max_new_tokens"] is None:
         log_error("--max_new_tokens is required for vLLM inference", parameters)
     data_df, output_filepath = parameters["output_df"], parameters["output_filepath"]
