@@ -1,4 +1,5 @@
 #!/bin/bash
+source configs/config.env
 source tests/training/common.env
 export common_line="--lora_target_modules q_proj --num_train_epochs 5  --per_device_train_batch_size 2 --per_device_eval_batch_size 2 --train_validation_split 0.85 --validation_test_split 0.5 --logging_strategy epoch --eval_strategy epoch --save_strategy epoch --save_steps 1 --logging_steps 0.5 --eval_steps 0.5 --load_best_model_at_end"
 # --- 1. Define Variables ---
