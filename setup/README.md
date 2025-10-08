@@ -5,9 +5,10 @@ First, ensure you have installed uv in your python.
 pip install --upgrade pip  uv
 ```
 
-Then, run:
+Then, navigate to the setup folder and run `uv sync`:
 
 ```console
+cd setup
 uv sync
 ```
 
