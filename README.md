@@ -109,7 +109,7 @@ This output file also automatically acts as a checkpoint if inference stops half
 
 ### Training
 
-The entry point for training is the [`train.py`](train.py) script. It supports classification finetuning, pretraining, supervised finetuning and direct preference optimization (DPO). The final model is always saved to `output_dir/final_checkpoint`
+The entry point for training is the [`train.py`](train.py) script. The final model is always saved to `output_dir/final_checkpoint`
 
 WandDB is used to log the metrics, and you can always recover the history of a prior run with:
 
