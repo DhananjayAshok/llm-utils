@@ -60,6 +60,7 @@ def setup_rwku(parameters):
     os.makedirs(data_dir, exist_ok=True)
     df.to_csv(data_dir+"train.csv", index=False)
     dpo_df.to_csv(data_dir+"dpo_train.csv", index=False)
+    log_info(f"RWKU dataset setup complete. Files saved in: {data_dir}", parameters)    
     test_df = load_dataset("jinzhuoran/RWKU", "forget_level2", split="test").to_pandas()
     # keep only the rows where df['subject'] == "Stephen King"
     test_df = test_df[test_df['subject'] == "Stephen King"].reset_index(drop=True)
@@ -67,7 +68,11 @@ def setup_rwku(parameters):
     test_df = test_df[["input"]]
     test_df = pd.concat([test_df, alpaca_test], ignore_index=True).reset_index(drop=True)
     test_df.to_csv(data_dir+"test.csv", index=False)
-    log_info(f"RWKU dataset setup complete. Files saved in: {data_dir}", parameters)
+    tmp_dir = "tmp_test_data/"
+    os.makedirs(tmp_dir, exist_ok=True)
+    df.sample(n=100).to_csv(tmp_dir+"tmp_rwku_ft.csv", index=False)
+    dpo_df.sample(n=100).reset_index(drop=True).to_csv(tmp_dir+"tmp_rwku_po.csv", index=False)
+    log_info(f"Sampled 100 rows for fast testing in {tmp_dir}", parameters)
     return df, test_df
 
     

@@ -2,7 +2,7 @@ source configs/config.env
 accelerate launch train.py --training_kind dpo --model_name meta-llama/Meta-Llama-3-8B \
 --output_dir $storage_dir/models/dpo_model \
 --train_file $storage_dir/data/rwku/dpo_train.csv \
---train_validation_split 0.1 \
+--train_validation_split 0.9 \
 --num_train_epochs 5 \
 --per_device_train_batch_size 4 --per_device_eval_batch_size 4 \
 --learning_rate 1e-4 \
