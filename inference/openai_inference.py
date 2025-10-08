@@ -120,6 +120,7 @@ class OpenAIInference:
                     f.write(json_string + '\n')
                 else:
                     f.write(json_string)
+        log_info(f"Wrote batch file to {os.path.join(self.openai_tmp_dir, f'{batch_name}.json')}", self.parameters)
         batch_input_file = self.client.files.create(
             file=open(os.path.join(self.openai_tmp_dir, f"{batch_name}.json"), "rb"),
             purpose="batch"
@@ -133,6 +134,7 @@ class OpenAIInference:
                 "description": f"OpenAI Inference {batch_name}"
             }
         )
+        log_info(f"Started batch {batch_name} with id {batch.id}. This may take a while to complete. Check https://platform.openai.com/batches/ for status.", self.parameters)
         # write the batch id to tmp
         with open(os.path.join(self.openai_tmp_dir, f"id_{batch_name}.txt"), "w") as f:
             f.write(batch.id)
