@@ -116,6 +116,11 @@ def search_for_checkpoint(output_dir, parameters):
 
 
 def override_defaults(training_args, parameters=default_parameters):
+    if script_args.training_kind != "clf":
+        if script_args.validation_test_split is not None or script_args.test_file is not None:
+            log_warn(f"Test split evaluation is not supported for {script_args.training_kind}, removing test set related arguments", default_parameters)
+            script_args.validation_test_split = None
+            script_args.test_file = None
     if training_args.resume_from_checkpoint is not None and not isinstance(training_args.resume_from_checkpoint, bool):
         if training_args.resume_from_checkpoint.lower().strip() in ["true", "1", "false", "0"]:
             training_args.resume_from_checkpoint = bool(training_args.resume_from_checkpoint)
@@ -157,9 +162,6 @@ if __name__ == "__main__":
     script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0]  # return_remaining_strings stops error out on unknown args
     accelerator = Accelerator()
     distributed = accelerator.num_processes > 1
-    if script_args.training_kind != "clf":
-        if script_args.validation_test_split is not None or script_args.test_file is not None:
-            log_error(f"Test split evaluation is not supported for {script_args.training_kind}, make sure --validation_test_split and --test_file are not set.", default_parameters)
     if script_args.training_kind in ["pre", "sft", "ga"]:
         parser = HfArgumentParser((ScriptArguments, SFTConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
