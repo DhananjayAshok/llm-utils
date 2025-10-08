@@ -6,8 +6,6 @@ import pandas as pd
 import os
 import itertools
 
-hf_hub="Dhananjay99" # If you want to push and set up from your own hub, change this to your username. 
-
 
 
 def get_train_test_split(df, random_seed, test_size=0.2):
@@ -387,6 +385,7 @@ def setup_pubmedqa_finetune_datasets(parameters, max_paraphrases=None, instructi
     configs = ["clf", "ft", "po"]
     splits = ["train", "val"]
     os.makedirs("tmp_test_data", exist_ok=True)
+    hf_hub = parameters["huggingface_hub_username"]
     for config in configs:
         for split in splits:
             dataset = load_dataset(f"{hf_hub}/pubmed_inference", config, split=split)
@@ -554,6 +553,7 @@ def setup_manymodalqa_finetune_datasets(parameters):
     os.makedirs("tmp_test_data", exist_ok=True)
     configs = ["po", "clf"]
     splits = ["train", "val"]
+    hf_hub = parameters["huggingface_hub_username"]    
     for config in configs:
         for split in splits:
             dataset = load_dataset(f"{hf_hub}/manymodal_inference", config, split=split)
