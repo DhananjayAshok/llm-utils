@@ -18,7 +18,7 @@ SEARCH_STRING="'epoch': 2.5"
 # Run the Python script in the background and pipe its stdout/stderr to a log file
 # The '$$' gives us the PID of the current BASH script, which we use as a prefix
 # for the log file to make it unique if running multiple times.
-echo "Starting Python script in the background..."
+echo "Starting Python script in the background. Output will be logged to $LOG_FILE"
 $PYTHON_SCRIPT &> $LOG_FILE &
 
 # Store the Process ID (PID) of the backgrounded Python command
@@ -37,7 +37,7 @@ while ! grep -q "$SEARCH_STRING" $LOG_FILE; do
     sleep 0.5
     # Check if the Python process is still running (it might have finished naturally)
     if ! kill -0 $PYTHON_PID 2>/dev/null; then
-        echo "✅ Python script finished naturally before string was found."
+        echo "✅ Python script finished naturally before string was found. Check $LOG_FILE for details."
         exit 0
     fi
 done
