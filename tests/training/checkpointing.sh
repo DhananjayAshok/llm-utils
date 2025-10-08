@@ -9,7 +9,7 @@ PYTHON_SCRIPT="train_launch train.py --training_kind clf --model_name $test_lm \
     --train_file tmp_test_data/tmp_clf.csv --output_column label  \
     --run_name test-clf-$test_lm $common_line"
 LOG_FILE="tmp.log"
-SEARCH_STRING="'epoch': 2.5"
+SEARCH_STRING="'epoch': 2.0"
 
 # --- 2. Run Python Script in the Background and Redirect Output ---
 
@@ -19,14 +19,14 @@ SEARCH_STRING="'epoch': 2.5"
 # Run the Python script in the background and pipe its stdout/stderr to a log file
 # The '$$' gives us the PID of the current BASH script, which we use as a prefix
 # for the log file to make it unique if running multiple times.
-echo "Starting Python script in the background. Output will be logged to $LOG_FILE"
+echo "Testing checkpoint functionality. Running Python script in the background. Output will be logged to $LOG_FILE"
 $PYTHON_SCRIPT &> $LOG_FILE &
 
 # Store the Process ID (PID) of the backgrounded Python command
 PYTHON_PID=$!
 
 echo "Python PID: $PYTHON_PID"
-echo "Watching log file: $LOG_FILE for string: '$SEARCH_STRING'"
+echo "Watching log file: $LOG_FILE for string: '$SEARCH_STRING'. Will kill once found..."
 
 # --- 3. Monitor the Log File ---
 
@@ -68,3 +68,6 @@ tail -n 5 $LOG_FILE
 
 echo "Running training command once more. Should read from last checkpoint and complete training."
 $PYTHON_SCRIPT
+rm $LOG_FILE
+rm -rf $storage_dir/models/tmp_clf_model
+echo "Check the output above, it should have detected and resumed from a checkpoint."
