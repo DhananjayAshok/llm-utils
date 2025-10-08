@@ -57,7 +57,7 @@ class ScriptArguments:
 
     validation_file: Optional[str] = field(default=None, metadata={"help": "the validation file to use for internal model selection, early stopping etc."})
     test_file: Optional[str] = field(default=None, metadata={"help": "the test file to measure final fit. If not provided and validation_test split is set, then a random split of the validation file is used."})
-    train_validation_split: Optional[float] = field(default=None, metadata={"help": "the split of the training file to use for training if validation file is not provided"})
+    train_validation_split: Optional[float] = field(default=None, metadata={"help": "the split of the training file to use for training if validation file is not provided. The rest is used as validation split"})
     validation_test_split: Optional[float] = field(default=None, metadata={"help": "the split of the validation file to use for internal model selection, early stopping etc. The rest is used as test split"})
 
     input_column: str = field(default="input", metadata={"help": "the input column name"})
