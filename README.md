@@ -3,21 +3,20 @@
 Useful code for training and inference of Language Models. I currently support the following functionality:
 
 Language Models:
-1. Inference (with HuggingFace Transformers and vLLM)
+1. Inference with HuggingFace Transformers and vLLM (no vLLM support for VLMs at the moment)
 2. Pretraining
-3. Finetuning (Classification and SFT for Generation)
-4. Preference Optimization / RL Training (DPO, CPO)
-
-Vision Language Models:
-1. Inference
-2. Finetuning (Classification and SFT for Generation)
-3. Preference Optimization / RL Training (DPO, CPO)
+3. Finetuning (Classification and Supervised Finetuning for Generation)
+4. Preference Optimization (Direct Preference Optimization, Contrastive Preference Optimization)
+5. Unlearning (Gradient Ascent, Negative Preference Optimization)
 
 All code is based on HuggingFace Transformers and TRL and supports FSDP with multiple GPUs. 
 
 ## Setup
+First, clone the repo, then follow the [instructions](setup/README.md) to set up the environment with the right packages and Python version. Before running anything, you should make sure to populate the essential fields in the [config files](configs/README.md). After that, run:
 
-Follow the [instructions](setup/README.md) to set up the environment with the right packages and Python version. Then, before running anything you should make sure to populate the essential fields in the [config files](configs/README.md).
+```bash
+python configs/create_env_file.py
+```
 
 That's all the setup you need for inference, but for training, you will need to set up a couple of additional things. 
 
@@ -27,7 +26,7 @@ Log in to WandB with
 wandb login
 ```
 
-Set up the accelerate config file with
+If you want to use FSDP or Accelerate distribution, then set up the accelerate config file with
 ```bash
 accelerate config
 ```
@@ -55,7 +54,7 @@ FSDP:
 - No to activation checkpointing
 - No to parallelism config
 
-The FSDP configuration gives me the accelerate config (at ....huggingface/accelerate/default_config.yaml) yaml:
+The FSDP configuration gives me the accelerate config (at `<path_to_huggingface>/accelerate/default_config.yaml`) yaml:
 
 ```yaml
 compute_environment: LOCAL_MACHINE                                                                                                             
@@ -110,7 +109,7 @@ This output file also automatically acts as a checkpoint if inference stops half
 
 ### Training
 
-The entry point for training is the [`train.py`](train.py) script. It supports classification finetuning, pretraining, supervised finetuning and direct preference optimization (DPO). The final model is always saved to `output_dir/final_checkpoint`
+The entry point for training is the [`train.py`](train.py) script. The final model is always saved to `output_dir/final_checkpoint`
 
 WandDB is used to log the metrics, and you can always recover the history of a prior run with:
 
