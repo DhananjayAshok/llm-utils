@@ -167,7 +167,7 @@ def get_clf_trainer(script_args, training_args, dataset, model, processor):
 def prepare_sample_text(example, input_col="prompt", output_col="completion"):
     if output_col not in example:
         return example[input_col]
-    return f"Input: {example[input_col]} \nOutput: {example[output_col]}"
+    return f"{example[input_col]}\nOutput: {example[output_col]}"
 
 
 def get_trl_renamed_train_val_dataset(dataset):
@@ -213,7 +213,6 @@ def get_pre_trainer(script_args, training_args, dataset, model, processor, peft_
         peft_config=peft_config,
         formatting_func=prepare_sample_text,
         processing_class=processor,
-        completion_only_loss=False,
         args=training_args,
         callbacks=callbacks,
     )

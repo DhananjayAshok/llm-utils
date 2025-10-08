@@ -165,6 +165,9 @@ if __name__ == "__main__":
     if script_args.training_kind in ["pre", "sft", "ga"]:
         parser = HfArgumentParser((ScriptArguments, SFTConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
+        if script_args.training_kind == "pre":
+            training_args.packing = True
+            training_args.completion_only_loss = False
     elif script_args.training_kind in ["dpo", "npo"]:
         parser = HfArgumentParser((ScriptArguments, DPOConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
