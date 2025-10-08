@@ -227,6 +227,8 @@ if __name__ == "__main__":
     if accelerator.is_main_process:
         log_info(f"Training starting with {len(trainer.train_dataset)} samples ...")
     trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
+    if accelerator.is_main_process:
+        log_info("Training completed. Saving model, this may take some time depending on your setup ...")
 
     if "test" in dataset:
         trainer.evaluate(dataset["test"], metric_key_prefix="test")
