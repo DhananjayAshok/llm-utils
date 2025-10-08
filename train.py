@@ -124,6 +124,10 @@ def override_defaults(training_args, parameters=default_parameters):
     if training_args.resume_from_checkpoint is not None and not isinstance(training_args.resume_from_checkpoint, bool):
         if training_args.resume_from_checkpoint.lower().strip() in ["true", "1", "false", "0"]:
             training_args.resume_from_checkpoint = bool(training_args.resume_from_checkpoint)
+        else: # then it is a path
+            if not os.path.exists(training_args.resume_from_checkpoint):
+                log_error(f"resume_from_checkpoint is set to {training_args.resume_from_checkpoint} but this path does not exist.", parameters)
+            training_args.resume_from_checkpoint = training_args.resume_from_checkpoint
     if training_args.resume_from_checkpoint == True:
         if not os.path.exists(training_args.output_dir):
             log_warn(f"resume_from_checkpoint is set to True but output_dir {training_args.output_dir} does not exist. Starting training from scratch.", parameters)
@@ -134,12 +138,9 @@ def override_defaults(training_args, parameters=default_parameters):
             if available_checkpoint is None:
                 training_args.resume_from_checkpoint = False
             else:
-                training_args.resume_from_checkpoint = True # TODO: Debug, this might not work for classification as it may need to load it instead of the model. 
+                training_args.resume_from_checkpoint = available_checkpoint # TODO: Debug, this might not work for classification as it may need to load it instead of the model. 
     elif training_args.resume_from_checkpoint is None or training_args.resume_from_checkpoint == False:
         training_args.resume_from_checkpoint = False
-    else: # then it is a path
-        if not os.path.exists(training_args.resume_from_checkpoint):
-            log_error(f"resume_from_checkpoint is set to {training_args.resume_from_checkpoint} but this path does not exist.", parameters)        
     if training_args.save_total_limit is None:
         training_args.save_total_limit = 2
     if training_args.save_steps is None:
