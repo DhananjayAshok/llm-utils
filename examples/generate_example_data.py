@@ -27,6 +27,7 @@ def setup_alpaca(parameters, train_test_split=0.1):
     os.makedirs(data_dir, exist_ok=True)
     train_df.to_csv(data_dir+"train.csv", index=False)
     test_df.to_csv(data_dir+"test.csv", index=False)
+    log_info(f"Alpaca dataset setup complete. Files saved in: {data_dir}", parameters)
     return train_df, test_df
 
 
