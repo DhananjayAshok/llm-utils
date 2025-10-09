@@ -1,5 +1,5 @@
 source configs/config.env
-accelerate launch train.py --training_kind sft --model_name meta-llama/Meta-Llama-3-8B \
+accelerate launch train.py --training_kind sft --model_name meta-llama/Meta-Llama-3.1-8B-Instruct \
 --output_dir $storage_dir/models/rt_model \
 --train_file $storage_dir/data/rwku/dpo_train.csv \
 --train_validation_split 0.1 \

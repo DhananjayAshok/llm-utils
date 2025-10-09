@@ -18,3 +18,18 @@ python infer.py --input_file $storage_dir/data/alpaca/test.csv \
 --model_name $storage_dir/models/it_model/final_checkpoint \
 --output_column model_output --max_new_tokens 200 \
 --ignore_checkpoint hf --batch_size 12 --padding_side left
+
+python infer.py --input_file $storage_dir/data/alpaca/test.csv --output_file $storage_dir/data/alpaca/test_og_output.jsonl \
+--model_name meta-llama/Meta-Llama-3-8B \
+--output_column model_output --max_new_tokens 200 \
+--ignore_checkpoint hf --batch_size 12 --padding_side left
+
+python << EOF
+import pandas as pd
+df = pd.read_json("$storage_dir/data/alpaca/test_og_output.jsonl", lines=True)
+df2 = pd.read_json("$storage_dir/data/alpaca/test_output.jsonl", lines=True)
+df2['og_output'] = df['model_output']
+df2['show_og'] = df2['input'] + "\nModel Output: " + df2['og_output'][0]
+df2['show_it'] = df2['input'] + "\nModel Output: " + df2['model_output'][0]
+df2.to_csv("$storage_dir/data/alpaca/compare_outputs.csv", index=False)
+EOF

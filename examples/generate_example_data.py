@@ -19,7 +19,8 @@ def get_train_test_split(df, random_seed, test_size=0.2):
 
 def setup_alpaca(parameters, train_test_split=0.1):
     df = load_dataset("tatsu-lab/alpaca", split="train").to_pandas()
-    df["input"] = df["instruction"]
+    df['input'] = df['input'].apply(lambda x: '' if not isinstance(x, str) or x.strip() == '' else "\nInput: " + x)
+    df['input'] = df['instruction'] + df['input'] + "\nOutput: "
     df = df[["input", "output"]]
     train_df, test_df = get_train_test_split(df, parameters["random_seed"], test_size=train_test_split)
     data_dir = parameters["data_dir"]+"/alpaca/"
