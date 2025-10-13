@@ -17,3 +17,17 @@ This will create a virtual environment in setup/.venv. Before running any code i
 ```console
 source setup/.venv/bin/activate
 ```
+
+## Installing to alternate locations
+
+If you don't want to have the virtual environment here, but a different location, then first create the venv elsewhere and activate it:
+```console
+uv venv /path/to/venv --python=3.XX.XX
+source /path/to/venv/bin/activate
+```
+Then, come back to the setup directory and run:
+```console
+uv sync --active
+```
+
+If you do this, remember to add `/path/to/venv/` to the [configs file](../configs/private_vars.yaml)
