@@ -53,7 +53,8 @@ def push_model_to_hub(parameters, model_name, model_kind, quantization, modality
     log_info(f"Successfully pushed model at {model_name} to {repo_id}", parameters)
 
 
-def push_data_to_hub(parameters, )
+def push_data_to_hub(parameters, a):
+    pass
 
 
 @click.group()
