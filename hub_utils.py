@@ -2,6 +2,7 @@ from utils import load_parameters, log_warn, log_error, log_info
 from utils.parameter_handling import compute_secondary_parameters
 import click
 import pandas as pd
+import os
 from inference.inference_utils import load_file
 from inference.huggingface_inference import get_model
 from huggingface_hub import HfApi, create_repo, delete_repo
@@ -29,12 +30,15 @@ def push_model_to_hub(parameters, model_name, model_kind, quantization, modality
     """
     Push a model to the Hugging Face Hub.
     """
+    if not os.path.exists(model_name):
+        log_error(f"Model path {model_name} does not exist", parameters)
     repo_id = parameters["repo_id"]
     overwrite = parameters["overwrite"]
     api = parameters["api"]
     parameters["model_name"] = model_name
     parameters["modality"] = modality
     parameters["padding_side"] = "left" # This probably doesn't matter
+    parameters["dtype"] = "auto" # This probably doesn't matter
     repo_info = get_repo_info(api, repo_id, repo_type="model")
     if repo_info is not False and overwrite:
         log_info(f"Repository {repo_id} already exists. Deleting it as --overwrite is set.", parameters)
@@ -42,13 +46,14 @@ def push_model_to_hub(parameters, model_name, model_kind, quantization, modality
         repo_info = False
     elif repo_info is not False and not overwrite:
         log_error(f"Repository {repo_id} already exists. Use --overwrite to overwrite it.", parameters)
-        return
     model = get_model(parameters, quantization, model_kind)
     #processor = parameters["tokenizer"] # I don't know if I need to specifically push the tokenizer and config
     #config = AutoConfig.from_pretrained(model_name)
     model.push_to_hub(repo_id)
     log_info(f"Successfully pushed model at {model_name} to {repo_id}", parameters)
 
+
+def push_data_to_hub(parameters, )
 
 
 @click.group()
