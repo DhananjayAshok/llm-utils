@@ -61,7 +61,7 @@ def main(ctx, **input_parameters):
     compute_secondary_parameters(loaded_parameters)
     loaded_parameters.update(input_parameters)
     api = HfApi()
-    load_parameters["api"] = api
+    loaded_parameters["api"] = api
     ctx.obj = loaded_parameters
 
 
