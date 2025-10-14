@@ -47,6 +47,9 @@ def push_model_to_hub(parameters, model_name, model_kind, quantization, modality
     #processor = parameters["tokenizer"] # I don't know if I need to specifically push the tokenizer and config
     #config = AutoConfig.from_pretrained(model_name)
     model.push_to_hub(repo_id)
+    log_info(f"Successfully pushed model at {model_name} to {repo_id}", parameters)
+
+
 
 @click.group()
 @click.option("--repo_id", type=str, required=True, help="The repository ID on Hugging Face Hub (e.g., username/repo_name)")
@@ -60,6 +63,9 @@ def main(ctx, **input_parameters):
     api = HfApi()
     load_parameters["api"] = api
     ctx.obj = loaded_parameters
+
+
+main.add_command(push_model_to_hub, name="push_model_to_hub")
 
 
 if __name__ == "__main__":
