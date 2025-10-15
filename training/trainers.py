@@ -49,7 +49,8 @@ class SampleLoggingCallback(TrainerCallback):
             outputs = model.generate(input_ids=batch[self.input_ids_key_name]) # If this causes issues, we might need to explicitly move device
             output_texts = processor.batch_decode(outputs, skip_special_tokens=True)                                                                                                                                        
             all_outputs.extend(output_texts)
-        for j, input_text, target, output in enumerate(zip(all_input_texts, all_targets, all_outputs)):
+        for j, values in enumerate(zip(all_input_texts, all_targets, all_outputs)):
+            input_text, target, output = values
             self.table.add_data(state.global_step, j, input_text, target, output)
         wandb.log({"Sample Outputs": self.table}, step=state.global_step)
         return
