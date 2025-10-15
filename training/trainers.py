@@ -52,7 +52,7 @@ class SampleLoggingCallback(TrainerCallback):
         for j, values in enumerate(zip(all_input_texts, all_targets, all_outputs)):
             input_text, target, output = values
             self.table.add_data(state.global_step, j, input_text, target, output)
-        wandb.log({"Sample Outputs": self.table}, step=state.global_step)
+        wandb.log({"Sample Outputs": self.table})
         return
 
 def get_callback_list(script_args):
