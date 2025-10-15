@@ -43,7 +43,8 @@ class SampleLoggingCallback(TrainerCallback):
             preds = outputs.logits.argmax(dim=-1).detach().cpu().numpy().tolist()
             all_outputs.extend(preds)
         else:
-            target_texts = processor.batch_decode(batch[self.output_ids_key_name], skip_special_tokens=True)
+            labels_for_decode = torch.where(batch[self.output_ids_key_name] == -100, torch.full_like(batch[self.output_ids_key_name], processor.pad_token_id), batch[self.output_ids_key_name])
+            target_texts = processor.batch_decode(labels_for_decode, skip_special_tokens=True)
             all_targets.extend(target_texts)
             outputs = model.generate(input_ids=batch[self.input_ids_key_name]) # If this causes issues, we might need to explicitly move device
             output_texts = processor.batch_decode(outputs, skip_special_tokens=True)                                                                                                                                        
