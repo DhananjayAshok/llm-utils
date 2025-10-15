@@ -57,13 +57,12 @@ def main(ctx, **input_parameters):
     if not input_parameters["do_sample"]:
         for sampling_parameter in ["temperature", "top_p", "top_k"]:
             if sampling_parameter in input_parameters:
-                log_warn(f"Did not get --do_sample flag, so ignoring {sampling_parameter} parameter", input_parameters)
+                log_warn(f"Did not get --do_sample flag, so ignoring {sampling_parameter} parameter", loaded_parameters)
             input_parameters[sampling_parameter] = None
     else:
         if input_parameters["temperature"] is None or input_parameters["temperature"] == 0:
-            log_warn(f"Got --do_sample flag, but temperature is either not set or set to 0. Performing greedy decoding.", input_parameters)
+            log_warn(f"Got --do_sample flag, but temperature is either not set or set to 0. Performing greedy decoding.", loaded_parameters)
             input_parameters["do_sample"] = False
-
 
     loaded_parameters.update(input_parameters)
     compute_secondary_parameters(loaded_parameters)
