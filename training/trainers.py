@@ -38,7 +38,7 @@ class SampleLoggingCallback(TrainerCallback):
         # Generate output
         if self.training_kind == "clf":
             targets = batch[self.output_ids_key_name]
-            all_targets.extend(targets.numpy().tolist())
+            all_targets.extend(targets.detach().cpu().numpy().tolist())
             outputs = model(**batch)
             preds = outputs.logits.argmax(dim=-1).detach().cpu().numpy().tolist()
             all_outputs.extend(preds)
