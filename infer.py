@@ -60,7 +60,7 @@ def main(ctx, **input_parameters):
                 log_warn(f"Did not get --do_sample flag, so ignoring {sampling_parameter} parameter", input_parameters)
             input_parameters[sampling_parameter] = None
     else:
-        if sampling_parameter["temperature"] is None or sampling_parameter["temperature"] == 0:
+        if input_parameters["temperature"] is None or input_parameters["temperature"] == 0:
             log_warn(f"Got --do_sample flag, but temperature is either not set or set to 0. Performing greedy decoding.", input_parameters)
             input_parameters["do_sample"] = False
 
