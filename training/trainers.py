@@ -28,7 +28,7 @@ class SampleLoggingCallback(TrainerCallback):
         all_input_texts = []
         all_targets = []
         all_outputs = []
-        processor = kwargs.get("processing_class").tokenizer
+        processor = kwargs.get("processing_class")
         for i, batch in enumerate(eval_dataloader):
             if i >= self.n_eval_output_batches:
                 break
