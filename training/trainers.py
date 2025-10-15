@@ -9,9 +9,10 @@ from utils import log_info
 import wandb
 
 class SampleLoggingCallback(TrainerCallback):
-    def __init__(self, training_kind, n_eval_output_batches: int, *args, **kwargs):
+    def __init__(self, training_kind, modality, n_eval_output_batches: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.training_kind = training_kind
+        self.modality = modality
         self.n_eval_output_batches = n_eval_output_batches
         self.input_ids_key_name = "input_ids"
         if self.training_kind in ["dpo", "npo"]:
@@ -46,7 +47,10 @@ class SampleLoggingCallback(TrainerCallback):
             labels_for_decode = torch.where(batch[self.output_ids_key_name] == -100, torch.full_like(batch[self.output_ids_key_name], processor.pad_token_id), batch[self.output_ids_key_name])
             target_texts = processor.batch_decode(labels_for_decode, skip_special_tokens=True)
             all_targets.extend(target_texts)
-            outputs = model.generate(input_ids=batch[self.input_ids_key_name]) # If this causes issues, we might need to explicitly move device
+            gen_kwargs = {}
+            if self.modality == "vlm":
+                gen_kwargs = {"pixel_values": batch["pixel_values"]} # TODO: This might fail for some models / learning algorithms. Needs testing. 
+            outputs = model.generate(input_ids=batch[self.input_ids_key_name], **gen_kwargs)
             output_texts = processor.batch_decode(outputs, skip_special_tokens=True)                                                                                                                                        
             all_outputs.extend(output_texts)
         for j, values in enumerate(zip(all_input_texts, all_targets, all_outputs)):
@@ -56,7 +60,7 @@ class SampleLoggingCallback(TrainerCallback):
         return
 
 def get_callback_list(script_args):
-    callbacks = [SampleLoggingCallback(script_args.training_kind, script_args.n_eval_output_batches)]
+    callbacks = [SampleLoggingCallback(script_args.training_kind, script_args.modality, script_args.n_eval_output_batches)]
     if script_args.early_stopping_patience is not None:
         callbacks.append(
             EarlyStoppingCallback(
