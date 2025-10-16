@@ -97,7 +97,7 @@ class ScriptArguments:
 
     # Log
     log_verbose: Optional[bool] = field(default=False, metadata={"help": "print summary stats of data and processing information."})
-    push_to_hub: Optional[str] = field(default=None, metadata={"help": "name of the repo to push the model to. If None, will not push to hub."})
+    n_eval_output_batches: Optional[int] = field(default=1, metadata={"help": "the number of evaluation batches to use for logging outputs."})
 
 
 def search_for_checkpoint(output_dir, parameters):
@@ -252,7 +252,4 @@ if __name__ == "__main__":
     trainer.model.save_pretrained(output_dir, is_main_process=is_main_process, state_dict=state_dict, save_function=save_function)
     if accelerator.is_main_process:
         log_info(f"Model saved to {output_dir}", script_args.parameters)
-        if script_args.push_to_hub is not None:
-            log_info(f"Pushing model to the hub in repo {script_args.push_to_hub}", script_args.parameters)
-            trainer.model.push_to_hub(script_args.push_to_hub)
     accelerator.end_training()

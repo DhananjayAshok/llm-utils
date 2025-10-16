@@ -14,14 +14,12 @@ def infer_max_input_length(model_name, data_df, start_idx, parameters):
     return max_input_length
 
 
-vllm_max_n = 10 # I don't know why, but when we ask vLLM to do inference on too many points at once it produces garbage output, and gives no warnings. This is a safe max for now.
-# This is not a parameter because it is not something we expect users to change. It's not clear how to determine the right value anyway.
-
 @click.command()
 @click.option("--enable_prefix_caching", type=bool, default=True, help="Enable prefix caching for vLLM inference.")
 @click.option("--max_model_len", type=int, default=None, help="The maximum sequence length for the model. If not set, will automatically infer it.")
+@click.option("--vllm_max_n", type=int, default=5, help="I don't know why, but when we ask vLLM to do inference on too many points at once it produces garbage output, and gives no warnings. This parameter must be tweaked manually, unforunately.")
 @click.pass_obj
-def vllm_inference(parameters, enable_prefix_caching, max_model_len):
+def vllm_inference(parameters, enable_prefix_caching, max_model_len, vllm_max_n):
     require_gpu(parameters)
     if parameters["max_new_tokens"] is None:
         log_error("--max_new_tokens is required for vLLM inference", parameters)
@@ -49,7 +47,7 @@ def vllm_inference(parameters, enable_prefix_caching, max_model_len):
     start_idx = data_df[data_df[parameters["generation_complete_column"]] == False].index.min()
     max_input_length = infer_max_input_length(parameters["model_name"], data_df, start_idx, parameters)
     if max_model_len is None:
-        max_model_len = max_input_length + parameters["max_new_tokens"] + 50 # give some buffer for generation
+        max_model_len = max_input_length + parameters["max_new_tokens"] + 100 # give some buffer for generation
         log_info(f"Inferred max_input_length of {max_input_length} from data. Setting max_model_len to {max_model_len}", parameters)
     elif max_model_len < max_input_length + parameters["max_new_tokens"]:
         log_warn(f"Warning: provided max_model_len of {max_model_len} is less than the max input length + max_new_tokens ({max_input_length + parameters['max_new_tokens']}). This may cause errors.", parameters)

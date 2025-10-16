@@ -1,15 +1,66 @@
 import torch
-from transformers import Trainer, default_data_collator, EarlyStoppingCallback
+from transformers import Trainer, default_data_collator, EarlyStoppingCallback, TrainerCallback
 from trl import SFTTrainer, DPOTrainer, KTOTrainer, CPOTrainer
 from training.unlearning import GATrainer, NPOTrainer
 import numpy as np
 from training.model import get_peft_config
 from utils.vlm_utils import infer_vlm_kind, get_single_vlm_text, get_vlm_text
 from utils import log_info
+import wandb
 
+class SampleLoggingCallback(TrainerCallback):
+    def __init__(self, training_kind, modality, n_eval_output_batches: int, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.training_kind = training_kind
+        self.modality = modality
+        self.n_eval_output_batches = n_eval_output_batches
+        self.input_ids_key_name = "input_ids"
+        if self.training_kind in ["dpo", "npo"]:
+            self.input_ids_key_name = "prompt_input_ids"
+        self.output_ids_key_name = "labels"
+        if self.training_kind in ["dpo"]:
+            self.output_ids_key_name = "chosen_input_ids"
+        if self.training_kind in ["npo"]:
+            self.output_ids_key_name = "rejected_input_ids"
+        self.table = wandb.Table(columns=["global_step", "item_id", "input", "target_output", "model_output"], log_mode="MUTABLE")
+
+    def on_evaluate(self, args, state, control, model=None, eval_dataloader=None, **kwargs):
+        batch = next(iter(eval_dataloader))
+        all_input_texts = []
+        all_targets = []
+        all_outputs = []
+        processor = kwargs.get("processing_class")
+        for i, batch in enumerate(eval_dataloader):
+            if i >= self.n_eval_output_batches:
+                break
+
+        input_texts = processor.batch_decode(batch[self.input_ids_key_name], skip_special_tokens=True)        
+        all_input_texts.extend(input_texts)        
+        # Generate output
+        if self.training_kind == "clf":
+            targets = batch[self.output_ids_key_name]
+            all_targets.extend(targets.detach().cpu().numpy().tolist())
+            outputs = model(**batch)
+            preds = outputs.logits.argmax(dim=-1).detach().cpu().numpy().tolist()
+            all_outputs.extend(preds)
+        else:
+            labels_for_decode = torch.where(batch[self.output_ids_key_name] == -100, torch.full_like(batch[self.output_ids_key_name], processor.pad_token_id), batch[self.output_ids_key_name])
+            target_texts = processor.batch_decode(labels_for_decode, skip_special_tokens=True)
+            all_targets.extend(target_texts)
+            gen_kwargs = {}
+            if self.modality == "vlm":
+                gen_kwargs = {"pixel_values": batch["pixel_values"]} # TODO: This might fail for some models / learning algorithms. Needs testing. 
+            outputs = model.generate(input_ids=batch[self.input_ids_key_name], **gen_kwargs)
+            output_texts = processor.batch_decode(outputs, skip_special_tokens=True)                                                                                                                                        
+            all_outputs.extend(output_texts)
+        for j, values in enumerate(zip(all_input_texts, all_targets, all_outputs)):
+            input_text, target, output = values
+            self.table.add_data(state.global_step, j, input_text, target, output)
+        wandb.log({"Sample Outputs": self.table})
+        return
 
 def get_callback_list(script_args):
-    callbacks = []
+    callbacks = [SampleLoggingCallback(script_args.training_kind, script_args.modality, script_args.n_eval_output_batches)]
     if script_args.early_stopping_patience is not None:
         callbacks.append(
             EarlyStoppingCallback(
