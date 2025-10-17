@@ -44,8 +44,10 @@ class SampleLoggingCallback(TrainerCallback):
             preds = outputs.logits.argmax(dim=-1).detach().cpu().numpy().tolist()
             all_outputs.extend(preds)
         else:
-            labels_for_decode = torch.where(batch[self.output_ids_key_name] == -100, torch.full_like(batch[self.output_ids_key_name], processor.pad_token_id), batch[self.output_ids_key_name])
-            target_texts = processor.batch_decode(labels_for_decode, skip_special_tokens=True)
+            input_shapes = batch[self.input_ids_key_name].shape
+            output_only = batch[self.output_ids_key_name][:, input_shapes[1]:]
+            labels_for_decode = torch.where(output_only == -100, torch.full_like(output_only, processor.pad_token_id), output_only)
+            target_texts = processor.batch_decode(labels_for_decode, skip_special_tokens=True) # TODO: Test. 
             all_targets.extend(target_texts)
             gen_kwargs = {}
             if self.modality == "vlm":
@@ -228,6 +230,9 @@ def get_trl_renamed_train_val_dataset(dataset):
     train_dataset = dataset["train"].rename_column("input", "prompt")
     if "output" in dataset["train"].features:
         train_dataset = train_dataset.rename_column("output", "completion")
+    else:
+        # make a dummy completion column with empty strings. Seems to work for pretraining. 
+        train_dataset = train_dataset.add_column("completion", [""] * len(train_dataset))
     if "validation" in dataset:
         validation_dataset = dataset["validation"].rename_column("input", "prompt")
         if "output" in dataset["validation"].features:
