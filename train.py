@@ -106,9 +106,8 @@ def search_for_checkpoint(output_dir, parameters):
     final_exists = os.path.exists(output_dir + "/final_checkpoint")
     checkpoints = [os.path.join(output_dir, d) for d in os.listdir(output_dir) if d.startswith("checkpoint-")]
     if final_exists:
-        log_info(f"Resuming from final checkpoint.", parameters)
-        return output_dir + "/final_checkpoint"
-    elif len(checkpoints) == 0:
+        log_info(f"Detected final_checkpoint, but cannot restart from final checkpoint as trainer information is not stored. Looking for others.", parameters)
+    if len(checkpoints) == 0:
         log_info(f"{output_dir} exists but no checkpoint found, starting from scratch.", parameters)
         return None
     checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))
