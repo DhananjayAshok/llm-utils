@@ -26,6 +26,14 @@ Log in to WandB with
 wandb login
 ```
 
+That's it! You can now run the code. Test that the code base works fine by running:
+```bash
+bash tests/test_all.sh
+```
+
+If this fails, then isolate the problem by following the [test instructions](tests/README.md)
+
+### FSDP (Optional)
 If you want to use FSDP or Accelerate distribution, then set up the accelerate config file with
 ```bash
 accelerate config
@@ -82,13 +90,6 @@ tpu_use_cluster: false
 tpu_use_sudo: false
 use_cpu: false
 ```
-
-That's it! You can now run the code. Test that the code base works fine by running:
-```bash
-bash tests/test_all.sh
-```
-
-If this fails, then isolate the problem by following the [test instructions](tests/README.md)
 
 ## Examples
 
