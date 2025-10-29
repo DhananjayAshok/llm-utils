@@ -25,6 +25,8 @@ def validate_data(dataset, training_kind, pretrain_with_output, parameters):
         mandatory_columns.append("chosen")
     if training_kind in ["dpo"]:
         mandatory_columns.append("rejected")
+    if training_kind in ["ga"]:
+        mandatory_columns.append("forget")
     for split in dataset:
         for column in mandatory_columns:
             if column not in dataset[split].column_names:

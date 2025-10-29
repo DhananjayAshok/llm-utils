@@ -62,6 +62,7 @@ class ScriptArguments:
 
     input_column: str = field(default="input", metadata={"help": "the input column name"})
     image_input_column: str = field(default="image", metadata={"help": "the image input column name. Should contain paths to image files. Only used for VLMs."})
+    ga_forget_column: str = field(default="forget", metadata={"help": "the forget column name for GA training. Must be a boolean column indicating whether to forget the sample or not."})
     output_column: str = field(default="output", metadata={"help": "the output column name"})
     chosen_column: str = field(default=None, metadata={"help": "the chosen column name for preference training"})
     rejected_column: str = field(default=None, metadata={"help": "the rejected column name for preference training"})
@@ -153,6 +154,8 @@ def override_defaults(training_args, parameters=default_parameters):
         training_args.output_dir = parameters["tmp_dir"] + "/" + parameters["run_start_time"] + "/"
     os.makedirs(training_args.output_dir, exist_ok=True)
     training_args.report_to = "wandb"
+    if script_args.training_kind == "ga":
+        script_args.remove_unused_columns = False # needed to keep forget column
 
 
 
