@@ -4,7 +4,7 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSeque
                           AutoConfig, AutoModel,
                           DynamicCache, StaticCache, OffloadedCache, OffloadedStaticCache,
                           LlavaNextProcessor, LlavaNextForConditionalGeneration,
-                          Qwen2_5_VLForConditionalGeneration, AutoProcessor,
+                          AutoModelForImageTextToText, AutoProcessor,
                           GenerationConfig, set_seed)
 import torch
 import copy
@@ -130,7 +130,7 @@ def get_vlm(parameters, quantization, model_kind):
                                                         multimodal_max_length=32768, # for now hard code this
                                                         trust_remote_code=True, device_map="auto", **quant_dict)
         return model.eval()
-    elif vlm_kind == "qwen2.5":
+    elif vlm_kind in ["qwen2.5", "qwen3"]:
         processor = AutoProcessor.from_pretrained(model_name, padding_side=padding_side)
         parameters["tokenizer"] = processor
         if processor.tokenizer.pad_token is None:
@@ -140,8 +140,8 @@ def get_vlm(parameters, quantization, model_kind):
             model = AutoModelForSequenceClassification.from_pretrained(model_name, dtype=dtype,
                                                                       device_map="auto", trust_remote_code=True, **quant_dict)
         else:
-            model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model_name, dtype=dtype,
-                                                                        device_map="auto", **quant_dict)
+            model = AutoModelForImageTextToText.from_pretrained(model_name, dtype=dtype,
+                                                                        device_map="auto", trust_remote_code=True, **quant_dict)
         return model.eval()
     else:
         log_error(f"Bruh how")
