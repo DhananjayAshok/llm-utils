@@ -49,7 +49,7 @@ class GATrainer(SFTTrainer):
         smoothed_loss = smoothed_loss.sum(dim=1) / (num_active_per_example.squeeze(-1) * log_probs.shape[-1])
         
         per_example_loss = (1 - self.epsilon) * nll_loss + self.epsilon * smoothed_loss
-        forget_mask = torch.randint(0, 2, per_example_loss.shape).to(per_example_loss.device).bool()
+        forget_mask = inputs.get("forget").to(per_example_loss.device).bool()
         per_example_loss = torch.where(forget_mask, -per_example_loss, per_example_loss)
 
         loss = per_example_loss.mean() 
