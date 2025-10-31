@@ -162,11 +162,13 @@ def get_inputs(data_df, start, end, model, parameters):
             images.append(image)
         vlm_kind = parameters["vlm_kind"]
         input_text = get_vlm_text(vlm_kind, input_texts)
-        if vlm_kind in ["llava-next", "qwen2.5"]:
+        if vlm_kind in ["llava-next", "qwen2.5", "qwen3"]:
             inputs = parameters["tokenizer"](text=input_text, images=images, padding=True, truncation=True, return_tensors="pt").to(model.device)
             return inputs
-        else:
+        elif vlm_kind in ["internvl"]:
             raise NotImplementedError("This is not implemented yet, need to figure out how to handle internvl inputs")
+        else:
+            log_error(f"Unrecognized VLM Kind: {vlm_kind}")
     else:
         raise ValueError(f"Bro what did you do.")
 
