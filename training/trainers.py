@@ -368,7 +368,7 @@ def get_ga_trainer(script_args, training_args, dataset, model, processor, peft_c
 
 def ga_data_collator(batch):
     #ref: https://github.com/huggingface/trl/blob/c26b375ca3dd47e9cd9fdfd820e89bb4af669186/trl/trainer/sft_trainer.py#L118
-    sft_collator = DataCollatorForLanguageModeling(pad_token_id=0) 
+    sft_collator = DataCollatorForLanguageModeling(pad_token_id=0) #TODO: change; some models have no pad tokens, there is a pad_free argument but I need to verify that this will still work correctly if I use it 
     batch_data = sft_collator(batch)
     batch_data["forget"] = torch.tensor([example["forget"] for example in batch], dtype=torch.float)
     return batch_data
