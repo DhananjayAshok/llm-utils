@@ -1,6 +1,7 @@
 import torch
 from transformers import Trainer, default_data_collator, EarlyStoppingCallback, TrainerCallback
 from trl import SFTTrainer, DPOTrainer, KTOTrainer, CPOTrainer
+from trl.trainer.sft_trainer import DataCollatorForLanguageModeling
 from training.unlearning import GATrainer, NPOTrainer
 import numpy as np
 from training.model import get_peft_config
@@ -352,6 +353,7 @@ def get_ga_trainer(script_args, training_args, dataset, model, processor, peft_c
     else:
         train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset, model)
     callbacks = get_callback_list(script_args)
+    training_args.remove_unused_columns = False
     trainer = GATrainer(
         model=model,
         train_dataset=train_dataset,
@@ -360,8 +362,17 @@ def get_ga_trainer(script_args, training_args, dataset, model, processor, peft_c
         processing_class=processor,
         args=training_args,
         callbacks=callbacks,
+        data_collator=ga_data_collator
     )
     return trainer, dataset
+
+def ga_data_collator(batch):
+    #ref: https://github.com/huggingface/trl/blob/c26b375ca3dd47e9cd9fdfd820e89bb4af669186/trl/trainer/sft_trainer.py#L118
+    sft_collator = DataCollatorForLanguageModeling(pad_token_id=0) 
+    batch_data = sft_collator(batch)
+    batch_data["forget"] = torch.tensor([example["forget"] for example in batch], dtype=torch.float)
+    return batch_data
+
 
 def get_npo_trainer(script_args, training_args, dataset, model, processor, peft_config):
     if script_args.modality == "lm":
