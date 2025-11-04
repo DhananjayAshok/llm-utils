@@ -1,7 +1,7 @@
 source configs/config.env
 python train.py --training_kind dpo --model_name meta-llama/Meta-Llama-3.1-8B-Instruct \
 --output_dir $storage_dir/models/political_dem_model \
---train_file $storage_dir/data/political-unlearning/democrat.csv \
+--train_file $storage_dir/data/political_unlearning/democrat.csv \
 --train_validation_split 0.9 \
 --num_train_epochs 5 \
 --per_device_train_batch_size 4 --per_device_eval_batch_size 4 \
@@ -17,7 +17,7 @@ python train.py --training_kind dpo --model_name meta-llama/Meta-Llama-3.1-8B-In
 
 python train.py --training_kind dpo --model_name meta-llama/Meta-Llama-3.1-8B-Instruct \
 --output_dir $storage_dir/models/political_rep_model \
---train_file $storage_dir/data/political-unlearning/republican.csv \
+--train_file $storage_dir/data/political_unlearning/republican.csv \
 --train_validation_split 0.9 \
 --num_train_epochs 5 \
 --per_device_train_batch_size 4 --per_device_eval_batch_size 4 \
