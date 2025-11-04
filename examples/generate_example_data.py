@@ -31,6 +31,17 @@ def setup_alpaca(parameters, train_test_split=0.1):
     return train_df, test_df
 
 
+def setup_political_unlearning(parameters):
+    democrat_df = load_dataset("DJ-Research/political-unlearning", "democrat", split="train").to_pandas()
+    republican_df = load_dataset("DJ-Research/political-unlearning", "republican", split="train").to_pandas()
+    data_dir = parameters["data_dir"]+"/political_unlearning/"
+    os.makedirs(data_dir, exist_ok=True)
+    democrat_df.to_csv(data_dir+"democrat.csv", index=False)
+    republican_df.to_csv(data_dir+"republican.csv", index=False)
+    test_df = load_dataset("DJ-Research/political-unlearning", "all", split="test").to_pandas()
+    test_df.to_csv(data_dir+"test.csv", index=False)
+    log_info(f"Political Unlearning dataset setup complete. Files saved in: {data_dir}", parameters)
+
 def setup_rwku(parameters):
     df = load_dataset("jinzhuoran/RWKU", "train_positive_llama3", split="train").to_pandas()
     # keep only the rows where df['subject'] == "Stephen King"
@@ -575,7 +586,7 @@ def setup_manymodalqa_finetune_datasets(parameters):
 
 
 @click.command()
-@click.option("--dataset_names", default=["alpaca", "pubmedqa", "manymodalqa", "rwku"], multiple=True)
+@click.option("--dataset_names", default=["alpaca", "pubmedqa", "manymodalqa", "rwku", "political-unlearning"], multiple=True)
 @click.pass_obj
 def setup_data(parameters, dataset_names):
     if "alpaca" in dataset_names:
@@ -586,6 +597,8 @@ def setup_data(parameters, dataset_names):
         setup_manymodalqa(parameters)
     if "rwku" in dataset_names:
         setup_rwku(parameters)
+    if "political-unlearning" in dataset_names:
+        setup_political_unlearning(parameters)
 
 @click.command()
 @click.option("--step", type=int, default=2, help="Step number for the PubmedQA dataset setup.")
