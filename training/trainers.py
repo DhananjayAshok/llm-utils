@@ -61,14 +61,14 @@ class SampleLoggingCallback(TrainerCallback):
             all_targets.extend(real_targets)
             current_padding_side = processor.padding_side
             processor.padding_side = "left"
-            input_ids = processor(all_input_texts, return_tensors="pt", padding=True).input_ids
+            inputs = processor(all_input_texts, return_tensors="pt", padding=True)
             processor.padding_side = current_padding_side
             input_ids.to(model.device)
             input_length = input_ids.shape[1]
             gen_kwargs = {"max_new_tokens": self.eval_max_new_tokens, "do_sample": False}
             if self.modality == "vlm":
                 gen_kwargs = {"pixel_values": batch["pixel_values"]} # TODO: This might fail for some models / learning algorithms. Needs testing. 
-            outputs = model.generate(input_ids=input_ids, **gen_kwargs)
+            outputs = model.generate(**inputs, **gen_kwargs)
             outputs = outputs[:, input_length:]
             output_texts = processor.batch_decode(outputs, skip_special_tokens=True)                                                                                                                                        
             all_outputs.extend(output_texts)
