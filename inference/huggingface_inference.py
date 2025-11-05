@@ -225,6 +225,8 @@ def hf_inference(parameters, model_kind, quantization, padding_side, batch_size,
     track_scores = track_input_perplexity or track_output_perplexity
     generation_parameter_keys = ["max_new_tokens", "temperature", "do_sample", "top_p", "top_k", "num_return_sequences"]
     generation_parameters  = {key: parameters[key] for key in generation_parameter_keys if key in parameters}
+    if model_kind == "gen":
+        generation_parameters["repetition_penalty"] = parameters["repetition_penalty"]
     meta_vars.update(generation_parameters)
     if parameters["modality"] == "vlm":
         if cache_prefix:

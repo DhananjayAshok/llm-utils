@@ -40,8 +40,9 @@ def vllm_inference(parameters, enable_prefix_caching, max_model_len, vllm_max_n)
     n = 1
     if parameters["num_return_sequences"] is not None:
         n = parameters["num_return_sequences"]
+    repetition_penalty = parameters["repetition_penalty"]
     sampling_params = SamplingParams(temperature=temperature, top_p=top_p, max_tokens=parameters["max_new_tokens"],
-                                     stop=parameters["stop_strings"], n=n, top_k=top_k)
+                                     stop=parameters["stop_strings"], n=n, top_k=top_k, repetition_penalty=repetition_penalty)
     n_gpus = torch.cuda.device_count()
     save_meta_file(meta_vars, output_filepath, parameters)
     start_idx = data_df[data_df[parameters["generation_complete_column"]] == False].index.min()
