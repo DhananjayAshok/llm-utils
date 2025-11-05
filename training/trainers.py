@@ -10,11 +10,12 @@ from utils import log_info
 import wandb
 
 class SampleLoggingCallback(TrainerCallback):
-    def __init__(self, training_kind, modality, n_eval_output_batches: int, *args, **kwargs):
+    def __init__(self, training_kind, modality, n_eval_output_batches: int, eval_max_new_tokens: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.training_kind = training_kind
         self.modality = modality
         self.n_eval_output_batches = n_eval_output_batches
+        self.eval_max_new_tokens = eval_max_new_tokens
         self.input_ids_key_name = "input_ids"
         if self.training_kind in ["dpo", "npo"]:
             self.input_ids_key_name = "prompt_input_ids"
@@ -60,11 +61,11 @@ class SampleLoggingCallback(TrainerCallback):
             all_targets.extend(real_targets)
             current_padding_side = processor.padding_side
             processor.padding_side = "left"
-            input_ids = processor(batch[self.input_ids_key_name], return_tensors="pt", padding=True).input_ids
+            input_ids = processor(all_input_texts, return_tensors="pt", padding=True).input_ids
             processor.padding_side = current_padding_side
             input_ids.to(model.device)
             input_length = input_ids.shape[1]
-            gen_kwargs = {}
+            gen_kwargs = {"max_new_tokens": self.eval_max_new_tokens, "do_sample": False}
             if self.modality == "vlm":
                 gen_kwargs = {"pixel_values": batch["pixel_values"]} # TODO: This might fail for some models / learning algorithms. Needs testing. 
             outputs = model.generate(input_ids=input_ids, **gen_kwargs)
@@ -78,7 +79,7 @@ class SampleLoggingCallback(TrainerCallback):
         return
 
 def get_callback_list(script_args):
-    callbacks = [SampleLoggingCallback(script_args.training_kind, script_args.modality, script_args.n_eval_output_batches)]
+    callbacks = [SampleLoggingCallback(script_args.training_kind, script_args.modality, script_args.n_eval_output_batches, script_args.eval_max_new_tokens)]
     if script_args.early_stopping_patience is not None:
         callbacks.append(
             EarlyStoppingCallback(
