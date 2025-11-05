@@ -9,6 +9,7 @@ dependencies = [
     "bitsandbytes>=0.43.2",
     "click==8.1.7",
     "datasets==3.5.0",
+    "flashinfer-python>=0.4.1",
     "gdown==5.2.0",
     "numpy==1.26.4",
     "peft==0.15.1",
