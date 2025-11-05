@@ -26,6 +26,7 @@ class SampleLoggingCallback(TrainerCallback):
         self.table = wandb.Table(columns=["global_step", "item_id", "input", "target_output", "model_output"], log_mode="MUTABLE")
 
     def on_evaluate(self, args, state, control, model=None, eval_dataloader=None, **kwargs):
+         # TODO: This might fail for VLMs. Needs testing.
         batch = next(iter(eval_dataloader))
         all_input_texts = []
         all_targets = []
@@ -35,26 +36,39 @@ class SampleLoggingCallback(TrainerCallback):
             if i >= self.n_eval_output_batches:
                 break
 
-        input_texts = processor.batch_decode(batch[self.input_ids_key_name], skip_special_tokens=True)        
-        all_input_texts.extend(input_texts)        
         # Generate output
         if self.training_kind == "clf":
+            input_texts = processor.batch_decode(batch[self.input_ids_key_name], skip_special_tokens=True)        
+            all_input_texts.extend(input_texts)        
             targets = batch[self.output_ids_key_name]
             all_targets.extend(targets.detach().cpu().numpy().tolist())
             outputs = model(**batch)
             preds = outputs.logits.argmax(dim=-1).detach().cpu().numpy().tolist()
             all_outputs.extend(preds)
         else:
-            input_shapes = batch[self.input_ids_key_name].shape
-            output_only = batch[self.output_ids_key_name][:, input_shapes[1]:]
-            labels_for_decode = torch.where(output_only == -100, torch.full_like(output_only, processor.pad_token_id), output_only)
-            target_texts = processor.batch_decode(labels_for_decode, skip_special_tokens=True) # TODO: Test. 
-            all_targets.extend(target_texts)
+            starting_indices = (batch[self.output_ids_key_name] != -100).int().argmax(dim=1)
+            real_input_texts = []
+            real_targets = []
+            for j, start_idx in enumerate(starting_indices):
+                input_ids = batch[self.input_ids_key_name][j][:start_idx]
+                text = processor.decode(input_ids, skip_special_tokens=True)
+                real_input_texts.append(text)
+                output_ids = batch[self.output_ids_key_name][j][start_idx:]
+                output_text = processor.decode(output_ids[output_ids != -100], skip_special_tokens=True)
+                real_targets.append(output_text)
+            all_input_texts.extend(real_input_texts)
+            all_targets.extend(real_targets)
+            current_padding_side = processor.padding_side
+            processor.padding_side = "left"
+            input_ids = processor(batch[self.input_ids_key_name], return_tensors="pt", padding=True).input_ids
+            processor.padding_side = current_padding_side
+            input_ids.to(model.device)
+            input_length = input_ids.shape[1]
             gen_kwargs = {}
             if self.modality == "vlm":
                 gen_kwargs = {"pixel_values": batch["pixel_values"]} # TODO: This might fail for some models / learning algorithms. Needs testing. 
-            outputs = model.generate(input_ids=batch[self.input_ids_key_name], **gen_kwargs)
-            outputs = outputs[:, input_shapes[1]:]
+            outputs = model.generate(input_ids=input_ids, **gen_kwargs)
+            outputs = outputs[:, input_length:]
             output_texts = processor.batch_decode(outputs, skip_special_tokens=True)                                                                                                                                        
             all_outputs.extend(output_texts)
         for j, values in enumerate(zip(all_input_texts, all_targets, all_outputs)):
