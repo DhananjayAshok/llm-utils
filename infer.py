@@ -33,6 +33,7 @@ loaded_parameters = load_parameters()
 @click.option("--ignore_checkpoint", is_flag=True, help="If set, will ignore any existing checkpoint and start from scratch")
 @click.option("--random_seed", default=loaded_parameters["random_seed"], help="The random seed for the project")
 @click.option("--log_file", default=loaded_parameters["log_file"], help="The file to log to")
+@click.option("--debug", is_flag=True, default=False, help="If set, will run in debug mode")
 @click.pass_context
 def main(ctx, **input_parameters):
     """
