@@ -13,7 +13,7 @@ from openai import OpenAI
 
 class OpenAIInference:
     def __init__(self, variant="gpt-4o-mini", max_new_tokens=10, parameters=None):
-        options = ["gpt-4o", "gpt-4o-mini"]
+        options = ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"]
         if variant not in options:
             log_error(f"Variant {variant} not supported. Choose from {options}", parameters)
         self.client = OpenAI()
@@ -170,8 +170,24 @@ def openai_inference(parameters, batch_name):
         # sort the batch results by idx as int
         batch_results["idx"] = batch_results["idx"].astype(int)
         batch_results = batch_results.sort_values(by="idx").reset_index(drop=True)
-        data_df[parameters["output_column"]] = batch_results["response"].tolist()
+        if data_df.shape[0] != batch_results.shape[0]:
+            log_warn(f"Critical Warning: Mismatch in number of rows between input data_df ({data_df.shape[0]}) and batch_results ({batch_results.shape[0]}). Will try to align indices", parameters)
+            data_df = data_df.reset_index(drop=True)
+            for i, row in batch_results.iterrows():
+                idx = row['idx']
+                if idx not in data_df.index:
+                    log_warn(f"Index {idx} from batch_results not found in data_df. Skipping.", parameters)
+                    continue
+                data_df.at[idx, parameters["output_column"]] = row['response']
+        else:
+            data_df[parameters["output_column"]] = batch_results["response"].tolist()
         data_df[parameters["generation_complete_column"]] = True
+        if data_df[parameters["output_column"]].isnull().any():
+            log_warn(f"Some rows in output column {parameters['output_column']} are still null after merging batch results. Dropping rows", parameters)
+            orig_size = data_df.shape[0]
+            data_df = data_df.dropna(subset=[parameters["output_column"]]).reset_index(drop=True)
+            new_size = data_df.shape[0]
+            log_info(f"Dropped {orig_size - new_size} rows. New size is {new_size}", parameters)
         data_df.to_json(output_filepath, index=False, orient="records", lines=True)
         log_info(f"Saved output to {output_filepath}", parameters)
         return
