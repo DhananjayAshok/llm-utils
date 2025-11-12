@@ -13,7 +13,7 @@ from openai import OpenAI
 
 class OpenAIInference:
     def __init__(self, variant="gpt-4o-mini", max_new_tokens=10, parameters=None):
-        options = ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"]
+        options = ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo", "gpt-5-mini", "gpt-5-nano", "gpt-5", "gpt-4"]
         if variant not in options:
             log_error(f"Variant {variant} not supported. Choose from {options}", parameters)
         self.client = OpenAI()

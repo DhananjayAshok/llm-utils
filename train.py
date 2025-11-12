@@ -103,6 +103,7 @@ class ScriptArguments:
     # Log
     log_verbose: Optional[bool] = field(default=False, metadata={"help": "print summary stats of data and processing information."})
     n_eval_output_batches: Optional[int] = field(default=1, metadata={"help": "the number of evaluation batches to use for logging outputs."})
+    do_debug: Optional[bool] = field(default=False, metadata={"help": "whether to run in debug mode. This allows you to set breakpoints etc inside the conditional, without breaking other running scripts that use this repo."})
 
 
 def search_for_checkpoint(output_dir, parameters):

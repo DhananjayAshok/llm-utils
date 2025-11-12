@@ -274,13 +274,25 @@ def get_trl_renamed_train_val_dataset(dataset):
     train_dataset = dataset["train"].rename_column("input", "prompt")
     if "output" in dataset["train"].features:
         train_dataset = train_dataset.rename_column("output", "completion")
+        train_dataset = train_dataset.map(lambda x: {"completion": " " + x["completion"]}, num_proc=1, desc="Adding space before completion")
     else:
         # make a dummy completion column with empty strings. Seems to work for pretraining. 
         train_dataset = train_dataset.add_column("completion", [""] * len(train_dataset))
+    if "chosen" in dataset["train"].features:
+        train_dataset = train_dataset.map(lambda x: {"chosen": " " + x["chosen"]}, num_proc=1, desc="Adding space before chosen")
+    if "rejected" in dataset["train"].features:
+        train_dataset = train_dataset.map(lambda x: {"rejected": " " + x["rejected"]}, num_proc=1, desc="Adding space before rejected")
     if "validation" in dataset:
         validation_dataset = dataset["validation"].rename_column("input", "prompt")
         if "output" in dataset["validation"].features:
             validation_dataset = validation_dataset.rename_column("output", "completion")
+            validation_dataset = validation_dataset.map(lambda x: {"completion": " " + x["completion"]}, num_proc=1, desc="Adding space before completion")
+        else:
+            validation_dataset = validation_dataset.add_column("completion", [""] * len(validation_dataset))
+        if "chosen" in dataset["validation"].features:
+            validation_dataset = validation_dataset.map(lambda x: {"chosen": " " + x["chosen"]}, num_proc=1, desc="Adding space before chosen")
+        if "rejected" in dataset["validation"].features:
+            validation_dataset = validation_dataset.map(lambda x: {"rejected": " " + x["rejected"]}, num_proc=1, desc="Adding space before rejected")
     else:
         validation_dataset = None
     return train_dataset, validation_dataset
