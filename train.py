@@ -14,6 +14,7 @@ from accelerate import Accelerator
 
 import os
 import yaml
+import sys
 from dataclasses import dataclass, field, asdict
 from typing import Optional, List
 import logging
@@ -96,11 +97,12 @@ class ScriptArguments:
     use_bnb: Optional[bool] = field(default=False, metadata={"help": "whether to use BitsAndBytes"})
     model_dtype: Optional[str] = field(default="float16", metadata={"help": "the model dtype. Set to bfloat16 if using BitsAndBytes"})
 
+    # Checkpoint logic
+    overwrite_final : Optional[bool] = field(default=False, metadata={"help": "whether to overwrite output_dir/final_checkpoint if it exists"})
 
     # Log
     log_verbose: Optional[bool] = field(default=False, metadata={"help": "print summary stats of data and processing information."})
     n_eval_output_batches: Optional[int] = field(default=1, metadata={"help": "the number of evaluation batches to use for logging outputs."})
-    debug: Optional[bool] = field(default=False, metadata={"help": "whether to run in debug mode"})
 
 
 def search_for_checkpoint(output_dir, parameters):
@@ -144,6 +146,12 @@ def override_defaults(training_args, parameters=default_parameters):
                 training_args.resume_from_checkpoint = available_checkpoint # TODO: Debug, this might not work for classification as it may need to load it instead of the model. 
     elif training_args.resume_from_checkpoint is None or training_args.resume_from_checkpoint == False:
         training_args.resume_from_checkpoint = False
+    if os.path.exists(training_args.output_dir + "/final_checkpoint"):
+        if script_args.overwrite_final:
+            log_warn(f"final_checkpoint already exists in {training_args.output_dir} but overwrite_final is set to True. Will end up overwriting final checkpoint after training...", parameters)
+        else:
+            log_info(f"final_checkpoint already exists in {training_args.output_dir}. To force overwrite, set overwrite_final to True.", parameters)
+            sys.exit(0)
     if training_args.save_total_limit is None:
         training_args.save_total_limit = 2
     if training_args.save_steps is None:
