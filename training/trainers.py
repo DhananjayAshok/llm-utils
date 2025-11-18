@@ -272,19 +272,28 @@ def get_trl_renamed_train_val_dataset(dataset):
     Rename the columns of the dataset to match the expected format for TRL trainers.
     """
     train_dataset = dataset["train"].rename_column("input", "prompt")
-    train_dataset = train_dataset.map(lambda x: {"prompt": x["prompt"] + "\n "}, num_proc=1, desc="Adding endline and space after prompt")
+    train_dataset = train_dataset.map(lambda x: {"prompt": x["prompt"] + " \n"}, num_proc=1, desc="Adding endline and space after prompt")
     if "output" in dataset["train"].features:
         train_dataset = train_dataset.rename_column("output", "completion")
+        train_dataset = train_dataset.map(lambda x: {"completion": "Output: " + x["completion"]}, num_proc=1, desc="Adding Output before completion")
     else:
         # make a dummy completion column with empty strings. Seems to work for pretraining. 
         train_dataset = train_dataset.add_column("completion", [""] * len(train_dataset))
+    po_cols = ["chosen", "rejected"]
+    for col in po_cols:
+        if col in dataset["train"].features:
+            train_dataset = train_dataset.map(lambda x: {col: "Output: " + x[col]}, num_proc=1, desc=f"Adding Output before {col}")
     if "validation" in dataset:
         validation_dataset = dataset["validation"].rename_column("input", "prompt")
-        validation_dataset = validation_dataset.map(lambda x: {"prompt": x["prompt"] + "\n "}, num_proc=1, desc="Adding endline and space after prompt")
+        validation_dataset = validation_dataset.map(lambda x: {"prompt": x["prompt"] + " \n"}, num_proc=1, desc="Adding endline and space after prompt")
         if "output" in dataset["validation"].features:
             validation_dataset = validation_dataset.rename_column("output", "completion")
+            validation_dataset = validation_dataset.map(lambda x: {"completion": "Output: " + x["completion"]}, num_proc=1, desc="Adding Output before completion")
         else:
             validation_dataset = validation_dataset.add_column("completion", [""] * len(validation_dataset))
+        for col in po_cols:
+            if col in dataset["validation"].features:
+                validation_dataset = validation_dataset.map(lambda x: {col: "Output: " + x[col]}, num_proc=1, desc=f"Adding Output before {col}")
     else:
         validation_dataset = None
     return train_dataset, validation_dataset
