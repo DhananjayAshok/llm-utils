@@ -9,6 +9,17 @@ from utils.vlm_utils import infer_vlm_kind, get_single_vlm_text, get_vlm_text
 from utils import log_info
 import wandb
 
+
+class StopOnZeroLossCallback(TrainerCallback):
+    def on_step_end(self, args, state, control, **kwargs):
+        # Check if the training loss is available and is approximately zero
+        if state.log_history:
+            last_log = state.log_history[-1]
+            if "loss" in last_log and last_log["loss"] < 1e-9:  # Using a small threshold for "zero"
+                print(f"Training loss reached zero ({last_log['loss']}), stopping training...")
+                control.should_training_stop = True
+        return control
+
 class SampleLoggingCallback(TrainerCallback):
     def __init__(self, training_kind, modality, n_eval_output_batches: int, eval_max_new_tokens: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -106,7 +117,10 @@ class SampleLoggingCallback(TrainerCallback):
         return
 
 def get_callback_list(script_args):
-    callbacks = [SampleLoggingCallback(script_args.training_kind, script_args.modality, script_args.n_eval_output_batches, script_args.eval_max_new_tokens)]
+    callbacks = [
+        SampleLoggingCallback(script_args.training_kind, script_args.modality, script_args.n_eval_output_batches, script_args.eval_max_new_tokens), 
+        StopOnZeroLossCallback(),
+                 ]
     if script_args.early_stopping_patience is not None:
         callbacks.append(
             EarlyStoppingCallback(
