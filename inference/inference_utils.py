@@ -66,17 +66,23 @@ def get_input_file(input_file, input_column, generation_complete_column, paramet
             log_error(f"Input file already has a column named '{generation_complete_column}'. This is used to track inference completion, reset it with --generation_complete_column or rename the column in your df", parameters)
         if parameters["output_logits_column"] in df.columns:
             log_error(f"Input file already has a column named '{parameters['output_logits_column']}'. This is used to store the model's output logits/probabilities, reset it with --output_logits_column or rename the column in your df", parameters)
+        if parameters["output_column"] in df.columns:
+            log_error(f"Input file already has a column named '{parameters['output_column']}'. This will be overwritten with the model's output.", parameters)
         if len(df) == 0:
             log_error(f"Input file {input_file} is empty.", parameters)
         return df
     return None
 
 def get_output_file_path(output_file, input_file, input_df, output_column, parameters):
+    # model_name_in_output_file
     if output_file is None:
         # replace the extension of input_file with '_output' before the extension
-        output_file = input_file.rsplit('.', 1)[0] + "_output." + "jsonl"
-        if output_column in input_df.columns:
-            log_error(f"Output file already has a column named '{output_column}'. This is used to store the model's output, reset it with --output_column or rename the column in your df", parameters)
+        start = input_file.rsplit('.', 1)[0]
+        end = "_output.jsonl"
+        if parameters["model_name_in_output_file"]:
+            model_name_end = parameters["model_name"].split("/")[-1]
+            end = f"_{model_name_end}_output.jsonl"
+        output_file = start + end
 
     for possible_extension in ["csv", "tsv", "json", "txt", "parquet"]:
         if output_file.endswith(possible_extension):

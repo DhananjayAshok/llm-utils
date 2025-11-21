@@ -26,6 +26,8 @@ def infer_vlm_kind(model_name=None, config=None):
         return "internvl"
     elif architecture in ["Ovis2_5"]:
         return "ovis"   
+    elif architecture in ["Qwen3VLForConditionalGeneration"]:
+        return "qwen3"
     else:
         log_error(f"Unrecognized Model Kind: {model_name} with architecture {architecture}")
 
@@ -37,9 +39,9 @@ def get_vlm_text(vlm_kind, input_texts):
         if not isinstance(input_texts, list):
             input_texts = input_texts.tolist()
         return input_texts
-    elif vlm_kind in ["qwen2.5"]:
+    elif vlm_kind in ["qwen2.5", "qwen3"]:
         for i, input_text in enumerate(input_texts):
-            input_texts[i] = get_single_vlm_text("qwen2.5", input_text)
+            input_texts[i] = get_single_vlm_text(vlm_kind, input_text)
         if not isinstance(input_texts, list):
             input_texts = input_texts.tolist()
         return input_texts
@@ -52,7 +54,7 @@ def get_single_vlm_text(vlm_kind, input_text):
             input_text = input_text.replace("<image>", "")
         input_text = "[INST] <image>\n" + input_text + "[/INST]"
         return input_text
-    elif vlm_kind in ["qwen2.5"]:
+    elif vlm_kind in ["qwen2.5", "qwen3"]:
         input_text = "<|im_start|>user\n<vision_start|><|image_pad|><|vision_end|>\n" + input_text + "\n<|im_end|><|im_start|>assistant\n"
         return input_text
     elif vlm_kind in ["internvl"]:

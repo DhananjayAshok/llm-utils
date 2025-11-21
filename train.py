@@ -14,6 +14,7 @@ from accelerate import Accelerator
 
 import os
 import yaml
+import sys
 from dataclasses import dataclass, field, asdict
 from typing import Optional, List
 import logging
@@ -59,9 +60,11 @@ class ScriptArguments:
     test_file: Optional[str] = field(default=None, metadata={"help": "the test file to measure final fit. If not provided and validation_test split is set, then a random split of the validation file is used."})
     train_validation_split: Optional[float] = field(default=None, metadata={"help": "the split of the training file to use for training if validation file is not provided. The rest is used as validation split"})
     validation_test_split: Optional[float] = field(default=None, metadata={"help": "the split of the validation file to use for internal model selection, early stopping etc. The rest is used as test split"})
+    eval_max_new_tokens: Optional[int] = field(default=512, metadata={"help": "the maximum number of tokens to use during evaluation."})
 
     input_column: str = field(default="input", metadata={"help": "the input column name"})
     image_input_column: str = field(default="image", metadata={"help": "the image input column name. Should contain paths to image files. Only used for VLMs."})
+    ga_forget_column: str = field(default="forget", metadata={"help": "the forget column name for GA training. Must be a boolean column indicating whether to forget the sample or not."})
     output_column: str = field(default="output", metadata={"help": "the output column name"})
     chosen_column: str = field(default=None, metadata={"help": "the chosen column name for preference training"})
     rejected_column: str = field(default=None, metadata={"help": "the rejected column name for preference training"})
@@ -94,10 +97,13 @@ class ScriptArguments:
     use_bnb: Optional[bool] = field(default=False, metadata={"help": "whether to use BitsAndBytes"})
     model_dtype: Optional[str] = field(default="float16", metadata={"help": "the model dtype. Set to bfloat16 if using BitsAndBytes"})
 
+    # Checkpoint logic
+    overwrite_final : Optional[bool] = field(default=False, metadata={"help": "whether to overwrite output_dir/final_checkpoint if it exists"})
 
     # Log
     log_verbose: Optional[bool] = field(default=False, metadata={"help": "print summary stats of data and processing information."})
     n_eval_output_batches: Optional[int] = field(default=1, metadata={"help": "the number of evaluation batches to use for logging outputs."})
+    do_debug: Optional[bool] = field(default=False, metadata={"help": "whether to run in debug mode. This allows you to set breakpoints etc inside the conditional, without breaking other running scripts that use this repo."})
 
 
 def search_for_checkpoint(output_dir, parameters):
@@ -106,9 +112,8 @@ def search_for_checkpoint(output_dir, parameters):
     final_exists = os.path.exists(output_dir + "/final_checkpoint")
     checkpoints = [os.path.join(output_dir, d) for d in os.listdir(output_dir) if d.startswith("checkpoint-")]
     if final_exists:
-        log_info(f"Resuming from final checkpoint.", parameters)
-        return output_dir + "/final_checkpoint"
-    elif len(checkpoints) == 0:
+        log_info(f"Detected final_checkpoint, but cannot restart from final checkpoint as trainer information is not stored. Looking for others.", parameters)
+    if len(checkpoints) == 0:
         log_info(f"{output_dir} exists but no checkpoint found, starting from scratch.", parameters)
         return None
     checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))
@@ -142,6 +147,12 @@ def override_defaults(training_args, parameters=default_parameters):
                 training_args.resume_from_checkpoint = available_checkpoint # TODO: Debug, this might not work for classification as it may need to load it instead of the model. 
     elif training_args.resume_from_checkpoint is None or training_args.resume_from_checkpoint == False:
         training_args.resume_from_checkpoint = False
+    if os.path.exists(training_args.output_dir + "/final_checkpoint"):
+        if script_args.overwrite_final:
+            log_warn(f"final_checkpoint already exists in {training_args.output_dir} but overwrite_final is set to True. Will end up overwriting final checkpoint after training...", parameters)
+        else:
+            log_info(f"final_checkpoint already exists in {training_args.output_dir}. To force overwrite, set overwrite_final to True.", parameters)
+            sys.exit(0)
     if training_args.save_total_limit is None:
         training_args.save_total_limit = 2
     if training_args.save_steps is None:
@@ -153,6 +164,8 @@ def override_defaults(training_args, parameters=default_parameters):
         training_args.output_dir = parameters["tmp_dir"] + "/" + parameters["run_start_time"] + "/"
     os.makedirs(training_args.output_dir, exist_ok=True)
     training_args.report_to = "wandb"
+    if script_args.training_kind == "ga":
+        script_args.remove_unused_columns = False # needed to keep forget column
 
 
 
