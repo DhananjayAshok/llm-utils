@@ -33,9 +33,6 @@ class SampleLoggingCallback(TrainerCallback):
             self.input_ids_key_name = "prompt_input_ids"
             self.output_ids_key_name = "chosen_input_ids"
             self.rejected_ids_key_name = "rejected_input_ids"
-        if self.training_kind in ["npo"]:
-            self.input_ids_key_name = "prompt_input_ids"
-            self.output_ids_key_name = "rejected_input_ids"
         base_columns = ["global_step", "item_id", "input"]
         if self.training_kind in ["clf", "sft", "ga", "npo", "pre"]:
             base_columns.extend(["target_output", "model_output"])
@@ -74,9 +71,9 @@ class SampleLoggingCallback(TrainerCallback):
             real_targets = []
             real_rejecteds = []
             for j, start_idx in enumerate(starting_indices):
-                if self.training_kind in ["sft", "ga", "pre"]:                
+                if self.training_kind in ["sft", "ga", "pre", "npo"]:
                     input_ids = batch[self.input_ids_key_name][j][:start_idx]
-                elif self.training_kind in ["npo", "dpo", "cpo", "kto"]:
+                elif self.training_kind in ["dpo", "cpo", "kto"]:
                     input_ids = batch[self.input_ids_key_name][j] # start_idx is always 0
                 text = processor.decode(input_ids, skip_special_tokens=True)
                 real_input_texts.append(text)
@@ -119,8 +116,9 @@ class SampleLoggingCallback(TrainerCallback):
 def get_callback_list(script_args):
     callbacks = [
         SampleLoggingCallback(script_args.training_kind, script_args.modality, script_args.n_eval_output_batches, script_args.eval_max_new_tokens), 
-        StopOnZeroLossCallback(),
                  ]
+    if script_args.training_kind != "ga":
+        callbacks.append(StopOnZeroLossCallback())
     if script_args.early_stopping_patience is not None:
         callbacks.append(
             EarlyStoppingCallback(
@@ -452,7 +450,6 @@ def get_npo_trainer(script_args, training_args, dataset, model, processor, peft_
     callbacks = get_callback_list(script_args)
     trainer = NPOTrainer(
         model,
-        ref_model=None,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=validation_dataset,
