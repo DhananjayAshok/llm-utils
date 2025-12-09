@@ -24,9 +24,11 @@ def get_model_processor(script_args, dataset):
     if not script_args.distributed: # then we distribute the model ourselves
         model_kwargs["device_map"] = "auto"
     if script_args.training_kind != "clf":
+        config = AutoConfig.from_pretrained(script_args.model_name, trust_remote_code=True)
         if script_args.modality == "lm":
             base_model = AutoModelForCausalLM.from_pretrained(
                 script_args.model_name,
+                config=config,
                 quantization_config=bnb_config,
                 trust_remote_code=True,
                 **model_kwargs
@@ -34,6 +36,7 @@ def get_model_processor(script_args, dataset):
         elif script_args.modality == "vlm":
             base_model = AutoModelForImageTextToText.from_pretrained(
                 script_args.model_name,
+                config=config,
                 quantization_config=bnb_config,
                 trust_remote_code=True,
                 **model_kwargs
