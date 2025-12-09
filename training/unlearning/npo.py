@@ -1,96 +1,162 @@
 from trl import DPOTrainer
 from trl.trainer.dpo_trainer import *
+import torch
+from torch import nn
+import torch.nn.functional as F
+from trl import SFTTrainer
+import copy
+from trl.trainer.sft_trainer import entropy_from_logits, PeftType
 
 
-class NPOTrainer(DPOTrainer):
+def get_batch_loss(output, labels):
+    shifted_labels = labels[..., 1:].contiguous()
+    output = output[..., :-1, :].contiguous()
+
+    loss_function = nn.CrossEntropyLoss(ignore_index=-100, reduction='none')
+    # get the sum loss for each sequence in a batch
+    loss = loss_function(output.transpose(-1,-2), shifted_labels).sum(dim=-1)
+    return loss
+
+class NPOTrainer(SFTTrainer):
     """
     Trainer for Negative Preference Optimization (NPO) method.
 
-    This class is a wrapper around the [`trl.DPOTrainer`] class and inherits all of its attributes and methods. It is largely based off the trl DPO code
+    This class is a wrapper around the [`trl.SFTTrainer`] class and inherits all of its attributes and methods. It is largely based off the trl SFT code
     """
 
     _tag_names = ["trl", "npo"]
 
-    def dpo_loss(
-        self,
-        chosen_logps: torch.FloatTensor,
-        rejected_logps: torch.FloatTensor,
-        ref_chosen_logps: torch.FloatTensor,
-        ref_rejected_logps: torch.FloatTensor,
-        loss_type: str = "sigmoid",
-        model_output: dict[str, torch.FloatTensor] = None,
-    ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
+    def __init__(self, *args, beta=0.1, **kwargs):
+        model = args[0]
+        self.oracle_model = copy.deepcopy(model).eval()
+        self.beta = beta
+        super().__init__(*args, **kwargs)
+
+    def super_compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """
-        Compute the DPO loss for a batch of policy and reference model log probabilities.
+        #ref: https://github.com/huggingface/transformers/blob/514de24abfd4416aeba6a6455ad5920f57f3567d/src/transformers/trainer.py#L2759C30-L2759C63
+        How the loss is computed by Trainer. By default, all models return the loss in the first element.
 
-        Args:
-            chosen_logps (`torch.FloatTensor`):
-                Log probabilities of the model for the chosen responses. Shape: `(batch_size,)`.
-            rejected_logps (`torch.FloatTensor`):
-                Log probabilities of the model for the rejected responses. Shape: `(batch_size,)`.
-            ref_chosen_logps (`torch.FloatTensor`):
-                Log probabilities of the reference model for the chosen responses. Shape: `(batch_size,)`.
-            ref_rejected_logps (`torch.FloatTensor`):
-                Log probabilities of the reference model for the rejected responses. Shape: `(batch_size,)`.
-            loss_type (`str`, must be `"sigmoid"`)
-            model_output (`dict[str, torch.FloatTensor]`, *optional*):
-                The output of the model's forward pass. This is used to compute auxiliary losses if enabled.
-
-        Returns:
-            A tuple of three tensors: `(losses, chosen_rewards, rejected_rewards)`. The losses tensor contains the DPO
-            loss for each example in the batch. The `chosen_rewards` and `rejected_rewards` tensors contain the rewards
-            for the chosen and rejected responses, respectively.
+        Subclass and override for custom behavior.
         """
-        device = self.accelerator.device
+        labels = inputs.pop("labels")
+        # forward pass
+        outputs = model(**inputs)
+        forget_loss_current = get_batch_loss(outputs.logits, labels) 
+        logits = outputs.get("logits")
+        with torch.no_grad():
+            forget_outputs_oracle = self.oracle_model(**inputs)
+            forget_logits_oracle = forget_outputs_oracle.logits
+            forget_loss_oracle = get_batch_loss(forget_logits_oracle, labels)
+        neg_log_ratios = forget_loss_current - forget_loss_oracle
+        loss = -F.logsigmoid(self.beta * neg_log_ratios).mean() * 2 / self.beta 
+        return (loss, outputs) if return_outputs else loss
 
-        # Get the log ratios for the chosen and rejected responses
-        rejected_logratios = rejected_logps.to(device) - (not self.reference_free) * ref_rejected_logps.to(device)
+    
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        """
+        Compute training loss and additionally compute token accuracies
+        ref: https://github.com/huggingface/trl/blob/23da61d5894f2886764bc62b3b76fd4797d401f1/trl/trainer/sft_trainer.py#L1129
+        """
+        mode = "train" if self.model.training else "eval"
+        
+        # Set aside labels as it will be dropped by super().compute_loss() if a custom `compute_loss_func` is used.
+        # This can be removed when this issue is fixed.
+        # When using CP or SP, labels are pre-shifted, we must use shift_labels instead.
+        labels = inputs["labels"] if "shift_labels" not in inputs else None
 
-        if self.f_divergence_type == FDivergenceType.ALPHA_DIVERGENCE.value:
-            # The alpha-divergence formula: (1 - u^-alpha) / alpha
-            # The divergence difference between the chosen and rejected sample is:
-            #     (1 - u[w]^-alpha) / alpha - (1 - u[l]^-alpha) / alpha
-            #        = (u[l]^-alpha - u[w]^-alpha) / alpha
-            # where u[w] and u[l] are the policy/reference probability ratios
-            # for the chosen and rejected samples, respectively.
-            alpha_coef = FDivergenceConstants.ALPHA_DIVERGENCE_COEF_DEFAULT
-            if self.f_divergence_params and FDivergenceConstants.ALPHA_DIVERGENCE_COEF_KEY in self.f_divergence_params:
-                alpha_coef = float(self.f_divergence_params[FDivergenceConstants.ALPHA_DIVERGENCE_COEF_KEY])
-            logits = (cap_exp(rejected_logratios * -alpha_coef)) / alpha_coef
-        else:
-            logratios = - rejected_logps
-            if self.reference_free:
-                ref_logratios = torch.tensor([0], dtype=logratios.dtype, device=logratios.device)
+        # If not set, defaults from model config and may warn since cache isn't compatible with gradient checkpointing
+        inputs["use_cache"] = False
+        # Request token accuracy from Liger kernel and set token scaling if using DFT loss
+        if self.args.use_liger_kernel:
+            inputs["return_token_accuracy"] = True
+            inputs["use_token_scaling"] = self.args.loss_type == "dft"
+
+        (loss, outputs) = self.super_compute_loss(
+            model, inputs, return_outputs=True, num_items_in_batch=num_items_in_batch
+        )
+
+        # Compute entropy
+        if not self.args.use_liger_kernel:  # liger doesn't return logits
+            with torch.no_grad():
+                per_token_entropy = entropy_from_logits(outputs.logits)
+                # When using Prompt Tuning, skip the virtual tokens in logits before entropy computation, since they
+                # do not correspond to actual input tokens.
+                if (
+                    self.num_virtual_tokens > 0
+                    and model.peft_config[model.active_adapter].peft_type != PeftType.PREFIX_TUNING
+                ):
+                    per_token_entropy = per_token_entropy[:, self.num_virtual_tokens :]
+                if "attention_mask" in inputs:
+                    attention_mask = inputs["attention_mask"]
+                    entropy = torch.sum(per_token_entropy * attention_mask) / attention_mask.sum()
+                elif "position_ids" in inputs:
+                    entropy = torch.mean(per_token_entropy)
+                else:
+                    raise ValueError("Expected 'attention_mask' or 'position_ids' in inputs.")
+                entropy = self.accelerator.gather_for_metrics(entropy).mean().item()
+            self._metrics[mode]["entropy"].append(entropy)
+
+        if mode == "train":
+            # When using padding-free, the attention_mask is not present in the inputs, instead we have cu_seq_lens_q,
+            # cu_seq_lens_k, and max_length_k, max_length_q and position_ids.
+            if "attention_mask" in inputs:
+                num_tokens_in_batch = self.accelerator.gather_for_metrics(inputs["attention_mask"].sum()).sum().item()
+            elif "position_ids" in inputs:
+                local_num_tokens = torch.tensor(inputs["position_ids"].size(1), device=inputs["position_ids"].device)
+                num_tokens_in_batch = self.accelerator.gather_for_metrics(local_num_tokens).sum().item()
             else:
-                ref_logratios = - ref_rejected_logps
+                raise ValueError("Expected 'attention_mask' or 'position_ids' in inputs.")
+            self._total_train_tokens += num_tokens_in_batch
+        self._metrics[mode]["num_tokens"] = [self._total_train_tokens]
 
-            logratios = logratios.to(self.accelerator.device)
-            ref_logratios = ref_logratios.to(self.accelerator.device)
-            logits = logratios - ref_logratios
-
-            if self.f_divergence_type == FDivergenceType.JS_DIVERGENCE.value:
-                # The js-divergence formula: log(2 * u / (1 + u))
-                # The divergence difference between the chosen and rejected sample is:
-                #     log(2 * u[w] / (1 + u[w])) - log(2 * u[l] / (1 + u[l]))
-                #       = log(u[w]) - log(u[l]) - (log(1 + u[w]) - log(1 + u[l]))
-                # where u[w] and u[l] are the policy/reference probability ratios
-                # for the chosen and rejected samples, respectively.
-                logits -= -F.softplus(rejected_logratios)
-
-        # The beta is a temperature parameter for the DPO loss, typically something in the range of 0.1 to 0.5.
-        # We ignore the reference model as beta -> 0. The label_smoothing parameter encodes our uncertainty about the
-        # labels and calculates a conservative DPO loss.
-        if loss_type == "sigmoid":
-            losses = (
-                -F.logsigmoid(self.beta * logits) * (1 - self.label_smoothing)
-                - F.logsigmoid(-self.beta * logits) * self.label_smoothing
-            )
-
+        if self.args.use_liger_kernel:
+            token_accuracy = self.accelerator.gather_for_metrics(outputs.token_accuracy).mean().item()
+            self._metrics[mode]["mean_token_accuracy"].append(token_accuracy)
         else:
-            raise ValueError(
-                f"Unknown loss type: {self.loss_type}. Should be sigmoid"
-            )
+            # Compute accuracy from logits using argmax (traditional method)
+            with torch.no_grad():
+                if "shift_labels" in inputs:
+                    # When using CP or SP, labels are pre-shifted. We must use these (and cannot manually shift) because:
+                    # - The first discarded token from inputs["labels"] actually belongs to process n-1
+                    # - The last logits require the label from process n+1
+                    shift_logits = outputs.logits.contiguous()
+                    shift_labels = inputs["shift_labels"]
+                else:
+                    shift_logits = outputs.logits[..., :-1, :].contiguous()
+                    shift_labels = labels[..., 1:].contiguous()
 
-        rejected_rewards = self.beta * (rejected_logps.to(device) - ref_rejected_logps.to(device)).detach()
-        chosen_rewards = torch.zeros_like(rejected_rewards).to(device)
-        return losses, chosen_rewards, rejected_rewards
+                # Prompt Tuning and P-Tuning output logits for virtual tokens but Prefix-Tuning does not.
+                if (
+                    self.num_virtual_tokens > 0
+                    and model.peft_config[model.active_adapter].peft_type != PeftType.PREFIX_TUNING
+                ):
+                    shift_logits = shift_logits[:, self.num_virtual_tokens :, :]
+
+                # Get predictions
+                predictions = shift_logits.argmax(dim=-1)
+
+                # Create mask for non-padding tokens (assuming ignore_index is -100)
+                mask = shift_labels != -100
+
+                # Calculate accuracy only on non-padding tokens
+                correct_predictions = (predictions == shift_labels) & mask
+                total_tokens = mask.sum()
+                correct_tokens = correct_predictions.sum()
+
+                # Gather the correct_tokens and total_tokens across all processes
+                correct_tokens = self.accelerator.gather_for_metrics(correct_tokens)
+                total_tokens = self.accelerator.gather_for_metrics(total_tokens)
+
+                # Compute the mean token accuracy and log it
+                total_sum = total_tokens.sum()
+                accuracy = (correct_tokens.sum() / total_sum).item() if total_sum > 0 else 0.0
+                self._metrics[mode]["mean_token_accuracy"].append(accuracy)
+
+        # Log auxiliary loss if enabled (applies to both Liger and non-Liger)
+        if self.aux_loss_enabled:
+            aux_loss = outputs.aux_loss
+            aux_loss = self.accelerator.gather_for_metrics(aux_loss).mean().item()
+            self._metrics[mode]["aux_loss"].append(aux_loss)
+
+        return (loss, outputs) if return_outputs else loss

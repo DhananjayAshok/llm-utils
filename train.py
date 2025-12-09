@@ -177,13 +177,13 @@ if __name__ == "__main__":
     script_args = parser.parse_args_into_dataclasses(return_remaining_strings=True)[0]  # return_remaining_strings stops error out on unknown args
     accelerator = Accelerator()
     distributed = accelerator.num_processes > 1
-    if script_args.training_kind in ["pre", "sft", "ga"]:
+    if script_args.training_kind in ["pre", "sft", "ga", "npo"]:
         parser = HfArgumentParser((ScriptArguments, SFTConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
         if script_args.training_kind == "pre":
             training_args.packing = True
             training_args.completion_only_loss = False
-    elif script_args.training_kind in ["dpo", "npo"]:
+    elif script_args.training_kind in ["dpo"]:
         parser = HfArgumentParser((ScriptArguments, DPOConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
     elif script_args.training_kind == "kto":
