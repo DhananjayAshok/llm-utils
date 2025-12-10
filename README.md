@@ -11,6 +11,8 @@ Language Models:
 
 All code is based on HuggingFace Transformers and TRL and supports FSDP with multiple GPUs. 
 
+This branch is being actively worked on and may have breaking changes pushed to it at any time. If you want to use a stable version of the code base without running the tests / actively adding features, see the [app]() branch instead. 
+
 ## Setup
 First, clone the repo, then follow the [instructions](setup/README.md) to set up the environment with the right packages and Python version. Before running anything, you should make sure to populate the essential fields in the [config files](configs/README.md). After that, run:
 
