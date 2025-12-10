@@ -5,11 +5,17 @@ First, ensure you have installed uv in your python.
 pip install --upgrade pip  uv
 ```
 
-## Installing to alternate locations
+## Pre-existing Installation / Installing to alternate locations
 
-Next, decide where you want to store the virtual environment. Some users may *not* want to install the environment into `setup/.venv/` (perhaps the filesystem space is limited and you want the env to be elsewhere). If you're fine saving in `setup/.venv/` directly, skip to the next section. 
+Next, decide where you want to store the virtual environment. If you already have this repo set up elsewhere, you might not want to have separate environments for every instance of it. Some users may *not* want to install the environment into `setup/.venv/` (perhaps the filesystem space is limited and you want the env to be elsewhere). If you're fine saving in `setup/.venv/` directly, skip to the next section. 
 
-If you want to install to an alternate location, first create the environment elsewhere and create a symbolic link to the `setup/.venv` directory. 
+If you have a pre-existing installation somewhere, create a symbolic link to it in the `setup/.venv` directory:
+```console
+# Run this in root directory of the project
+ln -s /path/to/existing/venv setup/.venv 
+```
+
+If you want to install to an alternate location, first create the environment elsewhere and then create a symbolic link to the `setup/.venv` directory:
 ```console
 # Run this in root directory of the project
 uv venv /path/to/venv --python=3.12
