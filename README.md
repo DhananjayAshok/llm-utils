@@ -36,7 +36,8 @@ bash tests/test_all.sh
 If this fails, then isolate the problem by following the [test instructions](tests/README.md)
 
 ### FSDP (Optional)
-If you want to use FSDP or Accelerate distribution, then set up the accelerate config file with
+If you want to use FSDP or Accelerate distribution, then set up the accelerate config file. In general, I recommend you do *not* do this unless you know what you're doing / you have a good reason to try it. Accelerate FSDP etc. is a bit buggy and can considerably slow down model training / saving for what seems to be little gain. 
+
 ```bash
 accelerate config
 ```
@@ -93,9 +94,11 @@ tpu_use_sudo: false
 use_cpu: false
 ```
 
+If you want to use `accelerate` to launch the training script with FSDP etc, instead of running `train.py` with `python train.py --args`, you must use `accelerate launch train.py --args`
+
 ## Examples
 
-I have a [set of examples](examples/README.md) that show how to use the code for different tasks. The examples cover all functionality of the code. 
+I have a [set of examples](examples/README.md) that show how to use the code for different tasks. The examples cover most functionality of the code. 
 
 ## Project Organization
 
@@ -138,4 +141,6 @@ The essential format to follow for each training paradigm is given below:
 1. Classification: input files must be `.csv` with `input` and `output` columns
 2. Pretraining: input files can either be `.txt` or `.csv`, csv must have column `input` with the text to learn. You can also include an `output` column, in which case we will concatenate the two columns and pretrain on the whole thing. If instead, you want to only pretrain on the input column, pass in `--pretrain_with_output False`
 3. Supervised Finetuning: input files must be a csv with `input` and `output` columns. Loss is only computed on completions/output, if you want loss to be computed on the input prompt as well, this is handled by the pretraining paradigm. 
-4. Direct Preference Optimization: input files must be a csv with input, chosen and rejected columns. 
+4. Direct Preference Optimization: input files must be a csv with `input`, `chosen` and `rejected` columns.
+5. Gradient Ascent: input files must be a csv with `input`, `output` and `forget` columns, where `forget` is a binary indicator as to whether or not that particular example should be forgotten. Setting `forget=0` for all rows is equivalent to running SFT
+6. Negative Preference Optimization: input files must be a csv with `input` and `output` columns. 
