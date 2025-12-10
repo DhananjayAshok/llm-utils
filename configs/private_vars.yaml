@@ -1,3 +1,3 @@
-storage_dir: "PLACEHOLDER"
+storage_dir: "storage"
 env_dir: "setup/.venv/" # Path to the virtual environment. If you have installed the venv in a different location, make sure to change this.
 huggingface_hub_username: "DJ-Research"
