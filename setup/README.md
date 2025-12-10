@@ -1,11 +1,24 @@
-This project uses [uv](https://docs.astral.sh/uv/guides/projects/) to manage dependencies, but there is one significant design decision: the 'uv project' is in the `setup` directory, as opposed to root. This means that once you've created the environment, you will find the virtual environment in `setup/.venv/`. 
+This project uses Python 3.12 with [uv](https://docs.astral.sh/uv/guides/projects/) to manage dependencies, but there is one significant design decision: the 'uv project' is in the `setup` directory, as opposed to root. This means that once you've created the environment, you will find the virtual environment in `setup/.venv/`. 
 
 First, ensure you have installed uv in your python.
 ```console
 pip install --upgrade pip  uv
 ```
 
-Then, navigate to the setup folder and run `uv sync`:
+## Installing to alternate locations
+
+Next, decide where you want to store the virtual environment. Some users may *not* want to install the environment into `setup/.venv/` (perhaps the filesystem space is limited and you want the env to be elsewhere). If you're fine saving in `setup/.venv/` directly, skip to the next section. 
+
+If you want to install to an alternate location, first create the environment elsewhere and create a symbolic link to the `setup/.venv` directory. 
+```console
+# Run this in root directory of the project
+uv venv /path/to/venv --python=3.12
+ln -s /path/to/venv setup/.venv 
+```
+If you are doing this, make sure to set the UV_CACHE environment variable to the same filesystem as the environment.
+
+## Installation
+Finally, navigate to the setup folder and run `uv sync`:
 
 ```console
 cd setup
@@ -17,17 +30,3 @@ This will create a virtual environment in setup/.venv. Before running any code i
 ```console
 source setup/.venv/bin/activate
 ```
-
-## Installing to alternate locations
-
-If you don't want to have the virtual environment here, but a different location, then first create the venv elsewhere and activate it:
-```console
-uv venv /path/to/venv --python=3.XX.XX
-source /path/to/venv/bin/activate
-```
-Then, come back to the setup directory and run:
-```console
-uv sync --active
-```
-
-If you do this, remember to add `/path/to/venv/` to the [configs file](../configs/private_vars.yaml)
