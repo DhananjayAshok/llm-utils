@@ -1,3 +1,3 @@
-storage_dir: "storage"
+storage_dir: "should_not_be_used"
 env_dir: "setup/.venv/" # Path to the virtual environment. If you have installed the venv in a different location, make sure to change this.
-huggingface_hub_username: "PLACEHOLDER"
+huggingface_hub_username: "NOT_USED"
