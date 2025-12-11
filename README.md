@@ -14,7 +14,17 @@ All code is based on HuggingFace Transformers and TRL and supports FSDP with mul
 This branch is the stable version of the code base and does not support running the examples tests / actively adding features. If you want to do that, see the dev branch instead. 
 
 ## Setup
-First, clone the repo, then follow the [instructions](setup/README.md) to set up the environment with the right packages and Python version. That's all the setup you need for inference, but for training, you will need to log in to WandB with 
+
+This branch is meant to be used as a submodule in a higher-level project that will call on its functionalities. We assume that you *already* have a GitHub Repository set up and want to set up llm-utils inside it. 
+
+First, add the repo as a submodule and update the repo:
+```bash
+git submodule add -b app <url_to_this_repo>
+git submodule init
+git submodule update
+```
+
+Then follow the [instructions](setup/README.md) to set up the environment with the right packages and Python version. That's all the setup you need for inference, but for training, you will need to log in to WandB with 
 
 ```bash
 wandb login
