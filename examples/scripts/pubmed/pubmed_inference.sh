@@ -12,7 +12,7 @@ exit
 
 python3 << EOF
 import pandas as pd
-df = pd.read_csv("/project/jonmay_1426/ashokd//tmp/data/pubmedqa/qa_gen_standard.csv")
+df = pd.read_csv("$storage_dir/data/pubmedqa/qa_gen_standard.csv")
 df.sample(1000, random_state=42).to_csv("tmp_inf.csv", index=False)
 EOF
 
