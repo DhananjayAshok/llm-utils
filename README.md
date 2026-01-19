@@ -11,94 +11,28 @@ Language Models:
 
 All code is based on HuggingFace Transformers and TRL and supports FSDP with multiple GPUs. 
 
-This branch is being actively worked on and may have breaking changes pushed to it at any time. If you want to use a stable version of the code base without running the examples/tests or actively adding features, see the [app](https://github.com/DhananjayAshok/llm-utils/tree/app) branch instead. 
+This branch is the stable version of the code base and does not support running the examples tests / actively adding features. If you want to do that, see the dev branch instead. 
 
 ## Setup
-First, clone the repo, then follow the [instructions](setup/README.md) to set up the environment with the right packages and Python version. Before running anything, you should make sure to populate the essential fields in the [config files](configs/README.md). After that, run:
 
+This branch is meant to be used as a submodule in a higher-level project that will call on its functionalities. We assume that you *already* have a GitHub Repository set up and want to set up llm-utils inside it. 
+
+First, add the repo as a submodule and update the repo:
 ```bash
-python configs/create_env_file.py
+git submodule add -b app <url_to_this_repo>
+git submodule init
+git submodule update
 ```
 
-That's all the setup you need for inference, but for training, you will need to set up a couple of additional things. 
-
-Log in to WandB with 
+Then follow the [instructions](setup/README.md) to set up the environment with the right packages and Python version. That's all the setup you need for inference, but for training, you will need to log in to WandB with 
 
 ```bash
 wandb login
 ```
 
-That's it! You can now run the code. Test that the code base works fine by running:
-```bash
-bash tests/test_all.sh
-```
-
-If this fails, then isolate the problem by following the [test instructions](tests/README.md)
-
 ### FSDP (Optional)
-If you want to use FSDP or Accelerate distribution, then set up the accelerate config file. In general, I recommend you do *not* do this unless you know what you're doing / you have a good reason to try it. Accelerate FSDP etc. is a bit buggy and can considerably slow down model training / saving for what seems to be little gain. 
+The code base supports FSDP, but it can be a bit buggy. See the dev repo for instructions on setting it up. 
 
-```bash
-accelerate config
-```
-Common Setup:
-- This Machine
-- multi-GPU 
-- 1 node
-- No checking distributed ops
-- No torch Dynamo 
-- Enter number of available GPUs when asked 
-- mixed precision bf16
-
-Basic Setup:
-- No DeepSpeed, FSDP, Megatron
-- yes numa efficiency
-
-FSDP:
-- No DeepSpeed
-- Yes FSDP
-- FSDP version 2
-- Choose defaults for `enable resharding` (yes), `offload` (no)
-- Transformer Based Wrap => yes to use the model's _no_split_modules
-- SHARDED_STATE_DICT state dict type
-- Yes to CPU RAM efficient model loading
-- No to activation checkpointing
-- No to parallelism config
-
-The FSDP configuration gives me the accelerate config (at `<path_to_huggingface>/accelerate/default_config.yaml`) yaml:
-
-```yaml
-compute_environment: LOCAL_MACHINE                                                                                                             
-debug: false                                                                                                                                   
-distributed_type: FSDP
-downcast_bf16: 'no'
-enable_cpu_affinity: false
-fsdp_config:
-  fsdp_activation_checkpointing: false
-  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
-  fsdp_cpu_ram_efficient_loading: true
-  fsdp_offload_params: false
-  fsdp_reshard_after_forward: true
-  fsdp_state_dict_type: SHARDED_STATE_DICT
-  fsdp_version: 2
-machine_rank: 0
-main_training_function: main
-mixed_precision: bf16
-num_machines: 1
-num_processes: 8
-rdzv_backend: static
-same_network: true
-tpu_env: []
-tpu_use_cluster: false
-tpu_use_sudo: false
-use_cpu: false
-```
-
-If you want to use `accelerate` to launch the training script with FSDP etc, instead of running `train.py` with `python train.py --args`, you must use `accelerate launch train.py --args`
-
-## Examples
-
-I have a [set of examples](examples/README.md) that show how to use the code for different tasks. The examples cover most functionality of the code. 
 
 ## Project Organization
 
