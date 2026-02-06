@@ -1,36 +1,19 @@
 from utils import log_error, log_warn, log_info, log_dict
 import click
 from transformers import (AutoModelForCausalLM, AutoTokenizer, AutoModelForSequenceClassification,
-                          AutoConfig, AutoModel,
-                          DynamicCache, StaticCache, OffloadedCache, OffloadedStaticCache,
-                          LlavaNextProcessor, LlavaNextForConditionalGeneration,
+                          AutoModel,
+                          LlavaNextForConditionalGeneration,
                           AutoModelForImageTextToText, AutoProcessor,
                           GenerationConfig, set_seed)
 import torch
 import copy
 from inference.inference_utils import discover_prefix_prompt, save_meta_file, require_gpu
-from utils.vlm_utils import get_intern_vl_pixels, infer_vlm_kind, get_vlm_text
+from utils.vlm_utils import infer_vlm_kind, get_vlm_text
 from tqdm import tqdm
 import numpy as np
 from PIL import Image
 from skimage import io
-import requests
 import os
-
-
-def get_cache(cache_implementation, model, batch_size, num_beams=1):
-    if cache_implementation == "dynamic":
-        return DynamicCache()
-    elif cache_implementation == "static":
-        return StaticCache(config=model.config, max_batch_size=batch_size, max_cache_len=1024, device=model.device, dtype=model.dtype)
-    elif cache_implementation == "offloaded":
-        return OffloadedCache()
-    elif cache_implementation == "offloaded_static":
-        return OffloadedStaticCache(config=model.config, max_batch_size=batch_size, max_cache_len=1024, device=model.device, dtype=model.dtype)
-    elif cache_implementation == "quantized":
-        raise NotImplementedError("Quantized cache is not implemented yet. It seems to be broken in transformers? QuantizedCache, QuantizedCacheConfig are the relevant classes.")
-    else:
-        raise ValueError(f"Invalid cache implementation {cache_implementation}. Must be one of 'dynamic', 'static', 'offloaded', 'offloaded_static', or 'quantized'.")
 
 
 def get_model(parameters, quantization, model_kind):
@@ -276,7 +259,6 @@ def hf_inference(parameters, model_kind, quantization, padding_side, batch_size,
             log_warn(f"Prefix caching is enabled but no prefix prompt could be discovered. "
                      f"Running inference without prefix caching...", parameters)
         else:
-            #prompt_cache = get_cache(cache_implementation=cache_implementation, model=model, batch_size=batch_size)
             prefix_inputs = parameters["tokenizer"]([prefix_text], padding=True, truncation=True, return_tensors="pt").to(model.device)
             prompt_cache = model(**prefix_inputs, cache_implementation=cache_implementation).past_key_values # had past_key_values=prompt_cache
             del prefix_inputs
