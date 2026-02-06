@@ -182,3 +182,4 @@ wandb/
 *.out
 storage/
 tmp_test_data/
+openai_tmp_files/
