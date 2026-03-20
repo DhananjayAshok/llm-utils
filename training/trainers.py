@@ -285,8 +285,7 @@ def get_trl_renamed_train_val_dataset(dataset):
     Rename the columns of the dataset to match the expected format for TRL trainers.
     """
     dataset = drop_column_if_needed(dataset, "prompt")
-    if "output" in dataset["train"].features:
-        dataset = drop_column_if_needed(dataset, "output")
+    dataset = drop_column_if_needed(dataset, "completion")
     po_cols = ["chosen", "rejected"]
     for col in po_cols:        
         dataset = drop_column_if_needed(dataset, col)
