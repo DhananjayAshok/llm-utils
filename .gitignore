@@ -183,3 +183,6 @@ wandb/
 storage/
 tmp_test_data/
 openai_tmp_files/
+configs/config.env
+tmp*
+tmp/
