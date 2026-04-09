@@ -5,6 +5,7 @@ from trl.trainer.sft_trainer import DataCollatorForLanguageModeling
 from training.unlearning import GATrainer, NPOTrainer
 import numpy as np
 from training.model import get_peft_config
+from training.data import drop_column_if_needed
 from utils.vlm_utils import infer_vlm_kind, get_single_vlm_text, get_vlm_text
 from utils import log_info
 import wandb
@@ -283,6 +284,11 @@ def get_trl_renamed_train_val_dataset(dataset):
     """
     Rename the columns of the dataset to match the expected format for TRL trainers.
     """
+    dataset = drop_column_if_needed(dataset, "prompt")
+    dataset = drop_column_if_needed(dataset, "completion")
+    po_cols = ["chosen", "rejected"]
+    for col in po_cols:        
+        dataset = drop_column_if_needed(dataset, col)
     train_dataset = dataset["train"].rename_column("input", "prompt")
     train_dataset = train_dataset.map(lambda x: {"prompt": x["prompt"] + " \n"}, num_proc=1, desc="Adding endline and space after prompt")
     if "output" in dataset["train"].features:
@@ -291,7 +297,6 @@ def get_trl_renamed_train_val_dataset(dataset):
     else:
         # make a dummy completion column with empty strings. Seems to work for pretraining. 
         train_dataset = train_dataset.add_column("completion", [""] * len(train_dataset))
-    po_cols = ["chosen", "rejected"]
     for col in po_cols:
         if col in dataset["train"].features:
             train_dataset = train_dataset.map(lambda x: {col: "Output: " + x[col]}, num_proc=1, desc=f"Adding Output before {col}")
