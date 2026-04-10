@@ -448,7 +448,7 @@ def setup_okvqa(parameters):
     for split in dset.keys():
         for i in tqdm(range(len(dset[split])), total=len(dset[split]), desc=f"Saving {split} images"):
             image = dset[split][i]["image"]
-            image.save(image_dir + f"{split}_{i}.jpg")
+            image.save(image_dir + f"/{split}_{i}.jpg")
     log_info(f"Saved OKVQA images to {image_dir}", parameters)
     prompt = "What is in this image?" 
     single_inference_data = []
@@ -559,8 +559,8 @@ def setup_okvqa(parameters):
             rejected = direct_answers[0]
         po_data.append({"input": question + "\nImage: " + image, "chosen": chosen, "rejected": rejected})
     po_df = pd.DataFrame(po_data, columns=po_columns)
-    po_df.to_csv(os.path.join(data_dir, "po_train.csv"), index=False)
-    log_info(f"Saved OKVQA preference optimization dataset to {os.path.join(data_dir, 'po_train.csv')}", parameters)
+    po_df.to_csv(os.path.join(data_dir, "vlm_po_train.csv"), index=False)
+    log_info(f"Saved OKVQA preference optimization dataset to {os.path.join(data_dir, 'vlm_po_train.csv')}", parameters)
     po_df.sample(n=20).to_csv(os.path.join(tmp_dir, "tmp_vlm_po_train.csv"), index=False)
     log_info(f"Sampled 20 rows from OKVQA preference optimization dataset for testing purposes and saved to {os.path.join(tmp_dir, 'tmp_vlm_po_train.csv')}", parameters)
 
