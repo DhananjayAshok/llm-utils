@@ -61,7 +61,7 @@ def vllm_inference(parameters, enable_prefix_caching, max_model_len, vllm_max_n)
     batch_size = vllm_max_n
     save_every = int(parameters["checkpoint_every"] * ((len(data_df) - start_idx) / batch_size))+1
     for i in tqdm(range(start_idx, len(data_df), batch_size), desc="Performing vLLM inference"):
-        input_texts = data_df[parameters["input_column"]].loc[i:i+batch_size].tolist()
+        input_texts = data_df[parameters["input_column"]].iloc[i:i+batch_size].tolist()
         outputs = llm.generate(input_texts, sampling_params, use_tqdm=False)
         data_df.loc[i:i+batch_size-1, parameters["generation_complete_column"]] = True
         append_i = 0

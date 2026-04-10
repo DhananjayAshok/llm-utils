@@ -2,11 +2,13 @@ import torch
 from transformers import Trainer, default_data_collator, EarlyStoppingCallback, TrainerCallback
 from trl import SFTTrainer, DPOTrainer, KTOTrainer, CPOTrainer
 from trl.trainer.sft_trainer import DataCollatorForLanguageModeling
+from trl.trainer.sft_trainer import prepare_multimodal_messages
 from training.unlearning import GATrainer, NPOTrainer
 import numpy as np
 from training.model import get_peft_config
 from training.data import drop_column_if_needed
 from utils import log_info
+from PIL import Image
 import wandb
 
 
@@ -92,19 +94,21 @@ class SampleLoggingCallback(TrainerCallback):
             all_input_texts.extend(real_input_texts)
             all_targets.extend(real_targets)
             all_rejecteds.extend(real_rejecteds)
-            current_padding_side = processor.padding_side
-            processor.padding_side = "left"
-            inputs = processor(all_input_texts, return_tensors="pt", padding=True).to(model.device)
-            processor.padding_side = current_padding_side
-            input_length = inputs['input_ids'].shape[1]
-            gen_kwargs = {"max_new_tokens": self.eval_max_new_tokens, "do_sample": False}
             if self.modality == "vlm":
-                # TODO: handle
-                pass
-            outputs = model.generate(**inputs, **gen_kwargs)
-            outputs = outputs[:, input_length:]
-            output_texts = processor.batch_decode(outputs, skip_special_tokens=True)                                                                                                                                        
-            all_outputs.extend(output_texts)
+                # VLM generation in the callback requires pixel_values from the original batch,
+                # but we only have decoded text here. Skip generation for now.
+                all_outputs.extend(["[skipped]"] * len(all_input_texts))
+            else:
+                current_padding_side = processor.padding_side
+                processor.padding_side = "left"
+                inputs = processor(all_input_texts, return_tensors="pt", padding=True).to(model.device)
+                processor.padding_side = current_padding_side
+                input_length = inputs['input_ids'].shape[1]
+                gen_kwargs = {"max_new_tokens": self.eval_max_new_tokens, "do_sample": False}
+                outputs = model.generate(**inputs, **gen_kwargs)
+                outputs = outputs[:, input_length:]
+                output_texts = processor.batch_decode(outputs, skip_special_tokens=True)
+                all_outputs.extend(output_texts)
         for j, values in enumerate(zip(all_input_texts, all_targets, all_rejecteds, all_outputs)):
             input_text, target, rejected, output = values
             if self.training_kind in ["clf", "sft", "ga", "pre", "npo"]:
@@ -285,6 +289,108 @@ def prepare_sample_text(example, input_col="prompt", output_col="completion"):
     return f"{example[input_col]}\nOutput: {example[output_col]}"
 
 
+class VLMSFTDataCollator:
+    """
+    Custom data collator for VLM SFT training.
+
+    Reads raw input / output / image columns directly so we never have to store
+    complex nested dicts or PIL images through HuggingFace datasets Arrow storage
+    (which causes type-inference and nesting bugs).
+
+    Loads PIL images from paths at collation time, builds proper chat-template
+    messages, and calls the processor — mirroring what TRL's
+    DataCollatorForVisionLanguageModeling does internally.
+    """
+
+    def __init__(self, processor, max_length=None):
+        self.processor = processor
+        self.max_length = max_length
+
+    def _load_images(self, image_value):
+        """Return a list of PIL Images from a path, list of paths, or existing PIL images."""
+        if isinstance(image_value, str):
+            paths = [p.strip() for p in image_value.split(",") if p.strip()]
+        elif isinstance(image_value, (list, tuple)):
+            paths = list(image_value)
+        else:
+            return [image_value]
+        result = []
+        for p in paths:
+            if isinstance(p, str):
+                result.append(Image.open(p).convert("RGB"))
+            else:
+                result.append(p)
+        return result
+
+    def __call__(self, examples):
+        all_messages = []
+        all_images = []   # list-of-lists: [[PIL, ...], [PIL, ...], ...]
+
+        for example in examples:
+            pil_images = self._load_images(example["image"])
+
+            # Build messages with one {"type": "image"} placeholder per image.
+            # prepare_multimodal_messages fills those placeholders with actual PIL objects.
+            user_content = [{"type": "image"} for _ in pil_images]
+            user_content.append({"type": "text", "text": example["input"]})
+            messages = [
+                {"role": "user", "content": user_content},
+                {"role": "assistant", "content": example["output"]},
+            ]
+            prepared = prepare_multimodal_messages(messages, pil_images)
+            all_messages.append(prepared)
+            all_images.append(pil_images)
+
+        # apply_chat_template accepts a batch (list of conversations) and returns list[str]
+        texts = self.processor.apply_chat_template(
+            all_messages,
+            tokenize=False,
+            add_generation_prompt=False,
+        )
+        if isinstance(texts, str):
+            texts = [texts]
+
+        # Pass images as list-of-lists so the processor knows the per-example assignment.
+        processor_kwargs = dict(
+            text=texts,
+            images=all_images,
+            padding=True,
+            return_tensors="pt",
+            add_special_tokens=False,
+        )
+        if self.max_length is not None:
+            processor_kwargs["max_length"] = self.max_length
+            processor_kwargs["truncation"] = True
+        output = self.processor(**processor_kwargs)
+
+        labels = output["input_ids"].clone()
+        labels[output["attention_mask"] == 0] = -100
+        output["labels"] = labels
+        return output
+
+
+def _vlm_max_length(model):
+    """Return the text context length from a VLM model config, or None if not found."""
+    cfg = model.config
+    text_cfg = getattr(cfg, "text_config", cfg)
+    return getattr(text_cfg, "max_position_embeddings", None)
+
+
+class VLMGADataCollator(VLMSFTDataCollator):
+    """
+    Extends VLMSFTDataCollator for Gradient Ascent (GA) training.
+    Passes through the `forget` column as a float tensor alongside
+    the standard VLM inputs/labels.
+    """
+
+    def __call__(self, examples):
+        output = super().__call__(examples)
+        output["forget"] = torch.tensor(
+            [example["forget"] for example in examples], dtype=torch.float
+        )
+        return output
+
+
 def get_trl_renamed_train_val_dataset(dataset):
     """
     Rename the columns of the dataset to match the expected format for TRL trainers.
@@ -322,39 +428,68 @@ def get_trl_renamed_train_val_dataset(dataset):
 
 
 def get_pre_trainer(script_args, training_args, dataset, model, processor, peft_config):
+    callbacks = get_callback_list(script_args)
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
-    callbacks = get_callback_list(script_args)
-
-    trainer = SFTTrainer(
-        model=model,
-        train_dataset=train_dataset,
-        eval_dataset=validation_dataset,
-        peft_config=peft_config,
-        formatting_func=prepare_sample_text,
-        processing_class=processor,
-        args=training_args,
-        callbacks=callbacks,
-    )
+        trainer = SFTTrainer(
+            model=model,
+            train_dataset=train_dataset,
+            eval_dataset=validation_dataset,
+            peft_config=peft_config,
+            formatting_func=prepare_sample_text,
+            processing_class=processor,
+            args=training_args,
+            callbacks=callbacks,
+        )
+    else:
+        train_dataset = dataset["train"]
+        validation_dataset = dataset["validation"] if "validation" in dataset else None
+        training_args.remove_unused_columns = False
+        data_collator = VLMSFTDataCollator(processor, max_length=_vlm_max_length(model))
+        trainer = SFTTrainer(
+            model=model,
+            train_dataset=train_dataset,
+            eval_dataset=validation_dataset,
+            peft_config=peft_config,
+            processing_class=processor,
+            data_collator=data_collator,
+            args=training_args,
+            callbacks=callbacks,
+        )
     return trainer, dataset
 
 
 def get_sft_trainer(script_args, training_args, dataset, model, processor, peft_config):
+    callbacks = get_callback_list(script_args)
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+        trainer = SFTTrainer(
+            model=model,
+            train_dataset=train_dataset,
+            eval_dataset=validation_dataset,
+            peft_config=peft_config,
+            processing_class=processor,
+            args=training_args,
+            callbacks=callbacks,
+        )
     else:
+        # Use a custom collator that reads raw input/output/image columns directly,
+        # bypassing HF datasets' Arrow type inference for nested PIL/dict structures.
+        # remove_unused_columns must be False so the trainer keeps our raw text columns.
         train_dataset = dataset["train"]
         validation_dataset = dataset["validation"] if "validation" in dataset else None
-    callbacks = get_callback_list(script_args)
-    trainer = SFTTrainer(
-        model=model,
-        train_dataset=train_dataset,
-        eval_dataset=validation_dataset,
-        peft_config=peft_config,
-        processing_class=processor,
-        args=training_args,
-        callbacks=callbacks,
-    )
+        training_args.remove_unused_columns = False
+        data_collator = VLMSFTDataCollator(processor, max_length=_vlm_max_length(model))
+        trainer = SFTTrainer(
+            model=model,
+            train_dataset=train_dataset,
+            eval_dataset=validation_dataset,
+            peft_config=peft_config,
+            processing_class=processor,
+            data_collator=data_collator,
+            args=training_args,
+            callbacks=callbacks,
+        )
     return trainer, dataset
 
 
@@ -364,6 +499,7 @@ def get_dpo_trainer(script_args, training_args, dataset, model, processor, peft_
     else:
         train_dataset = dataset["train"]
         validation_dataset = dataset["validation"] if "validation" in dataset else None
+        training_args.remove_unused_columns = False
     callbacks = get_callback_list(script_args)
     trainer = DPOTrainer(
         model,
@@ -383,6 +519,7 @@ def get_kto_trainer(script_args, training_args, dataset, model, processor, peft_
     else:
         train_dataset = dataset["train"]
         validation_dataset = dataset["validation"] if "validation" in dataset else None
+        training_args.remove_unused_columns = False
     callbacks = get_callback_list(script_args)
     trainer = KTOTrainer(
         model,
@@ -402,6 +539,7 @@ def get_cpo_trainer(script_args, training_args, dataset, model, processor, peft_
     else:
         train_dataset = dataset["train"]
         validation_dataset = dataset["validation"] if "validation" in dataset else None
+        training_args.remove_unused_columns = False
     callbacks = get_callback_list(script_args)
     trainer = CPOTrainer(
         model,
@@ -415,14 +553,15 @@ def get_cpo_trainer(script_args, training_args, dataset, model, processor, peft_
     return trainer, dataset
 
 def get_ga_trainer(script_args, training_args, dataset, model, processor, peft_config):
+    callbacks = get_callback_list(script_args)
+    training_args.remove_unused_columns = False
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+        data_collator = ga_data_collator
     else:
         train_dataset = dataset["train"]
         validation_dataset = dataset["validation"] if "validation" in dataset else None
-
-    callbacks = get_callback_list(script_args)
-    training_args.remove_unused_columns = False
+        data_collator = VLMGADataCollator(processor, max_length=_vlm_max_length(model))
     trainer = GATrainer(
         model=model,
         train_dataset=train_dataset,
@@ -431,7 +570,7 @@ def get_ga_trainer(script_args, training_args, dataset, model, processor, peft_c
         processing_class=processor,
         args=training_args,
         callbacks=callbacks,
-        data_collator=ga_data_collator
+        data_collator=data_collator,
     )
     return trainer, dataset
 
@@ -444,22 +583,33 @@ def ga_data_collator(batch):
 
 
 def get_npo_trainer(script_args, training_args, dataset, model, processor, peft_config):
+    callbacks = get_callback_list(script_args)
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
+        trainer = NPOTrainer(
+            model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=validation_dataset,
+            processing_class=processor,
+            callbacks=callbacks,
+            peft_config=peft_config,
+        )
     else:
         train_dataset = dataset["train"]
         validation_dataset = dataset["validation"] if "validation" in dataset else None
-
-    callbacks = get_callback_list(script_args)
-    trainer = NPOTrainer(
-        model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=validation_dataset,
-        processing_class=processor,
-        callbacks=callbacks,
-        peft_config=peft_config,
-    )   
+        training_args.remove_unused_columns = False
+        data_collator = VLMSFTDataCollator(processor, max_length=_vlm_max_length(model))
+        trainer = NPOTrainer(
+            model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=validation_dataset,
+            processing_class=processor,
+            callbacks=callbacks,
+            peft_config=peft_config,
+            data_collator=data_collator,
+        )
     return trainer, dataset
 
 

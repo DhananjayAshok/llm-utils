@@ -1,4 +1,5 @@
 from utils import log_error, log_warn, log_info
+import copy
 
 import datasets
 from datasets import load_dataset, disable_caching
@@ -32,22 +33,6 @@ def validate_data(dataset, training_kind, pretrain_with_output, parameters):
     dataset = handle_nans(dataset, mandatory_columns, parameters)
     if len(dataset["train"]) == 0:
         log_error("No data left after removing rows with NaN values, please check your dataset and try again.", parameters)
-    return dataset # Right now the dtype doesn't seem to update after dropping nans, so just trust the user. 
-    string_columns = ["input", "chosen", "rejected"]
-    string_or_int_or_bool_columns = []
-    if training_kind == "clf":
-        string_or_int_or_bool_columns.append("output")
-    else:
-        string_columns.append("output")
-    for split in dataset:
-        for column in string_columns:
-            if column in dataset[split].features:    
-                if dataset[split].features[column].dtype != "string":
-                    log_error(logger, f"Column {column} in {split} split is not a string, it is {dataset[split].features[column].dtype}")  
-        for column in string_or_int_or_bool_columns:
-            if column in dataset[split].features:    
-                if dataset[split].features[column].dtype not in ["string", "int32", "int64", "int", bool, "bool", int]:
-                    log_error(logger, f"Column {column} in {split} split is not a string, bool or int, it is {dataset[split].features[column].dtype}")
     return dataset
 
 
@@ -98,8 +83,7 @@ def shuffle_and_handle_data_sizes(script_args, dataset, data_seed):
 def drop_column_if_needed(dataset, column_name):
     for split in dataset:
         if column_name in dataset[split].features:
-            dataset = dataset.remove_columns(column_name)
-            return dataset
+            dataset[split] = dataset[split].remove_columns(column_name)
     return dataset
 
 def load_data_splits(extension, script_args):
@@ -233,7 +217,7 @@ def log_token_statistics(script_args, dataset, tokenizer, parameters):
         column_statistics[column] = {"total_characters": 0, "total words": 0, "total_tokens": 0, "characters_per_token": 0}
     statistics = {}
     for split in dataset:
-        statistics[split] = column_statistics.copy()
+        statistics[split] = copy.deepcopy(column_statistics)
         for column in columns_to_track:
             total_characters = 0
             total_words = 0
@@ -281,7 +265,7 @@ def infer_label_list(dataset, parameters):
                 label_list += list(diff)
     # if label is -1, we throw a warning and remove it from the label list
     for label in label_list:
-        if label == -1:
+        if label == "-1":
             log_warn("Label -1 found in label list, removing it.", parameters)
             label_list.remove(label)
 
