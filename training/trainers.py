@@ -6,7 +6,6 @@ from training.unlearning import GATrainer, NPOTrainer
 import numpy as np
 from training.model import get_peft_config
 from training.data import drop_column_if_needed
-from utils.vlm_utils import infer_vlm_kind, get_single_vlm_text, get_vlm_text
 from utils import log_info
 import wandb
 
@@ -100,7 +99,8 @@ class SampleLoggingCallback(TrainerCallback):
             input_length = inputs['input_ids'].shape[1]
             gen_kwargs = {"max_new_tokens": self.eval_max_new_tokens, "do_sample": False}
             if self.modality == "vlm":
-                gen_kwargs = {"pixel_values": batch["pixel_values"]} # TODO: This might fail for some models / learning algorithms. Needs testing. 
+                # TODO: handle
+                pass
             outputs = model.generate(**inputs, **gen_kwargs)
             outputs = outputs[:, input_length:]
             output_texts = processor.batch_decode(outputs, skip_special_tokens=True)                                                                                                                                        
@@ -204,9 +204,15 @@ def lm_clf_preprocess_function(examples, tokenizer, max_length, label2id):
     return result
 
 
-def vlm_clf_preprocess_function(examples, processor, max_length, label2id, vlm_kind):
-    vlm_texts = get_vlm_text(vlm_kind=vlm_kind, input_texts=examples["input"].list())
-    result = processor(text=vlm_texts, images=examples["image"], padding="max_length", max_length=max_length, truncation=True, return_tensors="pt")
+def vlm_clf_preprocess_function(examples, processor, max_length, label2id):
+    result = processor.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            tokenize=True,
+            return_dict=True,
+            padding=True,
+            return_tensors="pt",
+        )
     result["label"] = [(label2id[str(l)] if l != -1 else -1) for l in examples["output"]]
     return result
 
@@ -223,9 +229,8 @@ def process_clf(script_args, training_args, dataset, model, processor):
                 desc="Running tokenizer on dataset",
             )
         elif script_args.modality == "vlm":
-            vlm_kind = infer_vlm_kind(model_name=None, config=model.config)
             dataset = dataset.map(
-                lambda x: vlm_clf_preprocess_function(x, processor, script_args.max_input_length, label2id, vlm_kind),
+                lambda x: vlm_clf_preprocess_function(x, processor, script_args.max_input_length, label2id),
                 batched=True,
                 num_proc=script_args.num_workers,
                 load_from_cache_file=False,
@@ -316,24 +321,9 @@ def get_trl_renamed_train_val_dataset(dataset):
     return train_dataset, validation_dataset
 
 
-def get_trl_vlm_format_train_val_dataset(dataset, model):
-    """
-    Convert to the expected conversational format for TRL trainers.
-    """
-    model_config = model.config
-    vlm_kind = infer_vlm_kind(model_name=None, config=model_config)
-    dataset = dataset.map(lambda x: {"input": get_single_vlm_text(vlm_kind, x["input"])},
-                          num_proc=1,
-                          desc="Converting input text to VLM format")
-    train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
-    return train_dataset, validation_dataset
-
-
 def get_pre_trainer(script_args, training_args, dataset, model, processor, peft_config):
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
-    else:
-        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
     callbacks = get_callback_list(script_args)
 
     trainer = SFTTrainer(
@@ -353,7 +343,8 @@ def get_sft_trainer(script_args, training_args, dataset, model, processor, peft_
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     else:
-        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset, model)
+        train_dataset = dataset["train"]
+        validation_dataset = dataset["validation"] if "validation" in dataset else None
     callbacks = get_callback_list(script_args)
     trainer = SFTTrainer(
         model=model,
@@ -371,7 +362,8 @@ def get_dpo_trainer(script_args, training_args, dataset, model, processor, peft_
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     else:
-        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
+        train_dataset = dataset["train"]
+        validation_dataset = dataset["validation"] if "validation" in dataset else None
     callbacks = get_callback_list(script_args)
     trainer = DPOTrainer(
         model,
@@ -389,7 +381,8 @@ def get_kto_trainer(script_args, training_args, dataset, model, processor, peft_
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     else:
-        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
+        train_dataset = dataset["train"]
+        validation_dataset = dataset["validation"] if "validation" in dataset else None
     callbacks = get_callback_list(script_args)
     trainer = KTOTrainer(
         model,
@@ -407,7 +400,8 @@ def get_cpo_trainer(script_args, training_args, dataset, model, processor, peft_
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     else:
-        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
+        train_dataset = dataset["train"]
+        validation_dataset = dataset["validation"] if "validation" in dataset else None
     callbacks = get_callback_list(script_args)
     trainer = CPOTrainer(
         model,
@@ -424,7 +418,9 @@ def get_ga_trainer(script_args, training_args, dataset, model, processor, peft_c
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     else:
-        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset, model)
+        train_dataset = dataset["train"]
+        validation_dataset = dataset["validation"] if "validation" in dataset else None
+
     callbacks = get_callback_list(script_args)
     training_args.remove_unused_columns = False
     trainer = GATrainer(
@@ -451,7 +447,9 @@ def get_npo_trainer(script_args, training_args, dataset, model, processor, peft_
     if script_args.modality == "lm":
         train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
     else:
-        train_dataset, validation_dataset = get_trl_vlm_format_train_val_dataset(dataset)
+        train_dataset = dataset["train"]
+        validation_dataset = dataset["validation"] if "validation" in dataset else None
+
     callbacks = get_callback_list(script_args)
     trainer = NPOTrainer(
         model,

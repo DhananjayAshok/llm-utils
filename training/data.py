@@ -2,17 +2,11 @@ from utils import log_error, log_warn, log_info
 
 import datasets
 from datasets import load_dataset, disable_caching
+from utils.vlm_utils import get_single_vlm_message_list
 from tqdm import tqdm
 from PIL import Image
 
 disable_caching()
-
-def load_image(image_path):
-    """
-    Load an image from a file path or URL.
-    """
-    image = Image.open(image_path)
-    return image.convert('RGB')
 
 def validate_data(dataset, training_kind, pretrain_with_output, parameters):
     """
@@ -36,6 +30,8 @@ def validate_data(dataset, training_kind, pretrain_with_output, parameters):
                 log_error(err_string, parameters)
 
     dataset = handle_nans(dataset, mandatory_columns, parameters)
+    if len(dataset["train"]) == 0:
+        log_error("No data left after removing rows with NaN values, please check your dataset and try again.", parameters)
     return dataset # Right now the dtype doesn't seem to update after dropping nans, so just trust the user. 
     string_columns = ["input", "chosen", "rejected"]
     string_or_int_or_bool_columns = []
@@ -155,8 +151,14 @@ def load_data_splits(extension, script_args):
     dataset = validate_data(dataset, script_args.training_kind, script_args.pretrain_with_output, parameters)
     # load the image data from the urls in the image column if modality is vlm
     if script_args.modality == "vlm":
+        first_image = dataset["train"][0]["image"]
+        if isinstance(first_image, str):
+            dataset = dataset.map(
+                lambda x: {"image": [img.strip() for img in x["image"].split(",")]}, # split the image column into a list of image paths
+                desc="Splitting images",
+            )        
         dataset = dataset.map(
-            lambda x: {"image": load_image(x["image"])}, # for some reason setting num_proc kills this. 
+            lambda x: {"messages": get_single_vlm_message_list(x["input"], x["image"])},
             desc="Loading images",
         )
     if validation_file is None and train_split is not None:

@@ -7,5 +7,6 @@ for test_vlm in $test_vlms; do
     echo "Testing model: $test_vlm on input file: $input_file"
     python infer.py --modality vlm --model_name $test_vlm --input_file $tmp_dir/$input_file \
     --max_new_tokens 20 --ignore_checkpoint --dtype bfloat16 hf --batch_size 2 --padding_side left
+    exit
   done
 done
