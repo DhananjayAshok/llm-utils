@@ -129,7 +129,7 @@ def override_defaults(training_args, parameters=default_parameters):
             script_args.test_file = None
     if training_args.resume_from_checkpoint is not None and isinstance(training_args.resume_from_checkpoint, str):
         if training_args.resume_from_checkpoint.lower().strip() in ["true", "1"]:
-		    training_args.resume_from_checkpoint = True
+            training_args.resume_from_checkpoint = True
         elif training_args.resume_from_checkpoint.lower().strip() in ["false", "0"]:
             training_args.resume_from_checkpoint = False
         else: # then it is a path
