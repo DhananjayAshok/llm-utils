@@ -210,7 +210,7 @@ def lm_clf_preprocess_function(examples, tokenizer, max_length, label2id):
 
 def vlm_clf_preprocess_function(examples, processor, max_length, label2id):
     result = processor.apply_chat_template(
-            messages,
+            examples["messages"],
             add_generation_prompt=True,
             tokenize=True,
             return_dict=True,
