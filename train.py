@@ -127,12 +127,14 @@ def override_defaults(training_args, parameters=default_parameters):
             log_warn(f"Test split evaluation is not supported for {script_args.training_kind}, removing test set related arguments", default_parameters)
             script_args.validation_test_split = None
             script_args.test_file = None
-    if training_args.resume_from_checkpoint is not None and not isinstance(training_args.resume_from_checkpoint, bool):
-        if training_args.resume_from_checkpoint.lower().strip() in ["true", "1", "false", "0"]:
-            training_args.resume_from_checkpoint = bool(training_args.resume_from_checkpoint)
+    if training_args.resume_from_checkpoint is not None and isinstance(training_args.resume_from_checkpoint, str):
+        if training_args.resume_from_checkpoint.lower().strip() in ["true", "1"]:
+			training_args.resume_from_checkpoint = True
+		elif training_args.resume_from_checkpoint.lower().strip() in ["false", "0"]:
+            training_args.resume_from_checkpoint = False
         else: # then it is a path
             if not os.path.exists(training_args.resume_from_checkpoint):
-                log_error(f"resume_from_checkpoint is set to {training_args.resume_from_checkpoint} but this path does not exist.", parameters)
+                log_error(f"resume_from_checkpoint is set to {training_args.resume_from_checkpoint} but this is not (true/false/0/1) and path does not exist.", parameters)
             training_args.resume_from_checkpoint = training_args.resume_from_checkpoint
     if training_args.resume_from_checkpoint == True:
         if not os.path.exists(training_args.output_dir):
