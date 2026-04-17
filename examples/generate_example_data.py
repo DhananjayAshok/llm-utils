@@ -5,6 +5,8 @@ import zipfile
 import pandas as pd
 import os
 import itertools
+import random
+from tqdm import tqdm
 
 
 
@@ -433,168 +435,147 @@ def setup_pubmedqa_finetune_datasets(parameters, max_paraphrases=None, instructi
             log_info(f"Saved {config} {split} dataset to {store_dir}/hf_{config}_{split}.csv", parameters)
 
 
-class ManyModalQAExample:
-    colour_question_1 = "What are the primary colours of the Starry Night?"
-    colour_answer_1 = "Blue and yellow"
-    colour_question_2 = "What is the colour of the hat in the traditional Nepalese Topi?"
-    colour_answer_2 = "Red"
-
-    shape_question_1 = "What is the shape of the hat in the traditional Nepalese Topi?"
-    shape_answer_1 = "Cone shape"
-    shape_question_2 = "What is the shape of Sydney Opera?"
-    shape_answer_2 = "Shell shape"
-
-    colour_instruction = f"Generate a question and answer pair from the image and caption context, focusing on the colours:"
-    colour_instruction = colour_instruction + "\nExample Question: " + colour_question_1 + "\nAnswer: " + colour_answer_1 + " [STOP]"
-    colour_instruction = colour_instruction + "\nExample Question: " + colour_question_2 + "\nAnswer: " + colour_answer_2 + " [STOP]"
-
-
-    shape_instruction = f"Generate a question and answer pair from the image and caption context, focusing on the shapes:"
-    shape_instruction = shape_instruction + "\nExample Question: " + shape_question_1 + "\nAnswer: " + shape_answer_1 + " [STOP]"
-    shape_instruction = shape_instruction + "\nExample Question: " + shape_question_2 + "\nAnswer: " + shape_answer_2 + " [STOP]"
-
-def setup_manymodalqa(parameters): # ManyModalQA: Modality Disambiguation and QA over Diverse Inputs
-    log_info("Setting up ManyModalQA dataset...", parameters)
-    import gdown
-    data_dir = parameters["data_dir"]+"/"
+def setup_okvqa(parameters):
+    data_dir = parameters["data_dir"] + "/okvqa/"
     os.makedirs(data_dir, exist_ok=True)
-    for url, output in [("https://drive.google.com/file/d/1nV4w1wOLfg4MfsghG0KI1YVtqmMl54gN/view","ManyModalQAData"),
-                        ("https://drive.google.com/file/d/1rGZod-5OXxBqVDpR2F4TPH1GRXeOrIRG/view", "ManyModalQAImages")]:
-        gdown.download(url, data_dir+output+".zip", fuzzy=True)
-        with zipfile.ZipFile(data_dir+output+".zip", 'r') as zip_ref:
-            zip_ref.extractall(data_dir+output)
-        os.remove(data_dir+output+".zip")
-    log_info("ManyModalQA downloaded. Now setting up...")
-    qa_path = os.path.join(data_dir, "ManyModalQAData", "ManyModalQAData")
-    img_dir = os.path.join(data_dir, "ManyModalQAImages", "ManyModalImages")
-    files = [f"official_aaai_split_{split}_data.json" for split in ["train", "dev"]]
-    dfs = []
-    def get_idx_str(idx):
-        path = os.path.join(img_dir, str(idx).zfill(20) + ".png")
-        assert os.path.exists(path)
-        return path
+    log_info("Setting up OKVQA dataset...", parameters)
+    #HuggingFaceM4/A-OKVQA
+    dset = load_dataset("HuggingFaceM4/A-OKVQA")
+    image_dir = os.path.abspath(data_dir + "images/")
+    os.makedirs(image_dir, exist_ok=True)
+    tmp_dir = "tmp_test_data/"
+    os.makedirs(tmp_dir, exist_ok=True)
+    for split in dset.keys():
+        for i in tqdm(range(len(dset[split])), total=len(dset[split]), desc=f"Saving {split} images"):
+            image = dset[split][i]["image"]
+            image.save(image_dir + f"/{split}_{i}.jpg")
+    log_info(f"Saved OKVQA images to {image_dir}", parameters)
+    prompt = "What is in this image?" 
+    single_inference_data = []
+    single_inference_json_data = []
+    single_inference_columns = ["input", "image"]
+    for i in range(len(dset["test"])):
+        single_inference_data.append({"input": prompt, "image": f"{image_dir}/test_{i}.jpg"})
+        single_inference_json_data.append({"input": prompt, "image": [f"{image_dir}/test_{i}.jpg"]})
+    single_inference_df = pd.DataFrame(single_inference_data, columns=single_inference_columns)
+    single_inference_df.to_csv(data_dir + "vlm_single_inference.csv", index=False)
+    log_info(f"Saved single inference dataset to {data_dir}/vlm_single_inference.csv", parameters)
+    single_inference_json_df = pd.DataFrame(single_inference_json_data)
+    single_inference_json_df.to_json(data_dir + "vlm_single_inference.jsonl", orient="records", lines=True)
+    log_info(f"Saved single inference dataset in JSONL format to {data_dir}/vlm_single_inference.jsonl", parameters)
+    single_inference_df.sample(n=20).to_csv(tmp_dir + "tmp_vlm_single_inference.csv", index=False)
+    log_info(f"Sampled 20 rows from single inference dataset for testing purposes and saved to {tmp_dir}/tmp_vlm_single_inference.csv", parameters)
+    single_inference_json_df.sample(n=20).to_json(tmp_dir + "tmp_vlm_single_inference.jsonl", orient="records", lines=True)
+    log_info(f"Sampled 20 rows from single inference JSONL dataset for testing purposes and saved to {tmp_dir}/tmp_vlm_single_inference.jsonl", parameters)
+    multi_inference_data = []
+    multi_inference_json_data = []
+    multi_inference_columns = ["input", "image"]
+    n_test_images = len(dset["test"])
+    n_val_images = len(dset["validation"])
+    prompt = "What is the difference between these two images?"
+    for i in range(n_test_images):
+        # sample a random image from the val set
+        val_image_index = random.randint(0, n_val_images - 1)
+        multi_inference_data.append({"input": prompt, "image": f"{image_dir}/test_{i}.jpg,{image_dir}/validation_{val_image_index}.jpg"})
+        multi_inference_json_data.append({"input": prompt, "image": [f"{image_dir}/test_{i}.jpg", f"{image_dir}/validation_{val_image_index}.jpg"]})
+    multi_inference_df = pd.DataFrame(multi_inference_data, columns=multi_inference_columns)
+    multi_inference_df.to_csv(data_dir + "vlm_multi_inference.csv", index=False)
+    log_info(f"Saved multi inference dataset to {data_dir}/vlm_multi_inference.csv", parameters)
+    multi_inference_json_df = pd.DataFrame(multi_inference_json_data)
+    multi_inference_json_df.to_json(data_dir + "vlm_multi_inference.jsonl", orient="records", lines=True)
+    log_info(f"Saved multi inference dataset in JSONL format to {data_dir}/vlm_multi_inference.jsonl", parameters)
+    multi_inference_df.sample(n=20).to_csv(tmp_dir + "tmp_vlm_multi_inference.csv", index=False)
+    log_info(f"Sampled 20 rows from multi inference dataset for testing purposes and saved to {tmp_dir}/tmp_vlm_multi_inference.csv", parameters)
+    multi_inference_json_df.sample(n=20).to_json(tmp_dir + "tmp_vlm_multi_inference.jsonl", orient="records", lines=True)
+    log_info(f"Sampled 20 rows from multi inference JSONL dataset for testing purposes and saved to {tmp_dir}/tmp_vlm_multi_inference.jsonl", parameters)
 
-    for file in files:
-        df = pd.read_json(os.path.join(qa_path, file))
-        df = df[df.q_type == "image"].reset_index(drop=True)
-        df["image_caption"] = df["image"].apply(lambda x: x['caption'])
-        df["image_url"] = df["image"].apply(lambda x: x['url'])
-        df["image"] = df["id"].apply(get_idx_str)
-        df = df[["image", "image_caption", "image_url", "question", "answer"]]
-        dfs.append(df)
-    df = pd.concat(dfs, ignore_index=True)
-    prompt_df = df[["image", "image_url"]]
-    color_df = prompt_df.copy()
-    color_df["input"] = (ManyModalQAExample.colour_instruction + "\nCaption: " + df["image_caption"]
-                         + "\nQuestion: ")
-    shape_df = prompt_df.copy()
-    shape_df["input"] = ManyModalQAExample.shape_instruction + df["image_caption"] + "\nQuestion: "
-    save_dir = parameters["data_dir"] + "/manymodalqa/"
-    os.makedirs(save_dir, exist_ok=True)
-    color_df.to_csv(f"{save_dir}/color.csv", index=False)
-    shape_df.to_csv(f"{save_dir}/shape.csv", index=False)
-    log_info("ManyModalQA dataset setup complete. Files saved in: " + data_dir, parameters)
-    color_df = color_df.sample(n=20).reset_index(drop=True)  # For testing purposes, we take a small sample
-    os.makedirs("tmp_test_data", exist_ok=True)
-    color_df.to_csv("tmp_test_data/tmp_vlm_inference.csv", index=False)
-    log_info("Sampled 20 rows from ManyModalQA color dataset for testing purposes and saved to tmp_test_data/tmp_vlm_inference.csv", parameters)
+    # task will be to predict direct_answers[0] from question and image
+    single_train_data = []
+    single_train_json_data = []
+    single_train_columns = ["input", "image", "output"]
+    for i in range(len(dset["train"])):
+        direct_answers = eval(dset["train"][i]["direct_answers"])
+        single_train_data.append({"input": dset["train"][i]["question"], "image": f"{image_dir}/train_{i}.jpg", "output": direct_answers[0]})
+        single_train_json_data.append({"input": dset["train"][i]["question"], "image": [f"{image_dir}/train_{i}.jpg"], "output": direct_answers[0]})
+    single_train_df = pd.DataFrame(single_train_data, columns=single_train_columns)
+    single_train_df.to_csv(data_dir + "vlm_single_train.csv", index=False)
+    log_info(f"Saved single train dataset to {data_dir}/vlm_single_train.csv", parameters)
+    single_train_json_df = pd.DataFrame(single_train_json_data)
+    single_train_json_df.to_json(data_dir + "vlm_single_train.jsonl", orient="records", lines=True)
+    log_info(f"Saved single train dataset in JSONL format to {data_dir}/vlm_single_train.jsonl", parameters)
+    single_train_df.sample(n=20).to_csv(tmp_dir + "tmp_vlm_single_train.csv", index=False)
+    log_info(f"Sampled 20 rows from single train dataset for testing purposes and saved to {tmp_dir}/tmp_vlm_single_train.csv", parameters)
+    single_train_json_df.sample(n=20).to_json(tmp_dir + "tmp_vlm_single_train.jsonl", orient="records", lines=True)
+    log_info(f"Sampled 20 rows from single train JSONL dataset for testing purposes and saved to {tmp_dir}/tmp_vlm_single_train.jsonl", parameters)
 
-def process_manymodalqa_inference_datasets(parameters):
-    """
-    Processes the ManyModalQA inference results. Assumes that inference has been run for all the necessary files.
-    """
-    save_dir = parameters["data_dir"] + "/manymodalqa/"
-    required_files = [
-        "color_output.jsonl",
-        "shape_output.jsonl"]
-    missing_files = []
-    for file in required_files:
-        if not os.path.exists(os.path.join(save_dir, file)):
-            missing_files.append(file)
-    if missing_files:
-        log_error(f"Missing required files for ManyModalQA inference: {', '.join(missing_files)}"
-                  f"\n Make sure to run the inference scripts to generate these", parameters)
-        return
-    color_df = pd.read_json(os.path.join(save_dir, "color_output.jsonl"), lines=True)
-    shape_df = pd.read_json(os.path.join(save_dir, "shape_output.jsonl"), lines=True)
-
+    # task will be to predict which of the two images is more relevant to the question, given the question and the two images
+    multi_train_data = []
+    multi_train_json_data = []
+    multi_train_columns = ["input", "image", "output"]
+    for i in range(len(dset["train"])):
+        direct_answers = eval(dset["train"][i]["direct_answers"])
+        val_image_index = random.randint(0, n_val_images - 1)
+        train_image_first = random.random() < 0.5
+        train_image = f"{image_dir}/train_{i}.jpg"
+        val_image = f"{image_dir}/validation_{val_image_index}.jpg"
+        if train_image_first:
+            first_image = train_image
+            second_image = val_image
+            output = "The first image is more relevant to the question."
+        else:
+            first_image = val_image
+            second_image = train_image
+            output = "The second image is more relevant to the question."
+        multi_train_data.append({"input": dset["train"][i]["question"], "image": f"{first_image},{second_image}", "output": output})
+        multi_train_json_data.append({"input": dset["train"][i]["question"], "image": [first_image, second_image], "output": output})
+    multi_train_df = pd.DataFrame(multi_train_data, columns=multi_train_columns)
+    multi_train_df.to_csv(data_dir + "vlm_multi_train.csv", index=False)
+    log_info(f"Saved multi train dataset to {data_dir}/vlm_multi_train.csv", parameters)
+    multi_train_json_df = pd.DataFrame(multi_train_json_data, columns=multi_train_columns)
+    multi_train_json_df.to_json(data_dir + "vlm_multi_train.jsonl", orient="records", lines=True)
+    log_info(f"Saved multi train dataset in JSONL format to {data_dir}/vlm_multi_train.jsonl", parameters)
+    multi_train_df.sample(n=20).to_csv(tmp_dir + "tmp_vlm_multi_train.csv", index=False)
+    log_info(f"Sampled 20 rows from multi train dataset for testing purposes and saved to {tmp_dir}/tmp_vlm_multi_train.csv", parameters)
+    multi_train_json_df.sample(n=20).to_json(tmp_dir + "tmp_vlm_multi_train.jsonl", orient="records", lines=True)
+    log_info(f"Sampled 20 rows from multi train JSONL dataset for testing purposes and saved to {tmp_dir}/tmp_vlm_multi_train.jsonl", parameters)
+    log_info("OKVQA dataset setup complete. All files saved in: " + data_dir, parameters)
+    
     po_data = []
-    po_columns = ["input", "chosen", "rejected", "image"]
-    clf_data = []
-    clf_columns = ["input", "label", "image"]
-    for i, row in color_df.iterrows():
-        image = row["image"]
-        input_text = row["input"].split("Caption: ")[1]
-        chosen = color_df.loc[i, "output"]
-        rejected = shape_df.loc[i, "output"]
-        if chosen is None or rejected is None:
-            continue
-        chosen = chosen[0]
-        rejected = rejected[0]
-        po_data.append([input_text, chosen, rejected, image])
-        clf_data.append([chosen, 1, image])
-        clf_data.append([rejected, 0, image])
-    clf_df = pd.DataFrame(clf_data, columns=clf_columns)
+    po_columns = ["input", "chosen", "rejected"]
+    abstain_prompt = "This question is unrelated to the image"
+    for i in range(len(dset["train"])):
+        question = dset["train"][i]["question"]
+        direct_answers = eval(dset["train"][i]["direct_answers"])
+        train_image = f"{image_dir}/train_{i}.jpg"
+        val_image_index = random.randint(0, n_val_images - 1)
+        val_image = f"{image_dir}/validation_{val_image_index}.jpg"
+        if random.random() < 0.5:
+            image = train_image
+            chosen = direct_answers[0]
+            rejected = abstain_prompt
+        else:
+            image = val_image
+            chosen = abstain_prompt
+            rejected = direct_answers[0]
+        po_data.append({"input": question + "\nImage: " + image, "chosen": chosen, "rejected": rejected})
     po_df = pd.DataFrame(po_data, columns=po_columns)
-    po_df["output"] = po_df["chosen"]
-    train_df, val_df = get_train_test_split(po_df, parameters["random_seed"], test_size=0.2)
-    train_dataset = Dataset.from_pandas(train_df)
-    val_dataset = Dataset.from_pandas(val_df)
-    train_dataset.push_to_hub(f"manymodal_inference", config_name="po", split="train")
-    val_dataset.push_to_hub(f"manymodal_inference", config_name="po", split="val")
-    train_df, val_df = get_train_test_split(clf_df, parameters["random_seed"], test_size=0.2)
-    train_dataset = Dataset.from_pandas(train_df)
-    val_dataset = Dataset.from_pandas(val_df)
-    train_dataset.push_to_hub(f"manymodal_inference", config_name="clf", split="train")
-    val_dataset.push_to_hub(f"manymodal_inference", config_name="clf", split="val")
-    log_info("ManyModalQA inference datasets setup complete. Processed datasets saved in: " + save_dir, parameters)
-
-
-def fix_image_path(x, data_dir):
-    _, valid = x.split("ManyModalQAImages")
-    return data_dir + "/ManyModalQAImages" + valid
-
-
-def setup_manymodalqa_finetune_datasets(parameters):
-    """
-    Sets up the finetune datasets for ManyModalQA.
-    """
-    store_dir = parameters["data_dir"] + "/manymodalqa/"
-    if not os.path.exists(store_dir):
-        os.makedirs(store_dir)
-    log_info("Setting up ManyModalQA finetune datasets...", parameters)
-    os.makedirs("tmp_test_data", exist_ok=True)
-    configs = ["po", "clf"]
-    splits = ["train", "val"]
-    hf_hub = parameters["huggingface_hub_username"]    
-    for config in configs:
-        for split in splits:
-            dataset = load_dataset(f"{hf_hub}/manymodal_inference", config, split=split)
-            df = dataset.to_pandas()
-            df["image"] = df["image"].apply(lambda x: fix_image_path(x, parameters["data_dir"]))
-            # dropna rows
-            df = df.dropna().reset_index(drop=True)
-            df.to_csv(os.path.join(store_dir, f"hf_{config}_{split}.csv"), index=False)
-            log_info(f"Saved {config} {split} dataset to {store_dir}/hf_{config}_{split}.csv", parameters)
-            if split == "train":
-                sample_df = df.sample(n=100, random_state=parameters["random_seed"]).reset_index(drop=True)
-                sample_df.to_csv(f"tmp_test_data/tmp_vlm_{config}.csv", index=False)
-                log_info(f"Sampled 100 rows from {config} train dataset for testing purposes and saved to tmp_test_data/tmp_vlm_{config}.csv", parameters)
-                if config == "po":
-                    log_info("Note: The ManyModalQA PO dataset has an 'input' column, and hence is also an sft dataset", parameters)
+    po_df.to_csv(os.path.join(data_dir, "vlm_po_train.csv"), index=False)
+    log_info(f"Saved OKVQA preference optimization dataset to {os.path.join(data_dir, 'vlm_po_train.csv')}", parameters)
+    po_df.sample(n=20).to_csv(os.path.join(tmp_dir, "tmp_vlm_po_train.csv"), index=False)
+    log_info(f"Sampled 20 rows from OKVQA preference optimization dataset for testing purposes and saved to {os.path.join(tmp_dir, 'tmp_vlm_po_train.csv')}", parameters)
 
 
 
 @click.command()
-@click.option("--dataset_names", default=["alpaca", "pubmedqa", "manymodalqa", "rwku", "political-unlearning"], multiple=True)
+@click.option("--dataset_names", default=["alpaca", "pubmedqa", "okvqa", "rwku", "political-unlearning"], multiple=True)
 @click.pass_obj
 def setup_data(parameters, dataset_names):
     if "alpaca" in dataset_names:
         setup_alpaca(parameters)
     if "pubmedqa" in dataset_names:
         setup_pubmedqa(parameters)
-    if "manymodalqa" in dataset_names:
-        setup_manymodalqa(parameters)
+    if "okvqa" in dataset_names:
+        setup_okvqa(parameters)
     if "rwku" in dataset_names:
         setup_rwku(parameters)
     if "political-unlearning" in dataset_names:
@@ -615,18 +596,6 @@ def pubmed_process(parameters, step):
     if step == 2:
         setup_pubmedqa_finetune_datasets(parameters)
 
-@click.command()
-@click.option("--step", type=int, default=1, help="Step number for the ManyModalQA dataset setup.")
-@click.pass_obj
-def manymodal_process(parameters, step):
-    """
-    Processes the inference results for ManyModalQA dataset.
-    Assumes that inference has been run for all the necessary files.
-    """
-    if step == 0:
-        process_manymodalqa_inference_datasets(parameters)
-    if step == 1:
-        setup_manymodalqa_finetune_datasets(parameters)
 
 
 if __name__ == "__main__":

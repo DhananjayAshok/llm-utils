@@ -46,7 +46,7 @@ def save_args(script_args, training_args):
 
 
 default_parameters = load_parameters()
-default_parameters["run_start_time"] = datetime.now(timezone.utc).strftime("%Y-%m-%d-H%H-M%M-S%S")
+default_parameters["run_start_time"] = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H-%M-%S")
 
 @dataclass
 class ScriptArguments:

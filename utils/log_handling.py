@@ -11,7 +11,7 @@ def log_error(message, parameters=None):
 def log_warn(message, parameters=None):
     parameters = load_parameters(parameters)
     logger = parameters["logger"]
-    logger.warn(message, stacklevel=2)
+    logger.warning(message, stacklevel=2)
 
 def log_info(message, parameters=None):
     parameters = load_parameters(parameters)

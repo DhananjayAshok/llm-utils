@@ -34,6 +34,18 @@ def load_file(file_path, extension, parameters):
     else: # should be unreachable
         log_error(f"Should be unreachable, but got an unsupported file extension {extension}", parameters)
         return None
+    
+def handle_image_column(df, image_column, parameters):
+    # if its a list, do nothing. If its a string, split by comma and strip whitespace and make list. else error out
+    first_image = df[image_column].iloc[0]
+    if isinstance(first_image, list):
+        return df # assume its already in the correct format
+    elif isinstance(first_image, str):
+        df[image_column] = df[image_column].apply(lambda x: [img.strip() for img in x.split(",")])
+        return df
+    else:
+        log_error(f"Image column {image_column} should be either a list of image paths or a comma-separated string of image paths. Got {type(first_image)}", parameters)
+    
 
 def get_input_file(input_file, input_column, generation_complete_column, parameters):
     if input_file is None:
@@ -57,19 +69,20 @@ def get_input_file(input_file, input_column, generation_complete_column, paramet
     if not flag:
         log_error(f"Input file {input_file} must be one of {allowed_extensions}", parameters)
     else:
+        if len(df) == 0:
+            log_error(f"Input file {input_file} is empty", parameters)
         if input_column not in df.columns:
             log_error(f"Input file must have a column named '{input_column}'. Available columns: {df.columns.tolist()}", parameters)
         if parameters["modality"] == "vlm":
             if parameters["image_input_column"] not in df.columns:
                 log_error(f"Input file must have a column named '{parameters['image_input_column']}' for image input. Available columns: {df.columns.tolist()}", parameters)
+            df = handle_image_column(df, parameters["image_input_column"], parameters)
         if generation_complete_column in df.columns:
             log_error(f"Input file already has a column named '{generation_complete_column}'. This is used to track inference completion, reset it with --generation_complete_column or rename the column in your df", parameters)
         if parameters["output_logits_column"] in df.columns:
             log_error(f"Input file already has a column named '{parameters['output_logits_column']}'. This is used to store the model's output logits/probabilities, reset it with --output_logits_column or rename the column in your df", parameters)
         if parameters["output_column"] in df.columns:
             log_error(f"Input file already has a column named '{parameters['output_column']}'. This will be overwritten with the model's output.", parameters)
-        if len(df) == 0:
-            log_error(f"Input file {input_file} is empty.", parameters)
         return df
     return None
 
