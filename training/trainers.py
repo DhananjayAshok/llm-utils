@@ -36,6 +36,8 @@ class SampleLoggingCallback(TrainerCallback):
             self.output_ids_key_name = "chosen_input_ids"
             self.rejected_ids_key_name = "rejected_input_ids"
         base_columns = ["global_step", "item_id", "input"]
+        if self.modality == "vlm":
+            base_columns.append("input_images")
         if self.training_kind in ["clf", "sft", "ga", "npo", "pre"]:
             base_columns.extend(["target_output", "model_output"])
         elif self.training_kind in ["dpo", "kto", "cpo"]:
@@ -43,18 +45,17 @@ class SampleLoggingCallback(TrainerCallback):
         self.table = wandb.Table(columns=base_columns, log_mode="MUTABLE")
 
     def on_evaluate(self, args, state, control, model=None, eval_dataloader=None, **kwargs):
-         # TODO: This might fail for VLMs. Needs testing.
         batch = next(iter(eval_dataloader))
         all_input_texts = []
         all_targets = [] # also all_chosens
         all_outputs = []
         all_rejecteds = []
+        all_images = []
         processor = kwargs.get("processing_class")
         for i, batch in enumerate(eval_dataloader):
             if i >= self.n_eval_output_batches:
                 break
 
-        # Generate output
         if self.training_kind == "clf":
             input_texts = processor.batch_decode(batch[self.input_ids_key_name], skip_special_tokens=True)        
             all_input_texts.extend(input_texts)        
@@ -95,9 +96,39 @@ class SampleLoggingCallback(TrainerCallback):
             all_targets.extend(real_targets)
             all_rejecteds.extend(real_rejecteds)
             if self.modality == "vlm":
-                # VLM generation in the callback requires pixel_values from the original batch,
-                # but we only have decoded text here. Skip generation for now.
-                all_outputs.extend(["[skipped]"] * len(all_input_texts))
+                # Collect images for wandb logging
+                if "image_paths" in batch:
+                    for path_str in batch["image_paths"]:
+                        if isinstance(path_str, (list, tuple)):
+                            paths = [p for p in path_str if p]
+                        else:
+                            paths = [p.strip() for p in path_str.split(",") if p.strip()]
+                        all_images.append(wandb.Image(Image.open(paths[0]).convert("RGB")))
+                # Run generation using image tensors already in the batch.
+                # Forward all tensor batch keys except text/label keys — this picks up
+                # pixel_values, image_grid_thw, and any other model-specific image keys.
+                skip_keys = {self.input_ids_key_name, "attention_mask", "labels", "image_paths"}
+                prompt_ids_list = [
+                    batch[self.input_ids_key_name][j][:starting_indices[j]].tolist()
+                    for j in range(len(starting_indices))
+                ]
+                max_prompt_len = max(len(p) for p in prompt_ids_list)
+                pad_id = getattr(processor, "tokenizer", processor).pad_token_id or 0
+                padded = torch.full((len(prompt_ids_list), max_prompt_len), pad_id, dtype=torch.long)
+                attn = torch.zeros_like(padded)
+                for j, ids in enumerate(prompt_ids_list):
+                    padded[j, max_prompt_len - len(ids):] = torch.tensor(ids)
+                    attn[j, max_prompt_len - len(ids):] = 1
+                gen_inputs = {
+                    "input_ids": padded.to(model.device),
+                    "attention_mask": attn.to(model.device),
+                }
+                for k, v in batch.items():
+                    if k not in skip_keys and hasattr(v, "to"):
+                        gen_inputs[k] = v.to(model.device)
+                gen_out = model.generate(**gen_inputs, max_new_tokens=self.eval_max_new_tokens, do_sample=False)
+                gen_out = gen_out[:, max_prompt_len:]
+                all_outputs.extend(processor.batch_decode(gen_out, skip_special_tokens=True))
             else:
                 current_padding_side = processor.padding_side
                 processor.padding_side = "left"
@@ -111,10 +142,17 @@ class SampleLoggingCallback(TrainerCallback):
                 all_outputs.extend(output_texts)
         for j, values in enumerate(zip(all_input_texts, all_targets, all_rejecteds, all_outputs)):
             input_text, target, rejected, output = values
+            img = all_images[j] if all_images else None
             if self.training_kind in ["clf", "sft", "ga", "pre", "npo"]:
-                self.table.add_data(state.global_step, j, input_text, target, output)
+                if self.modality == "vlm":
+                    self.table.add_data(state.global_step, j, input_text, img, target, output)
+                else:
+                    self.table.add_data(state.global_step, j, input_text, target, output)
             elif self.training_kind in ["dpo", "cpo", "kto"]:
-                self.table.add_data(state.global_step, j, input_text, target, rejected, output)
+                if self.modality == "vlm":
+                    self.table.add_data(state.global_step, j, input_text, img, target, rejected, output)
+                else:
+                    self.table.add_data(state.global_step, j, input_text, target, rejected, output)
         wandb.log({"Sample Outputs": self.table})
         return
 
@@ -210,7 +248,7 @@ def lm_clf_preprocess_function(examples, tokenizer, max_length, label2id):
 
 def vlm_clf_preprocess_function(examples, processor, max_length, label2id):
     result = processor.apply_chat_template(
-            messages,
+            examples["messages"],
             add_generation_prompt=True,
             tokenize=True,
             return_dict=True,
@@ -324,24 +362,27 @@ class VLMSFTDataCollator:
 
     def __call__(self, examples):
         all_messages = []
+        all_prompt_messages = []
         all_images = []   # list-of-lists: [[PIL, ...], [PIL, ...], ...]
 
         for example in examples:
             pil_images = self._load_images(example["image"])
 
-            # Build messages with one {"type": "image"} placeholder per image.
-            # prepare_multimodal_messages fills those placeholders with actual PIL objects.
             user_content = [{"type": "image"} for _ in pil_images]
             user_content.append({"type": "text", "text": example["input"]})
             messages = [
                 {"role": "user", "content": user_content},
                 {"role": "assistant", "content": example["output"]},
             ]
+            prompt_messages = [
+                {"role": "user", "content": user_content},
+            ]
             prepared = prepare_multimodal_messages(messages, pil_images)
+            prepared_prompt = prepare_multimodal_messages(prompt_messages, pil_images)
             all_messages.append(prepared)
+            all_prompt_messages.append(prepared_prompt)
             all_images.append(pil_images)
 
-        # apply_chat_template accepts a batch (list of conversations) and returns list[str]
         texts = self.processor.apply_chat_template(
             all_messages,
             tokenize=False,
@@ -350,7 +391,14 @@ class VLMSFTDataCollator:
         if isinstance(texts, str):
             texts = [texts]
 
-        # Pass images as list-of-lists so the processor knows the per-example assignment.
+        prompt_texts = self.processor.apply_chat_template(
+            all_prompt_messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        if isinstance(prompt_texts, str):
+            prompt_texts = [prompt_texts]
+
         processor_kwargs = dict(
             text=texts,
             images=all_images,
@@ -363,9 +411,24 @@ class VLMSFTDataCollator:
             processor_kwargs["truncation"] = True
         output = self.processor(**processor_kwargs)
 
+        # Tokenize prompt-only per example (no padding) to get exact prompt lengths,
+        # including any image tokens inserted by the processor.
+        prompt_lens = []
+        for pt, imgs in zip(prompt_texts, all_images):
+            p_out = self.processor(
+                text=pt,
+                images=imgs,
+                return_tensors="pt",
+                add_special_tokens=False,
+            )
+            prompt_lens.append(p_out["input_ids"].shape[1])
+
         labels = output["input_ids"].clone()
         labels[output["attention_mask"] == 0] = -100
+        for i, prompt_len in enumerate(prompt_lens):
+            labels[i, :prompt_len] = -100
         output["labels"] = labels
+        output["image_paths"] = [example["image"] for example in examples]
         return output
 
 
