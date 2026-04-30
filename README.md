@@ -3,7 +3,7 @@
 Useful code for training and inference of Language Models. I currently support the following functionality:
 
 Language Models:
-1. Inference with HuggingFace Transformers and vLLM (no vLLM support for VLMs at the moment)
+1. Inference with HuggingFace Transformers and OpenAI Style API
 2. Pretraining
 3. Finetuning (Classification and Supervised Finetuning for Generation)
 4. Preference Optimization (Direct Preference Optimization, Contrastive Preference Optimization)
@@ -38,10 +38,10 @@ The code base supports FSDP, but it can be a bit buggy. See the dev repo for ins
 
 ### Inference
 
-The entry point for inference is the [`infer.py`](infer.py) script. It supports both HuggingFace Transformers and vLLM inference pipelines for both Language Models and Vision Language Models. The call to inference has three components:
+The entry point for inference is the [`infer.py`](infer.py) script. It supports both HuggingFace Transformers and OpenAI inference pipelines for both Language Models and Vision Language Models. The call to inference has three components:
 1. Core arguments: These are found in the click declaration of the function [`main`](infer.py) and should be passed in right after the filename with `python infer.py --modality vlm` etc
-2. Framework selection: This is done with the `hf` or `vllm` command, which selects the HuggingFace Transformers or vLLM inference pipeline respectively. e.g. `python infer.py --model_name <name> hf`
-3. Framework specific arguments: These are passed in after the `hf` or `vllm` command. For example, `python infer.py --model_name <name> hf --batch_size 8` will run inference with the HuggingFace Transformers pipeline. See the [huggingface](infer/huggingface_inference.py) and [vllm](infer/vllm_inference.py) inference files for the arguments that can be passed in after the `hf` or `vllm` command.
+2. Framework selection: This is done with the `hf` or `openai` command, which selects the HuggingFace Transformers or OpenAI inference pipeline respectively. e.g. `python infer.py --model_name <name> hf`
+3. Framework specific arguments: These are passed in after the `hf` or `openai` command. For example, `python infer.py --model_name <name> hf --batch_size 8` will run inference with the HuggingFace Transformers pipeline. See the [huggingface](infer/huggingface_inference.py) and [openai](infer/openai_inference.py) inference files for the arguments that can be passed in after the `hf` or `openai` command.
 
 The scripts will expect your input to be a csv file with a column named `input` that contains the text to be processed (and `image` with a url or path to an image for VLMs). It also expects that the input file does *not* contain the columns `output` or `inference_completed`. The output will be saved in the same directory as the input file, with a suffix `_output` added to the filename, and as a json lines file (`.jsonl`). The names of the columns, as well as the output path can be changed with the appropriate arguments.  
 
