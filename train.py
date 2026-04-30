@@ -24,7 +24,7 @@ from transformers import (
     TrainingArguments,
     set_seed,
 )
-from trl import SFTConfig, DPOConfig, KTOConfig, CPOConfig
+from trl import SFTConfig, DPOConfig
 from datetime import datetime, timezone
 
 
@@ -51,7 +51,7 @@ default_parameters["run_start_time"] = datetime.now(timezone.utc).strftime("%Y-%
 @dataclass
 class ScriptArguments:
     model_name: str = field(metadata={"help": "the model name"})
-    training_kind: str = field(metadata={"help": "the kind of training to do. Options: clf, pre, sft, dpo, kto, cpo"})
+    training_kind: str = field(metadata={"help": "the kind of training to do. Options: clf, pre, sft, dpo, ga, npo"})
     train_file: str = field(metadata={"help": "the training file"})
 
     modality: str = field(default="lm", metadata={"help": "the modality of the model. Options: lm, vlm"})
@@ -187,13 +187,6 @@ if __name__ == "__main__":
             training_args.completion_only_loss = False
     elif script_args.training_kind in ["dpo"]:
         parser = HfArgumentParser((ScriptArguments, DPOConfig))
-        script_args, training_args = parser.parse_args_into_dataclasses()
-    elif script_args.training_kind == "kto":
-        raise NotImplementedError(f"I think there is a bug in the KTO automatic dataset conversion")
-        parser = HfArgumentParser((ScriptArguments, KTOConfig))
-        script_args, training_args = parser.parse_args_into_dataclasses()
-    elif script_args.training_kind == "cpo":
-        parser = HfArgumentParser((ScriptArguments, CPOConfig))
         script_args, training_args = parser.parse_args_into_dataclasses()
     elif script_args.training_kind == "clf":
         parser = HfArgumentParser((ScriptArguments, TrainingArguments))

@@ -1,6 +1,6 @@
 import torch
 from transformers import Trainer, default_data_collator, EarlyStoppingCallback, TrainerCallback
-from trl import SFTTrainer, DPOTrainer, KTOTrainer, CPOTrainer
+from trl import SFTTrainer, DPOTrainer
 from trl.trainer.sft_trainer import DataCollatorForLanguageModeling
 from trl.trainer.sft_trainer import prepare_multimodal_messages
 from training.unlearning import GATrainer, NPOTrainer
@@ -31,7 +31,7 @@ class SampleLoggingCallback(TrainerCallback):
         self.eval_max_new_tokens = eval_max_new_tokens
         self.input_ids_key_name = "input_ids"
         self.output_ids_key_name = "labels"        
-        if self.training_kind in ["dpo", "cpo", "kto"]: # I think kto and cpo also use chosen_input_ids but I haven't tested
+        if self.training_kind in ["dpo"]:
             self.input_ids_key_name = "prompt_input_ids"
             self.output_ids_key_name = "chosen_input_ids"
             self.rejected_ids_key_name = "rejected_input_ids"
@@ -40,7 +40,7 @@ class SampleLoggingCallback(TrainerCallback):
             base_columns.append("input_images")
         if self.training_kind in ["clf", "sft", "ga", "npo", "pre"]:
             base_columns.extend(["target_output", "model_output"])
-        elif self.training_kind in ["dpo", "kto", "cpo"]:
+        elif self.training_kind in ["dpo"]:
             base_columns.extend(["chosen_output", "rejected_output", "model_output"])
         self.table = wandb.Table(columns=base_columns, log_mode="MUTABLE")
 
@@ -65,7 +65,7 @@ class SampleLoggingCallback(TrainerCallback):
             preds = outputs.logits.argmax(dim=-1).detach().cpu().numpy().tolist()
             all_outputs.extend(preds)
         else:
-            if self.training_kind in ["sft", "ga", "npo", "dpo", "cpo", "kto"]:
+            if self.training_kind in ["sft", "ga", "npo", "dpo"]:
                 starting_indices = (batch[self.output_ids_key_name] != -100).int().argmax(dim=1)
             elif self.training_kind in ["pre"]:
                 # then starting_indices is the halfway point of the input ids
@@ -76,17 +76,17 @@ class SampleLoggingCallback(TrainerCallback):
             for j, start_idx in enumerate(starting_indices):
                 if self.training_kind in ["sft", "ga", "pre", "npo"]:
                     input_ids = batch[self.input_ids_key_name][j][:start_idx]
-                elif self.training_kind in ["dpo", "cpo", "kto"]:
+                elif self.training_kind in ["dpo"]:
                     input_ids = batch[self.input_ids_key_name][j] # start_idx is always 0
                 text = processor.decode(input_ids, skip_special_tokens=True)
                 real_input_texts.append(text)
-                if self.training_kind in ["sft", "ga", "npo", "dpo", "cpo", "kto"]:
+                if self.training_kind in ["sft", "ga", "npo", "dpo"]:
                     output_ids = batch[self.output_ids_key_name][j][start_idx:]
                 elif self.training_kind in ["pre"]:
                     output_ids = batch[self.output_ids_key_name][j][start_idx:start_idx+self.eval_max_new_tokens]
                 output_text = processor.decode(output_ids[output_ids != -100], skip_special_tokens=True)
                 real_targets.append(output_text)
-                if self.training_kind in ["dpo", "cpo", "kto"]:
+                if self.training_kind in ["dpo"]:
                     rejected_ids = batch[self.rejected_ids_key_name][j][start_idx:]
                     rejected_text = processor.decode(rejected_ids[rejected_ids != -100], skip_special_tokens=True)
                     real_rejecteds.append(rejected_text)
@@ -148,7 +148,7 @@ class SampleLoggingCallback(TrainerCallback):
                     self.table.add_data(state.global_step, j, input_text, img, target, output)
                 else:
                     self.table.add_data(state.global_step, j, input_text, target, output)
-            elif self.training_kind in ["dpo", "cpo", "kto"]:
+            elif self.training_kind in ["dpo"]:
                 if self.modality == "vlm":
                     self.table.add_data(state.global_step, j, input_text, img, target, rejected, output)
                 else:
@@ -576,44 +576,6 @@ def get_dpo_trainer(script_args, training_args, dataset, model, processor, peft_
     )   
     return trainer, dataset
 
-def get_kto_trainer(script_args, training_args, dataset, model, processor, peft_config):
-    if script_args.modality == "lm":
-        train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
-    else:
-        train_dataset = dataset["train"]
-        validation_dataset = dataset["validation"] if "validation" in dataset else None
-        training_args.remove_unused_columns = False
-    callbacks = get_callback_list(script_args)
-    trainer = KTOTrainer(
-        model,
-        ref_model=None,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=validation_dataset,
-        processing_class=processor,
-        callbacks=callbacks,
-        peft_config=peft_config,
-    )   
-    return trainer, dataset
-
-def get_cpo_trainer(script_args, training_args, dataset, model, processor, peft_config):
-    if script_args.modality == "lm":
-        train_dataset, validation_dataset = get_trl_renamed_train_val_dataset(dataset)
-    else:
-        train_dataset = dataset["train"]
-        validation_dataset = dataset["validation"] if "validation" in dataset else None
-        training_args.remove_unused_columns = False
-    callbacks = get_callback_list(script_args)
-    trainer = CPOTrainer(
-        model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=validation_dataset,
-        processing_class=processor,
-        callbacks=callbacks,
-        peft_config=peft_config,
-    )   
-    return trainer, dataset
 
 def get_ga_trainer(script_args, training_args, dataset, model, processor, peft_config):
     callbacks = get_callback_list(script_args)
@@ -689,10 +651,6 @@ def get_trainer(script_args, training_args, dataset, model, processor):
             trainer, dataset = get_sft_trainer(script_args, training_args, dataset, model, processor, peft_config)
         elif script_args.training_kind == "dpo":
             trainer, dataset = get_dpo_trainer(script_args, training_args, dataset, model, processor, peft_config)
-        elif script_args.training_kind == "kto":
-            trainer, dataset = get_kto_trainer(script_args, training_args, dataset, model, processor, peft_config)
-        elif script_args.training_kind == "cpo":
-            trainer, dataset = get_cpo_trainer(script_args, training_args, dataset, model, processor, peft_config)
         elif script_args.training_kind == "ga":
             trainer, dataset = get_ga_trainer(script_args, training_args, dataset, model, processor, peft_config)
         elif script_args.training_kind == "npo":
