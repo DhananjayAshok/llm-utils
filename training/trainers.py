@@ -409,19 +409,31 @@ class VLMSFTDataCollator:
         if self.max_length is not None:
             processor_kwargs["max_length"] = self.max_length
             processor_kwargs["truncation"] = True
+        current_padding_side = self.processor.tokenizer.padding_side
+        self.processor.tokenizer.padding_side = "right"
         output = self.processor(**processor_kwargs)
+        self.processor.tokenizer.padding_side = current_padding_side
 
-        # Tokenize prompt-only per example (no padding) to get exact prompt lengths,
-        # including any image tokens inserted by the processor.
+        # Tokenize prompt-only per example (no padding) to find the prompt/completion
+        # boundary in the jointly-tokenized `output["input_ids"]`. Tokenizing the prompt
+        # in isolation can diverge from the corresponding prefix of the joint tokenization
+        # near the boundary (BPE merges depend on what follows), so only trust the longest
+        # common prefix between the two -- otherwise a few completion tokens get masked
+        # into the prompt region of `labels`.
         prompt_lens = []
-        for pt, imgs in zip(prompt_texts, all_images):
+        for i, (pt, imgs) in enumerate(zip(prompt_texts, all_images)):
             p_out = self.processor(
                 text=pt,
                 images=imgs,
                 return_tensors="pt",
                 add_special_tokens=False,
             )
-            prompt_lens.append(p_out["input_ids"].shape[1])
+            prompt_ids = p_out["input_ids"][0]
+            full_ids = output["input_ids"][i]
+            min_len = min(len(prompt_ids), len(full_ids))
+            matches = prompt_ids[:min_len] == full_ids[:min_len]
+            prompt_len = min_len if matches.all() else matches.int().argmin().item()
+            prompt_lens.append(prompt_len)
 
         labels = output["input_ids"].clone()
         labels[output["attention_mask"] == 0] = -100
